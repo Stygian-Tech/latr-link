@@ -135,7 +135,18 @@ export async function handleCallback(): Promise<OAuthSession> {
   return session;
 }
 
-export async function getSession(): Promise<OAuthSession | null> {
+/** Max time for OAuth `init()` + IndexedDB restore before unblocking the UI (embedded / broken dev browsers may hang). */
+const SESSION_RESTORE_TIMEOUT_MS =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_AUTH_RESTORE_TIMEOUT_MS
+    ? Math.max(
+        3000,
+        Number.parseInt(process.env.NEXT_PUBLIC_AUTH_RESTORE_TIMEOUT_MS, 10) ||
+          12_000
+      )
+    : 12_000;
+
+async function restoreSessionFromStore(): Promise<OAuthSession | null> {
   try {
     const client = await getOAuthClient();
     const result = await client.init();
@@ -144,6 +155,19 @@ export async function getSession(): Promise<OAuthSession | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Restores OAuth session from IndexedDB. Races with a timeout so the app never
+ * spins forever if `client.init()` hangs (e.g. embedded browser, blocked IDB).
+ */
+export async function getSession(): Promise<OAuthSession | null> {
+  return Promise.race([
+    restoreSessionFromStore(),
+    new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), SESSION_RESTORE_TIMEOUT_MS)
+    ),
+  ]);
 }
 
 export async function signOut(did: string): Promise<void> {
