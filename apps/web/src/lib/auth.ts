@@ -16,11 +16,37 @@ export const AT_PROTO_OAUTH_SCOPES = [
   "repo:com.latr.saved.item?action=create&action=update&action=delete",
 ].join(" ");
 
-export function isLocalOAuthMode(): boolean {
+function isLoopbackHostname(hostname: string): boolean {
   return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  );
+}
+
+/**
+ * Use built-in loopback OAuth (no fetch to latr.link) when:
+ * - explicitly enabled via env, or
+ * - Next dev + opened on a loopback host (avoids "Failed to fetch" if `.env.local` is missing).
+ */
+export function isLocalOAuthMode(): boolean {
+  if (
     process.env.NEXT_PUBLIC_APP_ENV === "local" ||
     process.env.NEXT_PUBLIC_ATPROTO_LOCAL === "true"
-  );
+  ) {
+    return true;
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    process.env.NODE_ENV === "development" &&
+    isLoopbackHostname(window.location.hostname)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -77,6 +103,20 @@ export async function getOAuthClient(): Promise<BrowserOAuthClient> {
     _clientPromise = BrowserOAuthClient.load({
       clientId: resolveClientId(),
       handleResolver: BSKY_APPVIEW_PUBLIC,
+    }).catch((err: unknown) => {
+      _clientPromise = null;
+      const cause = err instanceof Error ? err.message : String(err);
+      const clientId = resolveClientId();
+      if (
+        clientId.startsWith("https:") &&
+        String(cause).toLowerCase().includes("fetch")
+      ) {
+        throw new Error(
+          `Could not load OAuth client metadata from ${clientId}. For local dev, use a loopback URL (localhost / 127.0.0.1) or set NEXT_PUBLIC_APP_ENV=local in apps/web/.env.local. (${cause})`,
+          { cause: err }
+        );
+      }
+      throw err instanceof Error ? err : new Error(cause);
     });
   }
   return _clientPromise;
@@ -96,8 +136,8 @@ export async function handleCallback(): Promise<OAuthSession> {
 }
 
 export async function getSession(): Promise<OAuthSession | null> {
-  const client = await getOAuthClient();
   try {
+    const client = await getOAuthClient();
     const result = await client.init();
     if (!result) return null;
     return result.session ?? null;

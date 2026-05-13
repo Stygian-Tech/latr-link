@@ -36,7 +36,7 @@ cp .env.example .env.local
 bun run dev
 ```
 
-Use [http://127.0.0.1:3000](http://127.0.0.1:3000) for OAuth (loopback); `NEXT_PUBLIC_APP_ENV=local` is set in `.env.example`.
+Use [http://127.0.0.1:3000](http://127.0.0.1:3000) for OAuth (loopback). With `next dev`, opening **localhost** or **127.0.0.1** automatically uses loopback OAuth (no fetch to `latr.link`); you can still add `apps/web/.env.local` from `.env.example` for overrides.
 
 ### Local OAuth (development)
 
