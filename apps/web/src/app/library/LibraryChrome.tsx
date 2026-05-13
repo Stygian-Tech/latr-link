@@ -20,7 +20,7 @@ export function LibraryChrome({ children }: { children: React.ReactNode }) {
       <aside className="flex w-56 shrink-0 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-            L@tr
+            L@tr.link
           </p>
           <p className="mt-1 truncate text-sm text-zinc-600 dark:text-zinc-300">
             {session?.did}

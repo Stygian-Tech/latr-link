@@ -7,6 +7,6 @@
   "scope": "atproto repo:com.latr.saved.external?action=create&action=update&action=delete repo:com.latr.saved.item?action=create&action=update&action=delete",
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true,
-  "client_name": "L@tr",
+  "client_name": "L@tr.link",
   "client_uri": "https://latr.link"
 }

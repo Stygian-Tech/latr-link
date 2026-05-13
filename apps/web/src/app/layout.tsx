@@ -4,7 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "L@tr",
+  title: "L@tr.link",
   description: "Read later on your ATProto repo",
 };
 
