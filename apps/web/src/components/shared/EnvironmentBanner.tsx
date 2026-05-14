@@ -3,31 +3,21 @@
 /**
  * Environment banner — shown at the top of every page in non-production environments.
  *
- * Controlled by NEXT_PUBLIC_APP_ENV:
- *   "prod"  → no banner
- *   "dev"   → amber banner
- *   "local" → blue banner (default when env var is unset)
+ * Controlled by NEXT_PUBLIC_APP_ENV (see {@link @/lib/environmentBanner}).
  */
 
-const env = process.env.NEXT_PUBLIC_APP_ENV ?? "local";
-
-const BANNER_CONFIG = {
-  dev: {
-    label: "DEV",
-    message: "You're on the development server",
-    className: "border-b border-amber-500 bg-amber-400 text-amber-900",
-  },
-  local: {
-    label: "LOCAL",
-    message: "Running locally",
-    className: "border-b border-blue-600 bg-blue-500 text-white",
-  },
-} as const;
+import {
+  ENVIRONMENT_BANNER_CONFIG,
+  NEXT_PUBLIC_APP_ENV,
+} from "@/lib/environmentBanner";
 
 export function EnvironmentBanner() {
-  if (env === "prod") return null;
+  if (NEXT_PUBLIC_APP_ENV === "prod") return null;
 
-  const config = BANNER_CONFIG[env as keyof typeof BANNER_CONFIG];
+  const config =
+    ENVIRONMENT_BANNER_CONFIG[
+      NEXT_PUBLIC_APP_ENV as keyof typeof ENVIRONMENT_BANNER_CONFIG
+    ];
   if (!config) return null;
 
   return (

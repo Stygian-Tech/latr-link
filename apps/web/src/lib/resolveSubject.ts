@@ -13,6 +13,12 @@ export interface ResolvedPreview {
   subtitle?: string;
   href?: string;
   kind: "external" | "post" | "record" | "unknown";
+  /** `com.latr.saved.external.image` — Open Graph thumbnail */
+  imageHref?: string;
+  /** Preferred display/canonical HTTP(S) URL for external subjects */
+  canonicalUrl?: string;
+  /** Hostname hint for favicon row chrome */
+  siteLabel?: string;
 }
 
 function pickPostText(record: unknown): string {
@@ -58,11 +64,25 @@ export async function resolveSubjectPreview(
     const v = direct.value as { $type?: string };
     if (v.$type === COLLECTION_SAVED_EXTERNAL) {
       const ext = direct.value as SavedExternalRecord;
+      const canonicalUrl =
+        ext.normalizedUrl?.trim() || ext.url.trim() || undefined;
+      let siteLabel: string | undefined;
+      if (canonicalUrl) {
+        try {
+          siteLabel = new URL(canonicalUrl).hostname;
+        } catch {
+          siteLabel = undefined;
+        }
+      }
+
       return {
         kind: "external",
         title: previewTitleForExternal(ext),
         subtitle: ext.excerpt?.slice(0, 200),
         href: ext.normalizedUrl || ext.url,
+        imageHref: ext.image?.trim(),
+        canonicalUrl,
+        siteLabel,
       };
     }
     return {

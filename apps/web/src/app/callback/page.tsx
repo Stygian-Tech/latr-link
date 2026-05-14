@@ -56,7 +56,7 @@ export default function CallbackPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex min-h-app items-center justify-center bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-md space-y-3 px-4 text-center">
         <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
         <p className="text-sm text-zinc-500">Completing sign-in…</p>

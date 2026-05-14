@@ -39,7 +39,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-1 min-h-screen flex-col items-center justify-center gap-3 bg-zinc-50 p-4 dark:bg-zinc-950">
+    <div className="flex min-h-app flex-1 flex-col items-center justify-center gap-3 bg-zinc-50 p-4 dark:bg-zinc-950">
       <div className="w-full max-w-sm space-y-6 rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="text-center">
           <h1 className="text-2xl font-semibold tracking-tight">L@tr.link</h1>

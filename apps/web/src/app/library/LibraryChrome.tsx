@@ -46,7 +46,7 @@ export function LibraryChrome({ children }: { children: React.ReactNode }) {
     "—";
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-app">
       <aside className="flex w-56 shrink-0 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
           <div className="flex min-w-0 flex-col gap-1">

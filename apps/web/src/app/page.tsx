@@ -19,7 +19,7 @@ export default function HomePage() {
   }, [isLoading, session, router]);
 
   return (
-    <div className="flex flex-1 min-h-screen items-center justify-center">
+    <div className="flex min-h-app flex-1 items-center justify-center">
       <p className="text-sm text-zinc-500">Loading…</p>
     </div>
   );

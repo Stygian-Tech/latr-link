@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 
 import { EnvironmentBanner } from "@/components/shared/EnvironmentBanner";
+import {
+  ENVIRONMENT_BANNER_OFFSET,
+  isEnvironmentBannerShown,
+} from "@/lib/environmentBanner";
 
 import "./globals.css";
 import { Providers } from "./providers";
@@ -15,8 +20,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const htmlStyle = {
+    "--env-banner-offset": isEnvironmentBannerShown()
+      ? ENVIRONMENT_BANNER_OFFSET
+      : "0px",
+  } as CSSProperties;
+
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className="h-full antialiased" style={htmlStyle}>
       <head>
         <script
           dangerouslySetInnerHTML={{

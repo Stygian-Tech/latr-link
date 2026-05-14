@@ -152,8 +152,78 @@ export class LatrRepo {
   }
 
   async saveExternalUrl(url: string): Promise<void> {
-    const { wrapperUri } = await this.ensureExternalForUrl(url);
+    const { normalized, externalRkey, wrapperUri } =
+      await this.ensureExternalForUrl(url);
     await this.upsertSavedItem(wrapperUri, { state: "unread" });
+    await this.maybeEnrichExternalFromOg(normalized, externalRkey);
+  }
+
+  /**
+   * Fetches Open Graph metadata via same-origin `/api/og-preview` and merges sparse
+   * fields on `com.latr.saved.external` (best-effort; skips when preview already populated).
+   */
+  async maybeEnrichExternalFromOg(
+    normalizedUrl: string,
+    externalRkey: string
+  ): Promise<void> {
+    const existing = await this.getExternal(externalRkey);
+    if (!existing) return;
+
+    const v = existing.value;
+    if (v.title?.trim() && v.image?.trim()) return;
+
+    type OgResp = {
+      title?: string;
+      description?: string;
+      image?: string;
+      siteName?: string;
+      author?: string;
+      error?: string;
+    };
+
+    let ogJson: OgResp;
+    try {
+      const qp = new URLSearchParams({ url: normalizedUrl });
+      const res = await fetch(`/api/og-preview?${qp.toString()}`);
+      ogJson = (await res.json()) as OgResp;
+      if (!res.ok) return;
+    } catch {
+      return;
+    }
+
+    const merged: SavedExternalRecord = {
+      ...v,
+      ...(ogJson.title && !v.title?.trim()
+        ? { title: ogJson.title.slice(0, 2048) }
+        : {}),
+      ...(ogJson.description && !v.excerpt?.trim()
+        ? { excerpt: ogJson.description.slice(0, 8192) }
+        : {}),
+      ...(ogJson.image && !v.image?.trim() ? { image: ogJson.image } : {}),
+      ...(ogJson.siteName && !v.site?.trim()
+        ? { site: ogJson.siteName.slice(0, 512) }
+        : {}),
+      ...(ogJson.author && !v.author?.trim()
+        ? { author: ogJson.author.slice(0, 512) }
+        : {}),
+    };
+
+    if (
+      merged.title === v.title &&
+      merged.excerpt === v.excerpt &&
+      merged.image === v.image &&
+      merged.site === v.site &&
+      merged.author === v.author
+    ) {
+      return;
+    }
+
+    await this.agent.api.com.atproto.repo.putRecord({
+      repo: this.did,
+      collection: COLLECTION_SAVED_EXTERNAL,
+      rkey: externalRkey,
+      record: merged as unknown as Record<string, unknown>,
+    });
   }
 
   async saveSubjectUri(subjectUri: string): Promise<void> {

@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/** Set from root layout ({@link ./layout.tsx}); defaults if unset. */
+html {
+  --env-banner-offset: 0px;
+}
+
 body {
   font-family:
     system-ui,
@@ -7,4 +12,11 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+}
+
+@layer utilities {
+  /** Viewport minus environment ribbon — use instead of min-h-screen when banner may show */
+  .min-h-app {
+    min-height: calc(100dvh - var(--env-banner-offset));
+  }
 }
