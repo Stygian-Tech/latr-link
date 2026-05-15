@@ -27,4 +27,11 @@ export interface SavedItemRecord {
   tags?: string[];
   note?: string;
   lastOpenedAt?: string;
+  /** Canonical HTTP(S) page used for Open Graph scraping (native subjects). */
+  linkedWebUrl?: string;
+  previewTitle?: string;
+  previewExcerpt?: string;
+  previewSite?: string;
+  previewImage?: string;
+  previewAuthor?: string;
 }

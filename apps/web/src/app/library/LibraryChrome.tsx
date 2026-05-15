@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { UserAvatar } from "@/components/UserAvatar";
+import { EmbeddedReaderPortal } from "@/contexts/embeddedReader";
 import { useAuth } from "@/hooks/useAuth";
 import { useViewerProfile } from "@/hooks/useViewerProfile";
 
@@ -48,12 +49,12 @@ export function LibraryChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-app">
       <aside className="flex w-56 shrink-0 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+        <div className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
           <div className="flex min-w-0 flex-col gap-1">
-            <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <span className="truncate text-lg font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
               L@tr.link
             </span>
-            <span className="inline-flex w-fit items-center rounded-full border border-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:border-zinc-600 dark:text-zinc-400">
+            <span className="inline-flex w-fit items-center rounded-full border border-zinc-200 px-1.5 py-0.5 text-[10px] font-medium leading-snug text-zinc-500 dark:border-zinc-600 dark:text-zinc-400">
               Alpha
             </span>
           </div>
@@ -111,7 +112,9 @@ export function LibraryChrome({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <EmbeddedReaderPortal>{children}</EmbeddedReaderPortal>
+      </div>
     </div>
   );
 }

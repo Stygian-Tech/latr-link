@@ -1,5 +1,9 @@
 "use client";
 
+import { type MouseEvent, type ReactElement } from "react";
+
+import { parsedHttpHttpsUrl } from "@/components/EmbeddedPageDialog";
+import { useOpenEmbeddedReader } from "@/contexts/embeddedReader";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 import {
   useInvalidateSavedLibrary,
@@ -7,7 +11,15 @@ import {
   type SavedRow,
 } from "@/hooks/useSavedLibrary";
 import { rkeyFromAtUri } from "@/lib/rkey";
+import { isEnvironmentBannerShown } from "@/lib/environmentBanner";
+import type { ResolvedPreview } from "@/lib/resolveSubject";
 import { Archive, ArchiveRestore, Link2, Trash2 } from "lucide-react";
+
+const showSavedStorageDevHint = isEnvironmentBannerShown();
+
+function devSavedStorageLabel(kind: ResolvedPreview["kind"]) {
+  return kind === "external" ? "External" : "AT record";
+}
 
 function SavedLinkThumbnailPlaceholder() {
   return (
@@ -67,55 +79,72 @@ export function SavedRows({ mode }: { mode: "unread" | "archive" }) {
   const { data, isLoading, error } = useSavedLibrary();
   const repo = useLatrRepo();
   const invalidate = useInvalidateSavedLibrary();
+  const openEmbeddedReader = useOpenEmbeddedReader();
 
   const rows = filterRows(data, mode);
 
+  let main: ReactElement;
   if (isLoading) {
-    return (
-      <p className="p-4 text-sm text-zinc-500">Loading saved items…</p>
-    );
-  }
-
-  if (error) {
-    return (
+    main = <p className="p-4 text-sm text-zinc-500">Loading saved items…</p>;
+  } else if (error) {
+    main = (
       <p className="p-4 text-sm text-red-600">
         {error instanceof Error ? error.message : "Failed to load"}
       </p>
     );
-  }
-
-  if (!rows.length) {
-    return (
+  } else if (!rows.length) {
+    main = (
       <p className="p-6 text-sm text-zinc-500">
         {mode === "unread"
-          ? "Nothing in your queue yet. Paste a URL above to save it."
+          ? "Nothing in your queue yet. Paste a URL or AT URI above to save it."
           : "Archive is empty."}
       </p>
     );
+  } else {
+    main = (
+      <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        {rows.map((row) => (
+          <SavedRowItem
+            key={row.rec.uri}
+            row={row}
+            repo={repo}
+            onChanged={() => invalidate()}
+            onOpenEmbedded={openEmbeddedReader}
+          />
+        ))}
+      </ul>
+    );
   }
 
-  return (
-    <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-      {rows.map((row) => (
-        <SavedRowItem
-          key={row.rec.uri}
-          row={row}
-          repo={repo}
-          onChanged={() => invalidate()}
-        />
-      ))}
-    </ul>
-  );
+  return main;
+}
+
+function activateSavedHref(
+  rawHref: string,
+  previewTitle: string,
+  openEmbedded: (url: string, title: string) => void,
+  modifiers: Pick<MouseEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey">
+): void {
+  if (modifiers.metaKey || modifiers.ctrlKey || modifiers.shiftKey || modifiers.altKey) {
+    const http = parsedHttpHttpsUrl(rawHref);
+    window.open(http?.href ?? rawHref, "_blank", "noopener,noreferrer");
+    return;
+  }
+  const parsed = parsedHttpHttpsUrl(rawHref);
+  if (parsed) openEmbedded(parsed.href, previewTitle || "Saved link");
+  else window.open(rawHref, "_blank", "noopener,noreferrer");
 }
 
 function SavedRowItem({
   row,
   repo,
   onChanged,
+  onOpenEmbedded,
 }: {
   row: SavedRow;
   repo: ReturnType<typeof useLatrRepo>;
   onChanged: () => void;
+  onOpenEmbedded: (url: string, title: string) => void;
 }) {
   const itemRkey = rkeyFromAtUri(row.rec.uri);
   const href = row.preview.href ?? row.rec.value.subjectUri;
@@ -127,27 +156,32 @@ function SavedRowItem({
 
   return (
     <li className="group relative flex flex-col gap-3 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/40 sm:flex-row sm:items-stretch sm:gap-4">
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
+      <button
+        type="button"
         aria-label={openLabel}
-        className="absolute inset-0 z-0 rounded-md outline-offset-2 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-500"
+        onClick={(e) =>
+          activateSavedHref(href, p.title, onOpenEmbedded, e)
+        }
+        onAuxClick={(e) => {
+          if (e.button !== 1) return;
+          e.preventDefault();
+          const http = parsedHttpHttpsUrl(href);
+          window.open(http?.href ?? href, "_blank", "noopener,noreferrer");
+        }}
+        className="absolute inset-0 z-0 cursor-pointer rounded-md border-0 bg-transparent text-left outline-offset-2 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-500"
       />
       <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-3 pointer-events-none sm:flex-row sm:items-center sm:gap-4">
         <div className="shrink-0 self-start sm:self-center">
           {thumb ? (
-            <>
+            <div className="inline-flex max-h-[4.75rem] max-w-[min(100%,11rem)] shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 p-px dark:border-zinc-700 dark:bg-zinc-900/65">
               {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote OG image URLs */}
               <img
                 src={thumb}
                 alt=""
-                width={56}
-                height={56}
                 loading="lazy"
-                className="h-14 w-14 rounded-md border border-zinc-200 object-cover dark:border-zinc-700"
+                className="block max-h-[4.5rem] max-w-full h-auto w-auto object-contain"
               />
-            </>
+            </div>
           ) : (
             <SavedLinkThumbnailPlaceholder />
           )}
@@ -176,11 +210,29 @@ function SavedRowItem({
                   {p.subtitle}
                 </p>
               )}
-              <p className="mt-1 truncate text-xs text-zinc-400">
-                {(p.siteLabel ?? p.kind) +
-                  " · " +
-                  savedAtShort(row.rec.value.savedAt)}
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
+                <span className="min-w-0 truncate">
+                  {(p.siteLabel ?? p.kind) +
+                    " · " +
+                    savedAtShort(row.rec.value.savedAt)}
+                </span>
+                {showSavedStorageDevHint ? (
+                  <span
+                    title={
+                      p.kind === "external"
+                        ? "Saved via com.latr.saved.external wrapper"
+                        : "Saved subject is a native at:// record reference"
+                    }
+                    className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
+                      p.kind === "external"
+                        ? "border border-amber-700/55 bg-amber-100 text-amber-950 dark:border-amber-500/60 dark:bg-amber-950/55 dark:text-amber-50"
+                        : "border border-violet-700/55 bg-violet-100 text-violet-950 dark:border-violet-500/60 dark:bg-violet-950/55 dark:text-violet-50"
+                    }`}
+                  >
+                    {devSavedStorageLabel(p.kind)}
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>

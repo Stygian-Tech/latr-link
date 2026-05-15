@@ -2,50 +2,65 @@
 
 import { FormEvent, useState } from "react";
 
-import { useLatrRepo } from "@/hooks/useLatrRepo";
 import { useInvalidateSavedLibrary } from "@/hooks/useSavedLibrary";
+import { useLatrRepo } from "@/hooks/useLatrRepo";
+import { showSaveOutcomeDebugLabels } from "@/lib/environmentBanner";
+import { resolvePasteForSave } from "@/lib/resolveSaveInput";
+
+/** Mirrors “AT record” dev chip tint in SavedRows.tsx */
+const savePathDebugChip =
+  "inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1 rounded border border-violet-700/55 bg-violet-100 px-2 py-1.5 text-violet-950 dark:border-violet-500/60 dark:bg-violet-950/55 dark:text-violet-50";
+
+type SaveFeedback =
+  | { mode: "plain"; text: string }
+  | { mode: "debug"; detail: string };
 
 export function SaveUrlBar() {
   const repo = useLatrRepo();
   const invalidate = useInvalidateSavedLibrary();
-  const [url, setUrl] = useState("");
-  const [atUri, setAtUri] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const [paste, setPaste] = useState("");
+  const [feedback, setFeedback] = useState<SaveFeedback | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function onSubmitUrl(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!repo) return;
+    if (!repo || !paste.trim()) return;
     setBusy(true);
-    setStatus(null);
+    setFeedback(null);
     try {
-      await repo.saveExternalUrl(url.trim());
-      setUrl("");
-      setStatus("Saved URL.");
+      const resolved = await resolvePasteForSave(paste);
+      if (resolved.kind === "subject") {
+        await repo.saveSubjectUri(resolved.subjectUri, {
+          linkedWebUrl: resolved.discoveryWebUrl,
+        });
+        if (!showSaveOutcomeDebugLabels()) {
+          setFeedback({ mode: "plain", text: "Saved." });
+        } else if (resolved.via === "bsky-app") {
+          setFeedback({
+            mode: "debug",
+            detail: "Saved as AT Proto record (Bluesky post link).",
+          });
+        } else if (resolved.via === "standard-site") {
+          setFeedback({
+            mode: "debug",
+            detail:
+              "Saved AT Proto record (detected Standard.site link tag).",
+          });
+        } else {
+          setFeedback({ mode: "debug", detail: "Saved AT Proto record." });
+        }
+      } else {
+        await repo.saveExternalUrl(resolved.normalizedUrl);
+        setFeedback({ mode: "plain", text: "Saved link." });
+      }
+      setPaste("");
       invalidate();
     } catch (err) {
-      setStatus(
-        err instanceof Error ? err.message : "Could not save this URL."
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSubmitAtUri(e: FormEvent) {
-    e.preventDefault();
-    if (!repo || !atUri.trim()) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      await repo.saveSubjectUri(atUri.trim());
-      setAtUri("");
-      setStatus("Saved AT URI.");
-      invalidate();
-    } catch (err) {
-      setStatus(
-        err instanceof Error ? err.message : "Could not save this AT URI."
-      );
+      setFeedback({
+        mode: "plain",
+        text:
+          err instanceof Error ? err.message : "Could not save this paste.",
+      });
     } finally {
       setBusy(false);
     }
@@ -54,63 +69,51 @@ export function SaveUrlBar() {
   return (
     <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
       <form
-        onSubmit={(e) => void onSubmitUrl(e)}
+        onSubmit={(e) => void onSubmit(e)}
         className="flex flex-wrap items-end gap-2 px-4 py-3"
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <label htmlFor="save-url" className="text-xs font-medium text-zinc-500">
-            Save URL
+          <label htmlFor="save-paste" className="text-xs font-medium text-zinc-500">
+            Save link or AT URI
           </label>
           <input
-            id="save-url"
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://…"
+            id="save-paste"
+            type="text"
+            value={paste}
+            onChange={(e) => setPaste(e.target.value)}
+            placeholder="https://… or at://did…/collection/rkey"
             disabled={busy || !repo}
+            spellCheck={false}
+            autoComplete="off"
+            enterKeyHint="done"
             className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-600 dark:bg-zinc-900"
           />
         </div>
         <button
           type="submit"
-          disabled={busy || !url.trim() || !repo}
+          disabled={busy || !paste.trim() || !repo}
           className="h-9 shrink-0 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
-          {busy ? "Saving…" : "Save link"}
+          {busy ? "Saving…" : "Save"}
         </button>
       </form>
-      <form
-        onSubmit={(e) => void onSubmitAtUri(e)}
-        className="flex flex-wrap items-end gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800/80"
-      >
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <label htmlFor="save-uri" className="text-xs font-medium text-zinc-500">
-            Save AT URI (post or record)
-          </label>
-          <input
-            id="save-uri"
-            type="text"
-            value={atUri}
-            onChange={(e) => setAtUri(e.target.value)}
-            placeholder="at://did:plc:…/app.bsky.feed.post/…"
-            disabled={busy || !repo}
-            spellCheck={false}
-            className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-900"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={busy || !atUri.trim() || !repo}
-          className="h-9 shrink-0 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-600"
-        >
-          Save URI
-        </button>
-      </form>
-      {status && (
-        <p className="px-4 pb-3 text-xs text-zinc-500 dark:text-zinc-400">
-          {status}
-        </p>
-      )}
+      {feedback &&
+        (feedback.mode === "debug" ? (
+          <div className="px-4 pb-3">
+            <span className={savePathDebugChip} title="Save pathway (dev)">
+              <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide opacity-95">
+                [DEBUG]
+              </span>
+              <span className="min-w-0 text-xs leading-snug">
+                {feedback.detail}
+              </span>
+            </span>
+          </div>
+        ) : (
+          <p className="px-4 pb-3 text-xs text-zinc-500 dark:text-zinc-400">
+            {feedback.text}
+          </p>
+        ))}
     </div>
   );
 }
