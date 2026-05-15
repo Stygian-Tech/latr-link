@@ -42,6 +42,8 @@ With `next dev` **or** `next start`, opening **`http://127.0.0.1:3000`** or **`h
 
 Loopback OAuth must use a `client_id` that includes your `/callback` path and repo scopes. `apps/web/.env.local` should set `NEXT_PUBLIC_APP_ENV=local` (already in `.env.example`).
 
+**Production:** set **`NEXT_PUBLIC_APP_ENV=prod`** on the host—if **`NEXT_PUBLIC_APP_ENV`** is unset at build/runtime, it defaults to **`local`**, which shows LOCAL-only UI on the live site. See **`apps/web/.env.example`** for **`prod`** / **`local`** / **`dev`** behavior.
+
 Prefer **`http://127.0.0.1:3000`** in the browser so the redirect URI matches ATProto loopback rules (see `@atproto/oauth-client-browser` README — the library may rewrite `localhost` to loopback IP).
 
 Optional environment variables (see `apps/web/.env.example`):

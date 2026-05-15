@@ -1,6 +1,10 @@
 /**
  * Non-production ribbon at top of layout — visibility + `--env-banner-offset` must stay
  * in sync with {@link ../components/shared/EnvironmentBanner.tsx}.
+ *
+ * `NEXT_PUBLIC_APP_ENV`: **`prod`** | **`local`** | **`dev`** (documented in
+ * `apps/web/.env.example`). If the variable is **unset**, the binding becomes **`local`**
+ * (`?? "local"` below) — hosted deploys **must set `prod` explicitly**.
  */
 
 export const NEXT_PUBLIC_APP_ENV = process.env.NEXT_PUBLIC_APP_ENV ?? "local";
