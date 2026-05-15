@@ -4,7 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
-import { resolveSubjectPreview, type ResolvedPreview } from "@/lib/resolveSubject";
+import {
+  mergeSavedItemOgPreview,
+  resolveSubjectPreview,
+  type ResolvedPreview,
+} from "@/lib/resolveSubject";
 import type { LatrRepo, RepoRecord } from "@/lib/latrRepo";
 import type { SavedItemRecord } from "latr-kit";
 
@@ -18,10 +22,13 @@ async function buildLibrary(
 ): Promise<SavedRow[]> {
   const items = await repo.listSavedItems();
   const rows: SavedRow[] = await Promise.all(
-    items.map(async (rec) => ({
-      rec,
-      preview: await resolveSubjectPreview(repo, rec.value.subjectUri),
-    }))
+    items.map(async (rec) => {
+      const base = await resolveSubjectPreview(repo, rec.value.subjectUri);
+      return {
+        rec,
+        preview: mergeSavedItemOgPreview(base, rec.value),
+      };
+    })
   );
   rows.sort(
     (a, b) =>

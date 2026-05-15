@@ -3,6 +3,7 @@ import {
   COLLECTION_SAVED_EXTERNAL,
   previewTitleForExternal,
   type SavedExternalRecord,
+  type SavedItemRecord,
 } from "latr-kit";
 
 import { publicAppviewAgent } from "@/lib/appview";
@@ -19,6 +20,49 @@ export interface ResolvedPreview {
   canonicalUrl?: string;
   /** Hostname hint for favicon row chrome */
   siteLabel?: string;
+}
+
+/** Prefer cached OG fields from `com.latr.saved.item` when the user saved from a web URL. */
+export function mergeSavedItemOgPreview(
+  preview: ResolvedPreview,
+  item: SavedItemRecord
+): ResolvedPreview {
+  const linked = item.linkedWebUrl?.trim();
+  if (
+    !linked &&
+    !item.previewTitle?.trim() &&
+    !item.previewImage?.trim() &&
+    !item.previewExcerpt?.trim() &&
+    !item.previewSite?.trim()
+  ) {
+    return preview;
+  }
+
+  const canonicalUrl =
+    linked || preview.canonicalUrl || preview.href?.trim();
+
+  let siteLabel = preview.siteLabel;
+  if (item.previewSite?.trim()) {
+    siteLabel = item.previewSite.trim();
+  } else if (canonicalUrl && !siteLabel) {
+    try {
+      siteLabel = new URL(canonicalUrl).hostname;
+    } catch {
+      siteLabel = siteLabel ?? undefined;
+    }
+  }
+
+  return {
+    ...preview,
+    title: item.previewTitle?.trim() || preview.title,
+    subtitle: item.previewExcerpt?.trim() || preview.subtitle,
+    imageHref: item.previewImage?.trim() || preview.imageHref,
+    canonicalUrl:
+      canonicalUrl === undefined ? preview.canonicalUrl : canonicalUrl,
+    siteLabel,
+    href:
+      linked?.trim() || preview.href,
+  };
 }
 
 function pickPostText(record: unknown): string {

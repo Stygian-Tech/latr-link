@@ -21,10 +21,12 @@ export default function ArchivePage() {
   return (
     <>
       <header className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
-        <h1 className="text-lg font-semibold">Archive</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Items marked archived.
-        </p>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-lg font-semibold leading-tight">Archive</h1>
+          <p className="text-sm leading-snug text-zinc-500 dark:text-zinc-400">
+            Items marked archived.
+          </p>
+        </div>
       </header>
       <SavedRows mode="archive" />
     </>

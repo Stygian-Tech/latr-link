@@ -26,3 +26,22 @@ export function isEnvironmentBannerShown(): boolean {
     NEXT_PUBLIC_APP_ENV === "dev" || NEXT_PUBLIC_APP_ENV === "local"
   );
 }
+
+/**
+ * Verbose SaveUrlBar success copy (resolution path hints). Omit on hosted production.
+ * Call from the browser after user actions so loopback hostname can be detected when env is ambiguous.
+ */
+export function showSaveOutcomeDebugLabels(): boolean {
+  if (NEXT_PUBLIC_APP_ENV === "prod") return false;
+  if (NEXT_PUBLIC_APP_ENV === "local" || NEXT_PUBLIC_APP_ENV === "dev") {
+    return true;
+  }
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname.toLowerCase();
+  return (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "::1" ||
+    h === "[::1]"
+  );
+}
