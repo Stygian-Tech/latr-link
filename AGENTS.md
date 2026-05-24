@@ -1,6 +1,6 @@
 ## Workspace facts
 
-- **Git remotes — origin is GitHub, tangled is Tangled.** This repo tracks GitHub on **`origin`** (`github.com/Stygian-Tech/latr-link`) and Tangled on **`tangled`** (`git@tangled.org:did:plc:jq2bt674bkbf6n53zxzmlixv`). After a commit that should appear on both forges: `git push origin <branch> && git push tangled <branch>` (replace `<branch>` with the active branch).
+- **Git remotes — origin is Tangled, vercel is GitHub.** This repo tracks Tangled on **`origin`** (`git@tangled.org:did:plc:jq2bt674bkbf6n53zxzmlixv`) and GitHub on **`vercel`** (`github.com/Stygian-Tech/latr-link`). After a commit that should appear on both forges: `git push origin <branch> && git push vercel <branch>` (replace `<branch>` with the active branch).
 - Monorepo root: Bun workspaces (`apps/*`, `packages/*`, `services/*`) + Turborepo.
 - Web app: `apps/web` (package name `web`). Run checks with `bash scripts/ci.sh` or `bun run turbo run build --filter=web...`.
 - Gateway: `services/latr-gateway` — Swift/Hummingbird HTTP service: OAuth/DPoP gate, PDS write-through for L@tr saves. Local: `cd services/latr-gateway && swift run LatrGateway` (port 8080). Web uses `NEXT_PUBLIC_LATR_GATEWAY_URL`.
