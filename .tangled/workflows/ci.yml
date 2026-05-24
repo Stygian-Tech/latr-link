@@ -1,0 +1,18 @@
+when:
+  - event: ["push", "manual"]
+    branch: ["main", "dev"]
+  - event: ["pull_request"]
+    branch: ["main", "dev"]
+
+engine: "nixery"
+
+dependencies:
+  nixpkgs:
+    - bun
+    - swift
+
+steps:
+  - name: Install
+    command: bun install --frozen-lockfile
+  - name: Test and build
+    command: bash scripts/ci.sh

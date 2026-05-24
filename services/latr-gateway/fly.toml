@@ -1,0 +1,37 @@
+# Deploy from repo root: bash services/latr-gateway/deploy.sh dev
+# Or: fly deploy . --config services/latr-gateway/fly.toml --app latr-link-dev-gateway
+
+app = 'latr-link-dev-gateway'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'Dockerfile'
+  context = '../..'
+
+[deploy]
+  wait_timeout = '10m0s'
+
+[env]
+  PORT = '8080'
+  APP_ENV = 'dev'
+  # OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT = 'true'
+  # OAUTH_GATEWAY_ALLOWED_CLIENT_IDS = 'https://latr.link/client-metadata.json'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '10s'
+    grace_period = '1m0s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

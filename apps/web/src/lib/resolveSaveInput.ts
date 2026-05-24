@@ -6,6 +6,8 @@ import { normalizeUrl } from "latr-kit";
 
 import { publicAppviewAgent } from "@/lib/appview";
 import { tryCanonicalAtUri } from "@/lib/canonicalAtUri";
+import { latrGatewayFetch } from "@/lib/latrGatewayClient";
+import type { OAuthSession } from "@atproto/oauth-client-browser";
 
 export { tryCanonicalAtUri } from "@/lib/canonicalAtUri";
 
@@ -75,7 +77,8 @@ async function actorToDid(actor: string): Promise<string | null> {
 
 /** Throw if empty or unusable paste; resolves Bluesky URLs to native `at://` when possible */
 export async function resolvePasteForSave(
-  rawInput: string
+  rawInput: string,
+  oauthSession?: OAuthSession | null
 ): Promise<ResolvedSavePaste> {
   const trimmed = rawInput.trim();
   if (!trimmed) {
@@ -115,11 +118,16 @@ export async function resolvePasteForSave(
   }
 
   try {
-    const rr = await fetch(
-      `/api/at-uri-from-url?${new URLSearchParams({ url: httpUrl.href }).toString()}`
-    );
+    const discoverUrl = `/v1/latr/discover/at-uri?${new URLSearchParams({ url: httpUrl.href }).toString()}`;
+    const rr = oauthSession
+      ? await latrGatewayFetch(oauthSession, discoverUrl)
+      : await fetch(
+          `/api/at-uri-from-url?${new URLSearchParams({ url: httpUrl.href }).toString()}`
+        );
     if (rr.ok) {
-      const data = (await rr.json()) as { subjectUri?: string | null };
+      const data = (await rr.json()) as {
+        subjectUri?: string | null;
+      };
       if (data.subjectUri) {
         const canon = tryCanonicalAtUri(data.subjectUri);
         if (canon) {

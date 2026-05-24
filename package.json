@@ -1,7 +1,7 @@
 {
   "name": "latr-link",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["apps/*", "packages/*", "services/*"],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",

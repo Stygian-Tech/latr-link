@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 
 import { useInvalidateSavedLibrary } from "@/hooks/useSavedLibrary";
+import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 import { showSaveOutcomeDebugLabels } from "@/lib/environmentBanner";
 import { resolvePasteForSave } from "@/lib/resolveSaveInput";
@@ -17,6 +18,7 @@ type SaveFeedback =
 
 export function SaveUrlBar() {
   const repo = useLatrRepo();
+  const { getOAuthSession } = useAuth();
   const invalidate = useInvalidateSavedLibrary();
   const [paste, setPaste] = useState("");
   const [feedback, setFeedback] = useState<SaveFeedback | null>(null);
@@ -28,7 +30,7 @@ export function SaveUrlBar() {
     setBusy(true);
     setFeedback(null);
     try {
-      const resolved = await resolvePasteForSave(paste);
+      const resolved = await resolvePasteForSave(paste, getOAuthSession());
       if (resolved.kind === "subject") {
         await repo.saveSubjectUri(resolved.subjectUri, {
           linkedWebUrl: resolved.discoveryWebUrl,
