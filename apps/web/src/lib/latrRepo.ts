@@ -39,7 +39,7 @@ export class LatrRepo {
         records.push({
           uri: row.uri,
           cid: row.cid,
-          value: row.value as SavedItemRecord,
+          value: row.value as unknown as SavedItemRecord,
         });
       }
 

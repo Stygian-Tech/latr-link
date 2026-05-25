@@ -152,7 +152,7 @@ public struct SavedLibrary: Sendable {
             linkedWebURL: normalizedLink
         )
 
-        if let normalizedLink, let preview {
+        if let preview {
             let recordKey = RecordKey.key(forSubjectURI: subjectURI)
             try await enrichSavedItem(withKey: recordKey, preview: preview)
         }

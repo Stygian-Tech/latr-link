@@ -10,7 +10,7 @@ public struct CorsMiddleware<Context: RequestContext>: RouterMiddleware {
         next: (Request, Context) async throws -> Response
     ) async throws -> Response {
         if request.method == .options {
-            var headers = corsHeaders(for: request)
+            let headers = corsHeaders(for: request)
             return Response(status: .noContent, headers: headers)
         }
 

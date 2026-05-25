@@ -1,5 +1,4 @@
 import type { OAuthSession } from "@atproto/oauth-client-browser";
-import { base64url } from "multiformats/bases/base64";
 
 /** PDS XRPC method the gateway write-through path uses for a gateway route. */
 export function pdsXrpcMethodForGatewayRequest(
@@ -39,7 +38,12 @@ function stripQueryAndFragment(url: string): string {
 async function sha256Base64Url(input: string): Promise<string> {
   const bytes = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return base64url.baseEncode(new Uint8Array(digest));
+  const view = new Uint8Array(digest);
+  let binary = "";
+  for (const byte of view) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 type TokenSet = {

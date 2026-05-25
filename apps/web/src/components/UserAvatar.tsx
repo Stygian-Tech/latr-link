@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 type UserAvatarProps = {
   src?: string | null;
   alt: string;
@@ -15,11 +17,12 @@ export function UserAvatar({
 }: UserAvatarProps) {
   if (src) {
     return (
-      <img
+      <Image
         src={src}
         alt={alt}
         width={size}
         height={size}
+        unoptimized
         className={`rounded-full object-cover ${className}`}
         referrerPolicy="no-referrer"
       />

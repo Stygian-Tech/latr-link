@@ -43,7 +43,7 @@ public func fetchURLBodyLimited(
                let nextURL = URL(string: location, relativeTo: currentURL)
             {
                 currentURL = nextURL
-                if let block = blockingReasonOGFetch(currentURL.host ?? "") {
+                if blockingReasonOGFetch(currentURL.host ?? "") != nil {
                     return .failure(reason: "blocked_redirect")
                 }
                 continue

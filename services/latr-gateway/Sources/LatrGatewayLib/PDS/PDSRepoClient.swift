@@ -25,7 +25,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             guard response.status == .ok else {
                 throw GatewayError(status: .badGateway, message: "PLC lookup failed", code: "pds_resolve")
             }
-            var body = try await response.body.collect(upTo: 1_048_576)
+            let body = try await response.body.collect(upTo: 1_048_576)
             return Data(buffer: body)
         }
     }
@@ -67,7 +67,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         request.body = .bytes(bodyData)
 
         let response = try await httpClient.execute(request, timeout: .seconds(30))
-        var responseBody = try await response.body.collect(upTo: 2_097_152)
+        let responseBody = try await response.body.collect(upTo: 2_097_152)
         let jsonObject = responseBody.readableBytes > 0
             ? (try? JSONSerialization.jsonObject(with: Data(buffer: responseBody)) as? [String: Any]) ?? [:]
             : [:]
@@ -114,7 +114,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         let response = try await httpClient.execute(request, timeout: .seconds(30))
         if response.status == .notFound { return [:] }
 
-        var responseBody = try await response.body.collect(upTo: 2_097_152)
+        let responseBody = try await response.body.collect(upTo: 2_097_152)
         guard (200 ... 299).contains(response.status.code) else {
             switch response.status.code {
             case 401:

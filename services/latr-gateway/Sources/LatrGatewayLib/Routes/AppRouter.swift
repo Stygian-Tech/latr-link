@@ -155,7 +155,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.post("auth/probe") { request, _ in
-        try await handleProtected(request: request, services: services) { auth in
+        await handleProtected(request: request, services: services) { auth in
             let page: RecordList<SavedItem> = try await services.repositoryClient(for: auth).listRecords(
                 in: auth.did,
                 collection: .savedItem,
@@ -177,7 +177,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.get("saves") { request, _ in
-        try await handleProtected(request: request, services: services) { auth in
+        await handleProtected(request: request, services: services) { auth in
             let library = services.savedLibrary(for: auth)
             let items = try await library.savedItems()
             return try jsonResponse(SavedItemsResponse(records: items))
@@ -185,7 +185,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.post("saves") { request, _ in
-        try await handleProtected(request: request, services: services) { auth in
+        await handleProtected(request: request, services: services) { auth in
             let body = try await decodeJSONBody(request, as: SaveBody.self)
             let library = services.savedLibrary(for: auth)
 
@@ -216,7 +216,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.get("saves/subject") { request, _ in
-        try await handleProtected(request: request, services: services) { auth in
+        await handleProtected(request: request, services: services) { auth in
             guard let subjectURI = request.uri.queryParameters.get("subjectUri")?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
                 !subjectURI.isEmpty
@@ -232,7 +232,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.patch("saves/:itemRkey/state") { request, context in
-        try await handleProtected(request: request, services: services) { auth in
+        await handleProtected(request: request, services: services) { auth in
             let itemRkey = (try? context.parameters.require("itemRkey"))
                 ?? request.uri.path.split(separator: "/").dropLast().last.map(String.init)
                 ?? ""
@@ -252,7 +252,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.delete("saves/:itemRkey") { request, context in
-        try await handleProtected(request: request, services: services) { auth in
+        await handleProtected(request: request, services: services) { auth in
             let itemRkey = (try? context.parameters.require("itemRkey"))
                 ?? request.uri.path.split(separator: "/").last.map(String.init)
                 ?? ""
@@ -267,7 +267,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.get("discover/at-uri") { request, _ in
-        try await handleProtected(request: request, services: services) { _ in
+        await handleProtected(request: request, services: services) { _ in
             guard let raw = request.uri.queryParameters.get("url")?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
                 !raw.isEmpty
@@ -280,7 +280,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.get("og-preview") { request, _ in
-        try await handleProtected(request: request, services: services) { _ in
+        await handleProtected(request: request, services: services) { _ in
             guard let raw = request.uri.queryParameters.get("url")?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
                 !raw.isEmpty
