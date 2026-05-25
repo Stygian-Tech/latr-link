@@ -1,10 +1,10 @@
 import { buildAtprotoLoopbackClientId } from "@atproto/oauth-types";
 
-export const AT_PROTO_OAUTH_SCOPES = [
-  "atproto",
-  "repo:com.latr.saved.external?action=create&action=update&action=delete",
-  "repo:com.latr.saved.item?action=create&action=update&action=delete",
-].join(" ");
+import { AT_PROTO_OAUTH_SCOPES } from "@/lib/atprotoOAuthScopes";
+import { getAppEnv } from "@/lib/environmentBanner";
+import { resolveHostedOAuthClientId } from "@/lib/oauthClientMetadata";
+
+export { AT_PROTO_OAUTH_SCOPES } from "@/lib/atprotoOAuthScopes";
 
 export function resolveOAuthResponseMode(): "fragment" | "query" {
   return process.env.NEXT_PUBLIC_OAUTH_RESPONSE_MODE === "query"
@@ -29,7 +29,7 @@ function isLoopbackHostname(hostname: string): boolean {
  */
 export function isLocalOAuthMode(): boolean {
   if (
-    process.env.NEXT_PUBLIC_APP_ENV === "local" ||
+    getAppEnv() === "local" ||
     process.env.NEXT_PUBLIC_ATPROTO_LOCAL === "true"
   ) {
     return true;
@@ -56,10 +56,7 @@ export function resolveClientId(): string {
   }
 
   if (!isLocalOAuthMode()) {
-    return (
-      process.env.NEXT_PUBLIC_ATPROTO_CLIENT_ID ??
-      "https://latr.link/client-metadata.json"
-    );
+    return resolveHostedClientId();
   }
 
   if (typeof window === "undefined") {
@@ -75,6 +72,16 @@ export function resolveClientId(): string {
     scope: AT_PROTO_OAUTH_SCOPES,
     redirect_uris: [redirectUri],
   });
+}
+
+function resolveHostedClientId(): string {
+  if (typeof window !== "undefined") {
+    return resolveHostedOAuthClientId(window.location.origin);
+  }
+
+  const explicit = process.env.NEXT_PUBLIC_ATPROTO_CLIENT_ID?.trim();
+  if (explicit) return explicit;
+  return "https://latr.link/client-metadata.json";
 }
 
 /** `http://127.0.0.1:<port>/callback` matching this tab (maps localhost → 127.0.0.1). */

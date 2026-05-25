@@ -76,6 +76,15 @@ describe("local OAuth config", () => {
     expect(resolveClientId()).toBe("https://latr.link/client-metadata.json");
   });
 
+  test("uses same-origin hosted metadata on preview hosts", () => {
+    process.env.NEXT_PUBLIC_APP_ENV = "dev";
+    setWindowUrl("https://testing-latr-link.vercel.app/login");
+
+    expect(resolveClientId()).toBe(
+      "https://testing-latr-link.vercel.app/client-metadata.json"
+    );
+  });
+
   test("detects fragment callback params by default", () => {
     setWindowUrl("http://127.0.0.1:3000/callback#state=s1&code=c1");
 

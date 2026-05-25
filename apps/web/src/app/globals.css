@@ -1,12 +1,8 @@
 @import "tailwindcss";
 
-/** Set from root layout ({@link ./layout.tsx}); defaults if unset. */
+/** Set from root layout ({@link ./layout.tsx}); defaults to 0px in CSS. */
 html {
   --env-banner-offset: 0px;
-}
-
-html.env-banner-active {
-  --env-banner-offset: 2.375rem;
 }
 
 body {
