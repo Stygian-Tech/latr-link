@@ -1,0 +1,18 @@
+# Keep Fly/Depot gateway image builds fast; context is the monorepo root.
+.git
+.github
+**/.build
+**/.swiftpm
+**/node_modules
+**/.next
+**/.turbo
+**/data
+**/*.swiftmodule
+**/*.swiftdeps
+**/*.d
+**/*.dia
+apps/web
+docs
+packages/lexicons
+scripts
+.tangled

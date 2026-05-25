@@ -13,6 +13,7 @@ let package = Package(
         .package(path: "../../packages/latr-kit"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.25.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.12.0"),
     ],
     targets: [
         .target(
@@ -21,6 +22,7 @@ let package = Package(
                 .product(name: "LatrKit", package: "latr-kit"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                .product(name: "Crypto", package: "swift-crypto"),
             ],
             path: "Sources/LatrGatewayLib"
         ),

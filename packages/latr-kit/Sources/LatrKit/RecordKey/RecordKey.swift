@@ -1,4 +1,4 @@
-import CryptoKit
+import Crypto
 import Foundation
 
 /// Deterministic ATProto record keys for L@tr collections.

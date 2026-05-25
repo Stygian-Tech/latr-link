@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM swift:6.0-jammy AS builder
+FROM swift:6.1-jammy AS builder
 
 WORKDIR /src
 COPY packages/latr-kit/ ./packages/latr-kit/

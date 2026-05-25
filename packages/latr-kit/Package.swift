@@ -10,9 +10,15 @@ let package = Package(
     products: [
         .library(name: "LatrKit", targets: ["LatrKit"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.12.0"),
+    ],
     targets: [
         .target(
             name: "LatrKit",
+            dependencies: [
+                .product(name: "Crypto", package: "swift-crypto"),
+            ],
             path: "Sources/LatrKit"
         ),
         .testTarget(
