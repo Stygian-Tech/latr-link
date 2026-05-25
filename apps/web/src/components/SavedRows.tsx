@@ -48,7 +48,7 @@ function faviconUrlForOrigin(origin: string): string {
 
 function savedAtShort(iso: string): string {
   try {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat("en-US", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(iso));

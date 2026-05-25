@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -16,11 +16,27 @@ function getInitialCallbackError(): string | null {
   return params.get("message") || callbackErrorMessage;
 }
 
+function subscribeToLoginSearchParams(onStoreChange: () => void) {
+  window.addEventListener("popstate", onStoreChange);
+  return () => window.removeEventListener("popstate", onStoreChange);
+}
+
+function readCallbackErrorFromUrl(): string | null {
+  return getInitialCallbackError();
+}
+
 export default function LoginPage() {
   const { signIn } = useAuth();
   const [handle, setHandle] = useState("");
-  const [error, setError] = useState<string | null>(getInitialCallbackError);
+  const callbackError = useSyncExternalStore(
+    subscribeToLoginSearchParams,
+    readCallbackErrorFromUrl,
+    () => null
+  );
+  const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+
+  const displayError = error ?? callbackError;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -69,8 +85,8 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          {displayError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{displayError}</p>
           )}
 
           <button

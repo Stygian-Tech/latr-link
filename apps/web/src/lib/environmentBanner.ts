@@ -1,5 +1,5 @@
 /**
- * Non-production ribbon at top of layout — visibility + `--env-banner-offset` must stay
+ * Non-production ribbon at top of layout — visibility + `html.env-banner-active` must stay
  * in sync with {@link ../components/shared/EnvironmentBanner.tsx}.
  *
  * `NEXT_PUBLIC_APP_ENV`: **`prod`** | **`local`** | **`dev`** (documented in

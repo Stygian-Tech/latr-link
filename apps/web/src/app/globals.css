@@ -5,6 +5,10 @@ html {
   --env-banner-offset: 0px;
 }
 
+html.env-banner-active {
+  --env-banner-offset: 2.375rem;
+}
+
 body {
   font-family:
     system-ui,
