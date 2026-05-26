@@ -50,13 +50,24 @@ public struct SavedLibrary: Sendable {
         try await repository.record(in: repositoryDID, collection: .savedItem, withKey: key)
     }
 
-    public func ensureExternalSave(for url: String) async throws -> ExternalSaveReference {
+    public func ensureExternalSave(for url: String, preview: OpenGraphPreview? = nil) async throws -> ExternalSaveReference {
         guard let normalizedURL = URLNormalizer.normalizedString(from: url) else {
             throw SavedLibraryError.invalidURL
         }
 
         let recordKey = RecordKey.key(forNormalizedURL: normalizedURL)
         if let existing = try await externalSave(withKey: recordKey) {
+            if let preview,
+               OpenGraphMerger.externalSaveNeedsPreview(existing.value),
+               let merged = OpenGraphMerger.merging(into: existing.value, preview: preview)
+            {
+                _ = try await repository.updateRecord(
+                    in: repositoryDID,
+                    collection: .external,
+                    withKey: recordKey,
+                    value: merged
+                )
+            }
             return ExternalSaveReference(
                 normalizedURL: normalizedURL,
                 recordKey: recordKey,
@@ -64,12 +75,15 @@ public struct SavedLibrary: Sendable {
             )
         }
 
-        let value = ExternalSave(
+        var value = ExternalSave(
             url: url,
             normalizedUrl: normalizedURL,
             fingerprint: RecordKey.fingerprint(forNormalizedURL: normalizedURL),
             createdAt: Timestamp.iso8601Now()
         )
+        if let preview, let merged = OpenGraphMerger.merging(into: value, preview: preview) {
+            value = merged
+        }
 
         _ = try await repository.createRecord(
             in: repositoryDID,
@@ -89,18 +103,25 @@ public struct SavedLibrary: Sendable {
     public func upsertSavedItem(
         subjectURI: String,
         state: SavedItemState? = nil,
-        linkedWebURL: String? = nil
+        linkedWebURL: String? = nil,
+        preview: OpenGraphPreview? = nil
     ) async throws -> SavedItemReference {
         let recordKey = RecordKey.key(forSubjectURI: subjectURI)
         var value = SavedItem(subjectUri: subjectURI, savedAt: Timestamp.iso8601Now())
         if let state { value.state = state }
         if let linkedWebURL { value.linkedWebUrl = linkedWebURL }
+        if let preview, let merged = OpenGraphMerger.merging(into: value, preview: preview) {
+            value = merged
+        }
 
         if let existing = try await savedItem(withKey: recordKey) {
             var merged = existing.value
             merged.subjectUri = value.subjectUri
             if let state = value.state { merged.state = state }
             if let linkedWebUrl = value.linkedWebUrl { merged.linkedWebUrl = linkedWebUrl }
+            if let preview, let previewMerged = OpenGraphMerger.merging(into: merged, preview: preview) {
+                merged = previewMerged
+            }
 
             let response = try await repository.updateRecord(
                 in: repositoryDID,
@@ -124,14 +145,11 @@ public struct SavedLibrary: Sendable {
         url: String,
         preview: OpenGraphPreview? = nil
     ) async throws {
-        let reference = try await ensureExternalSave(for: url)
+        let reference = try await ensureExternalSave(for: url, preview: preview)
         _ = try await upsertSavedItem(
             subjectURI: reference.wrapperURI,
             state: .unread
         )
-        if let preview {
-            try await enrichExternalSave(withKey: reference.recordKey, preview: preview)
-        }
     }
 
     public func save(
@@ -149,13 +167,9 @@ public struct SavedLibrary: Sendable {
         _ = try await upsertSavedItem(
             subjectURI: subjectURI,
             state: .unread,
-            linkedWebURL: normalizedLink
+            linkedWebURL: normalizedLink,
+            preview: preview
         )
-
-        if let preview {
-            let recordKey = RecordKey.key(forSubjectURI: subjectURI)
-            try await enrichSavedItem(withKey: recordKey, preview: preview)
-        }
     }
 
     public func setState(ofSavedItemWithKey key: String, to state: SavedItemState) async throws {

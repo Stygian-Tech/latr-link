@@ -42,13 +42,60 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         return base
     }
 
-    private func pdsDPOPProof() -> String {
-        if let upstream = auth.upstreamDpopProof?.trimmingCharacters(in: .whitespacesAndNewlines),
+    private func decodeJWTClaimString(_ jwt: String, claim: String) -> String? {
+        let parts = jwt.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count >= 2 else { return nil }
+
+        var payloadB64 = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padding = (4 - payloadB64.count % 4) % 4
+        payloadB64.append(String(repeating: "=", count: padding))
+
+        guard let data = Data(base64Encoded: payloadB64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = json[claim] as? String
+        else {
+            return nil
+        }
+        return value
+    }
+
+    private func upstreamProofTargets(xrpcMethod: String) -> Bool {
+        guard let upstream = auth.upstreamDpopProof?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !upstream.isEmpty,
+              let htu = decodeJWTClaimString(upstream, claim: "htu")
+        else {
+            return false
+        }
+        let normalized = htu.split(separator: "?").first.map(String.init) ?? htu
+        return normalized.hasSuffix("/xrpc/\(xrpcMethod)")
+    }
+
+    /// PDS-bound proof for repo mutations. Reuses upstream only when its `htu` matches this XRPC method.
+    private func pdsMutationDPOPProof(forXrpcMethod method: String) -> String {
+        if upstreamProofTargets(xrpcMethod: method),
+           let upstream = auth.upstreamDpopProof?.trimmingCharacters(in: .whitespacesAndNewlines),
            !upstream.isEmpty
         {
             return upstream
         }
         return auth.dpopProof
+    }
+
+    /// PDS-bound proof for authenticated repo reads (`listRecords`).
+    private func pdsReadDPOPProof(forXrpcMethod method: String) -> String {
+        pdsMutationDPOPProof(forXrpcMethod: method)
+    }
+
+    private func isRecordNotFound(statusCode: Int, json: [String: Any]) -> Bool {
+        if statusCode == 404 { return true }
+        guard statusCode == 400 else { return false }
+
+        let error = (json["error"] as? String) ?? ""
+        let message = (json["message"] as? String) ?? ""
+        if error == "RecordNotFound" { return true }
+        return message.localizedCaseInsensitiveContains("could not locate record")
     }
 
     private func xrpcPost(method: String, body: [String: Any]) async throws -> [String: Any] {
@@ -63,7 +110,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         request.headers.add(name: "Accept", value: "application/json")
         request.headers.add(name: "Content-Type", value: "application/json")
         request.headers.add(name: "Authorization", value: auth.authorizationHeader)
-        request.headers.add(name: "DPoP", value: pdsDPOPProof())
+        request.headers.add(name: "DPoP", value: pdsMutationDPOPProof(forXrpcMethod: method))
         request.body = .bytes(bodyData)
 
         let response = try await httpClient.execute(request, timeout: .seconds(30))
@@ -98,7 +145,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         return jsonObject
     }
 
-    private func xrpcGet(method: String, query: [String: String]) async throws -> [String: Any] {
+    private func xrpcGet(method: String, query: [String: String], useAuth: Bool) async throws -> [String: Any] {
         let base = try await pdsBase()
         var components = URLComponents(string: "\(base)/xrpc/\(method)")!
         components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
@@ -108,14 +155,25 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
 
         var request = HTTPClientRequest(url: url.absoluteString)
         request.headers.add(name: "Accept", value: "application/json")
-        request.headers.add(name: "Authorization", value: auth.authorizationHeader)
-        request.headers.add(name: "DPoP", value: pdsDPOPProof())
+        if useAuth {
+            request.headers.add(name: "Authorization", value: auth.authorizationHeader)
+            request.headers.add(name: "DPoP", value: pdsReadDPOPProof(forXrpcMethod: method))
+        }
 
         let response = try await httpClient.execute(request, timeout: .seconds(30))
         if response.status == .notFound { return [:] }
 
         let responseBody = try await response.body.collect(upTo: 2_097_152)
+        let jsonObject = responseBody.readableBytes > 0
+            ? (try? JSONSerialization.jsonObject(with: Data(buffer: responseBody)) as? [String: Any]) ?? [:]
+            : [:]
+
         guard (200 ... 299).contains(response.status.code) else {
+            if method == "com.atproto.repo.getRecord",
+               isRecordNotFound(statusCode: Int(response.status.code), json: jsonObject)
+            {
+                return [:]
+            }
             switch response.status.code {
             case 401:
                 throw GatewayError(
@@ -138,8 +196,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             }
         }
 
-        guard responseBody.readableBytes > 0 else { return [:] }
-        return (try JSONSerialization.jsonObject(with: Data(buffer: responseBody)) as? [String: Any]) ?? [:]
+        return jsonObject
     }
 
     public func listRecords<Value>(
@@ -155,7 +212,11 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         ]
         if let cursor { query["cursor"] = cursor }
 
-        let json = try await xrpcGet(method: "com.atproto.repo.listRecords", query: query)
+        let json = try await xrpcGet(
+            method: "com.atproto.repo.listRecords",
+            query: query,
+            useAuth: true
+        )
         let rawRecords = json["records"] as? [[String: Any]] ?? []
         let records: [RepositoryRecord<Value>] = try rawRecords.compactMap { entry in
             guard let uri = entry["uri"] as? String,
@@ -177,7 +238,8 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
     ) async throws -> RepositoryRecord<Value>? where Value: Codable & Sendable {
         let json = try await xrpcGet(
             method: "com.atproto.repo.getRecord",
-            query: ["repo": repository, "collection": collection.identifier, "rkey": key]
+            query: ["repo": repository, "collection": collection.identifier, "rkey": key],
+            useAuth: false
         )
         guard let uri = json["uri"] as? String,
               let cid = json["cid"] as? String,
