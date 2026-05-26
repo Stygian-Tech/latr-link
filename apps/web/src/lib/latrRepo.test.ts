@@ -6,6 +6,7 @@ function mockOAuthSession(
   handler: (url: string, init?: RequestInit) => Promise<Response>
 ): OAuthSession {
   return {
+    did: "did:plc:viewer",
     fetchHandler: handler,
     getTokenInfo: async () => ({
       aud: "https://pds.example.test",
@@ -18,6 +19,9 @@ function mockOAuthSession(
       token_type: "DPoP",
     }),
     server: {
+      dpopNonces: {
+        get: async () => "test-pds-nonce",
+      },
       dpopKey: {
         bareJwk: { kty: "EC" },
         algorithms: ["ES256"],
