@@ -1,13 +1,12 @@
 "use client";
 
-import { type MouseEvent, type ReactElement } from "react";
+import { type MouseEvent, type ReactElement, useState } from "react";
 
 import { parsedHttpHttpsUrl } from "@/components/EmbeddedPageDialog";
 import { useOpenEmbeddedReader } from "@/contexts/embeddedReader";
-import { useLatrRepo } from "@/hooks/useLatrRepo";
 import {
-  useInvalidateSavedLibrary,
   useSavedLibrary,
+  useSavedLibraryMutations,
   type SavedRow,
 } from "@/hooks/useSavedLibrary";
 import { rkeyFromAtUri } from "@/lib/rkey";
@@ -58,10 +57,10 @@ function savedAtShort(iso: string): string {
 }
 
 const savedRowIconButtonClass =
-  "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-zinc-300 text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800";
+  "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-zinc-300 text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800";
 
 const savedRowDangerButtonClass =
-  "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-red-300 bg-red-50 text-red-700 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400 dark:hover:bg-red-950/80";
+  "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-red-300 bg-red-50 text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400 dark:hover:bg-red-950/80";
 
 function filterRows(
   rows: SavedRow[] | undefined,
@@ -75,10 +74,13 @@ function filterRows(
   });
 }
 
+function mutationErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Something went wrong";
+}
+
 export function SavedRows({ mode }: { mode: "unread" | "archive" }) {
   const { data, isLoading, error } = useSavedLibrary();
-  const repo = useLatrRepo();
-  const invalidate = useInvalidateSavedLibrary();
+  const mutations = useSavedLibraryMutations();
   const openEmbeddedReader = useOpenEmbeddedReader();
 
   const rows = filterRows(data, mode);
@@ -107,8 +109,9 @@ export function SavedRows({ mode }: { mode: "unread" | "archive" }) {
           <SavedRowItem
             key={row.rec.uri}
             row={row}
-            repo={repo}
-            onChanged={() => invalidate()}
+            canMutate={mutations.canMutate}
+            onArchiveToggle={mutations.setItemState}
+            onRemove={mutations.unsave}
             onOpenEmbedded={openEmbeddedReader}
           />
         ))}
@@ -137,13 +140,18 @@ function activateSavedHref(
 
 function SavedRowItem({
   row,
-  repo,
-  onChanged,
+  canMutate,
+  onArchiveToggle,
+  onRemove,
   onOpenEmbedded,
 }: {
   row: SavedRow;
-  repo: ReturnType<typeof useLatrRepo>;
-  onChanged: () => void;
+  canMutate: boolean;
+  onArchiveToggle: (
+    itemRkey: string,
+    state: "unread" | "archived"
+  ) => Promise<void>;
+  onRemove: (itemRkey: string) => Promise<void>;
   onOpenEmbedded: (url: string, title: string) => void;
 }) {
   const itemRkey = rkeyFromAtUri(row.rec.uri);
@@ -151,6 +159,8 @@ function SavedRowItem({
   const p = row.preview;
   const origin = siteOrigin(p.canonicalUrl);
   const thumb = p.imageHref;
+  const [busy, setBusy] = useState(false);
+  const isArchived = row.rec.value.state === "archived";
 
   const openLabel = `Open saved link: ${p.title}`;
 
@@ -237,23 +247,28 @@ function SavedRowItem({
           </div>
         </div>
       </div>
-      {repo ? (
+      {canMutate ? (
         <div className="relative z-10 flex shrink-0 flex-row items-center gap-2 self-end pointer-events-auto sm:self-center">
           <button
             type="button"
             className={savedRowIconButtonClass}
-            aria-label={
-              row.rec.value.state === "archived" ? "Unarchive" : "Archive"
-            }
-            title={row.rec.value.state === "archived" ? "Unarchive" : "Archive"}
+            disabled={busy}
+            aria-label={isArchived ? "Unarchive" : "Archive"}
+            title={isArchived ? "Unarchive" : "Archive"}
             onClick={async () => {
-              const next =
-                row.rec.value.state === "archived" ? "unread" : "archived";
-              await repo.setItemState(itemRkey, next);
-              onChanged();
+              if (busy) return;
+              setBusy(true);
+              const next = isArchived ? "unread" : "archived";
+              try {
+                await onArchiveToggle(itemRkey, next);
+              } catch (error) {
+                window.alert(mutationErrorMessage(error));
+              } finally {
+                setBusy(false);
+              }
             }}
           >
-            {row.rec.value.state === "archived" ? (
+            {isArchived ? (
               <ArchiveRestore className="h-4 w-4" aria-hidden strokeWidth={2} />
             ) : (
               <Archive className="h-4 w-4" aria-hidden strokeWidth={2} />
@@ -262,15 +277,23 @@ function SavedRowItem({
           <button
             type="button"
             className={savedRowDangerButtonClass}
+            disabled={busy}
             aria-label="Remove from library"
             title="Remove from library"
             onClick={async () => {
+              if (busy) return;
               const ok = window.confirm(
                 "Remove this saved item from your library? This cannot be undone."
               );
               if (!ok) return;
-              await repo.unsave(itemRkey);
-              onChanged();
+              setBusy(true);
+              try {
+                await onRemove(itemRkey);
+              } catch (error) {
+                window.alert(mutationErrorMessage(error));
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             <Trash2 className="h-4 w-4" aria-hidden strokeWidth={2} />
