@@ -3,7 +3,6 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   DEFAULT_DEV_LATR_GATEWAY_URL,
   DEFAULT_PROD_LATR_GATEWAY_URL,
-  DEFAULT_TESTING_LATR_GATEWAY_URL,
   LOCAL_LATR_GATEWAY_URL,
   latrGatewayBaseUrl,
 } from "@/lib/latrGatewayUrl";
