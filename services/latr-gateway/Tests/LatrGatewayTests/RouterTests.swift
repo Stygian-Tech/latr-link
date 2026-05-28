@@ -60,7 +60,7 @@ final class RouterTests: XCTestCase {
             oauthRequireKnownClient: false,
             oauthAllowedClientIDs: [],
             requireClientAPIKey: true,
-            officialClientCredentials: ["latr-web": "dGVzdC1zZWNyZXQ="],
+            officialClientCredentials: ["latr-link-web": "dGVzdC1zZWNyZXQ="],
             clientRegistryURL: registryURL()
         )
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
@@ -92,11 +92,11 @@ final class RouterTests: XCTestCase {
                 uri: "/v1/latr/clients/register",
                 method: .post,
                 headers: [.contentType: "application/json"],
-                body: ByteBuffer(string: #"{"clientId":"social-wire","displayName":"The Social Wire"}"#)
+                body: ByteBuffer(string: #"{"clientId":"the-social-wire-web","displayName":"The Social Wire"}"#)
             ) { response in
                 XCTAssertEqual(response.status, .created)
                 let body = String(buffer: response.body)
-                XCTAssertTrue(body.contains("\"clientId\":\"social-wire\""))
+                XCTAssertTrue(body.contains("\"clientId\":\"the-social-wire-web\""))
                 XCTAssertTrue(body.contains("\"clientCredential\":\""))
             }
         }

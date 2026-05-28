@@ -22,10 +22,10 @@ final class ClientRegistryTests: XCTestCase {
         let registry = ClientRegistry(officialClients: [:], registryURL: url)
 
         let registered = try await registry.registerClient(
-            clientID: "Social-Wire",
+            clientID: "the-social-wire-web",
             displayName: "The Social Wire"
         )
-        XCTAssertEqual(registered.clientId, "social-wire")
+        XCTAssertEqual(registered.clientId, "the-social-wire-web")
         XCTAssertFalse(registered.clientCredential.isEmpty)
         XCTAssertNotNil(Data(base64Encoded: registered.clientCredential))
 
@@ -35,7 +35,7 @@ final class ClientRegistryTests: XCTestCase {
             ]),
             requireClientAPIKey: true
         )
-        XCTAssertEqual(resolved, "social-wire")
+        XCTAssertEqual(resolved, "the-social-wire-web")
 
         let reloaded = ClientRegistry(officialClients: [:], registryURL: url)
         let resolvedAgain = try await reloaded.resolveClientID(
@@ -44,13 +44,13 @@ final class ClientRegistryTests: XCTestCase {
             ]),
             requireClientAPIKey: true
         )
-        XCTAssertEqual(resolvedAgain, "social-wire")
+        XCTAssertEqual(resolvedAgain, "the-social-wire-web")
     }
 
     func testOfficialEnvCredentialsVerify() async throws {
         let credential = "dGVzdC1vZmZpY2lhbC1jcmVkZW50aWFs"
         let registry = ClientRegistry(
-            officialClients: ["latr-web": credential],
+            officialClients: ["latr-link-web": credential],
             registryURL: registryURL()
         )
 
@@ -60,15 +60,15 @@ final class ClientRegistryTests: XCTestCase {
             ]),
             requireClientAPIKey: true
         )
-        XCTAssertEqual(resolved, "latr-web")
+        XCTAssertEqual(resolved, "latr-link-web")
     }
 
     func testRegisterClientRejectsDuplicate() async throws {
         let registry = ClientRegistry(officialClients: [:], registryURL: registryURL())
-        _ = try await registry.registerClient(clientID: "latr-web", displayName: nil)
+        _ = try await registry.registerClient(clientID: "latr-link-web", displayName: nil)
 
         do {
-            _ = try await registry.registerClient(clientID: "latr-web", displayName: nil)
+            _ = try await registry.registerClient(clientID: "latr-link-web", displayName: nil)
             XCTFail("Expected duplicate registration to fail")
         } catch let error as GatewayError {
             XCTAssertEqual(error.code, "client_exists")

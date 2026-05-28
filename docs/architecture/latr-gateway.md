@@ -2,7 +2,7 @@
 
 Server-side L@tr API (Swift/Hummingbird) compatible with The Social Wire’s gateway direction. Clients authenticate in two layers:
 
-1. **Official client credential** — base64 shared secret identifying the application (`latr-web`, `social-wire`, …).
+1. **Official client credential** — base64 shared secret identifying the application (`latr-link-web`, `the-social-wire-web`, …).
 2. **User OAuth** — ATProto access token + RFC 9449 DPoP for the signed-in viewer; forwarded to the PDS for `com.atproto.repo.*` mutations.
 
 ## Base URL
@@ -26,14 +26,14 @@ When `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY=true` (default in `APP_ENV=prod`), thi
 
 Credentials come from either:
 
-- **Official env** — `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS=latr-web:<base64>,social-wire:<base64>` (same pattern as shared secrets between Social Wire gateway and AppView)
+- **Official env** — `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS=latr-link-web:<base64>,the-social-wire-web:<base64>` (same pattern as shared secrets between Social Wire gateway and AppView)
 - **Client registration API** — persisted to `LATR_GATEWAY_CLIENT_REGISTRY_PATH` (returns a new base64 credential once)
 
 Generate a credential: `openssl rand -base64 32`. Set the same value on the gateway (in the `client-id=` pair) and on the client (`NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL` or `VITE_LATR_GATEWAY_CLIENT_CREDENTIAL`).
 
-**L@tr web** — set `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL` when calling a hosted gateway that enforces credentials. This ships in the browser bundle; use a `latr-web`-scoped credential with rate limits.
+**L@tr web** — set `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL` when calling a hosted gateway that enforces credentials. This ships in the browser bundle; use the `latr-link-web` credential with rate limits.
 
-**The Social Wire** — set the `social-wire` credential in gateway env and `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL` on web (or register via API for a one-off credential).
+**The Social Wire** — set the `the-social-wire-web` credential in gateway env and `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL` on web (or register via API for a one-off credential).
 
 Local development (`APP_ENV=local`) skips client credentials by default.
 
@@ -45,14 +45,14 @@ Registration routes are protected by `LATR_GATEWAY_CLIENT_REGISTRATION_SECRET` (
 curl -sS -X POST "$GATEWAY/v1/latr/clients/register" \
   -H "Authorization: Bearer $LATR_GATEWAY_CLIENT_REGISTRATION_SECRET" \
   -H "Content-Type: application/json" \
-  -d '{"clientId":"social-wire","displayName":"The Social Wire"}'
+  -d '{"clientId":"the-social-wire-web","displayName":"The Social Wire"}'
 ```
 
 Response (`201`):
 
 ```json
 {
-  "clientId": "social-wire",
+  "clientId": "the-social-wire-web",
   "clientCredential": "…base64…",
   "displayName": "The Social Wire",
   "createdAt": "2026-05-24T00:00:00Z"
@@ -126,7 +126,7 @@ Full template: `services/latr-gateway/.env.example`.
 | Variable | Description |
 |----------|-------------|
 | `NEXT_PUBLIC_LATR_GATEWAY_URL` | Gateway base URL (default `http://127.0.0.1:8080`) |
-| `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL` | Base64 official credential for `latr-web` when hosted gateway requires it |
+| `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL` | Base64 official credential for `latr-link-web` when hosted gateway requires it |
 
 ## Local development
 
@@ -137,7 +137,7 @@ cd services/latr-gateway && swift run LatrGateway
 # Terminal 2 — register a client (open in APP_ENV=local)
 curl -sS -X POST http://127.0.0.1:8080/v1/latr/clients/register \
   -H "Content-Type: application/json" \
-  -d '{"clientId":"latr-web","displayName":"L@tr.link web"}'
+  -d '{"clientId":"latr-link-web","displayName":"L@tr.link web"}'
 
 # Terminal 3 — web (uses NEXT_PUBLIC_LATR_GATEWAY_URL or http://127.0.0.1:8080)
 cd apps/web && bun run dev
@@ -186,4 +186,4 @@ Set `NEXT_PUBLIC_LATR_GATEWAY_URL` (and client key env vars when required) on Ve
 
 ## Social Wire integration
 
-Social Wire can configure the `social-wire` credential in gateway and web env (or register once and persist `clientCredential`), then send `X-Latr-Official-Client` on every `/v1/latr/*` request together with the viewer’s OAuth credentials. This replaces duplicating record orchestration in the native client while keeping the same lexicon semantics as direct PDS writes.
+Social Wire can configure the `the-social-wire-web` credential in gateway and web env (or register once and persist `clientCredential`), then send `X-Latr-Official-Client` on every `/v1/latr/*` request together with the viewer’s OAuth credentials. This replaces duplicating record orchestration in the native client while keeping the same lexicon semantics as direct PDS writes.

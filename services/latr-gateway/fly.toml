@@ -19,7 +19,7 @@ primary_region = 'ams'
   # OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT = 'true'
   # OAUTH_GATEWAY_ALLOWED_CLIENT_IDS = 'https://latr.link/client-metadata.json,https://latr-link-dev-gateway.fly.dev/oauth/client-metadata.json'
   # LATR_GATEWAY_REQUIRE_CLIENT_API_KEY = 'true'
-  # LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS = 'latr-web=REPLACE_BASE64,social-wire=REPLACE_BASE64'
+  # LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS = 'latr-link-web=REPLACE_BASE64,the-social-wire-web=REPLACE_BASE64'
 
 [http_service]
   internal_port = 8080

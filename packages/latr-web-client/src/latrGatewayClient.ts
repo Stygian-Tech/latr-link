@@ -7,6 +7,7 @@ import {
 } from "latr-packages/gateway-client";
 
 import {
+  assertLatrGatewayClientCredential,
   getLatrGatewayConfig,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
@@ -22,6 +23,7 @@ export async function latrGatewayFetch(
 ): Promise<Response> {
   const gatewayPath = path.startsWith("/") ? path : `/${path}`;
   const config = getLatrGatewayConfig();
+  assertLatrGatewayClientCredential(config);
   const url = `${latrGatewayBaseUrl(config)}${gatewayPath}`;
   const method = init?.method ?? "GET";
   const clientHeaders = latrGatewayClientHeaders(config);

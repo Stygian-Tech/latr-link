@@ -1,16 +1,23 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import {
+  assertLatrGatewayClientCredential,
   configureLatrGateway,
   DEFAULT_DEV_LATR_GATEWAY_URL,
   DEFAULT_PROD_LATR_GATEWAY_URL,
   DEFAULT_TESTING_LATR_GATEWAY_URL,
+  LATR_OFFICIAL_CLIENT_HEADER,
   LOCAL_LATR_GATEWAY_URL,
   latrGatewayBaseUrl,
+  latrGatewayClientHeaders,
 } from "./latrGatewayConfig";
 
 afterEach(() => {
-  configureLatrGateway({ appEnv: "local" });
+  configureLatrGateway({
+    appEnv: "local",
+    clientCredential: "",
+    testingHostname: "",
+  });
 });
 
 describe("latrGatewayBaseUrl", () => {
@@ -60,5 +67,25 @@ describe("latrGatewayBaseUrl", () => {
       testingHostname: "testing.latr.link",
     });
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_TESTING_LATR_GATEWAY_URL);
+  });
+
+  test("sends official client header when credential is configured", () => {
+    configureLatrGateway({ clientCredential: "dGVzdC1zZWNyZXQ=" });
+    expect(latrGatewayClientHeaders()[LATR_OFFICIAL_CLIENT_HEADER]).toBe(
+      "dGVzdC1zZWNyZXQ="
+    );
+  });
+
+  test("assertLatrGatewayClientCredential throws for hosted gateway without credential", () => {
+    configureLatrGateway({
+      appEnv: "dev",
+      testingHostname: "testing.latr.link",
+    });
+    expect(() => assertLatrGatewayClientCredential()).toThrow(/official client credential/i);
+  });
+
+  test("assertLatrGatewayClientCredential allows loopback without credential", () => {
+    configureLatrGateway({ appEnv: "local", testingHostname: "127.0.0.1" });
+    expect(() => assertLatrGatewayClientCredential()).not.toThrow();
   });
 });

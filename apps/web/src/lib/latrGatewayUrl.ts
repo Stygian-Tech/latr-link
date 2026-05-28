@@ -26,11 +26,12 @@ export function syncLatrGatewayFromBrowser(): void {
       //
     }
   }
+  const credential = process.env.NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL?.trim();
   configureLatrGateway({
     gatewayUrl: process.env.NEXT_PUBLIC_LATR_GATEWAY_URL?.trim(),
     appEnv: toLatrGatewayAppEnv(),
     testingHostname,
-    clientCredential: process.env.NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL?.trim(),
+    ...(credential ? { clientCredential: credential } : {}),
   });
 }
 

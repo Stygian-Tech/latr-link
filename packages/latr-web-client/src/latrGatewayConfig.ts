@@ -1,3 +1,9 @@
+/** Official gateway client id for L@tr.link web (env key in `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS`). */
+export const LATR_LINK_WEB_CLIENT_ID = "latr-link-web";
+
+/** Official gateway client id for The Social Wire web (env key in `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS`). */
+export const THE_SOCIAL_WIRE_WEB_CLIENT_ID = "the-social-wire-web";
+
 export const LOCAL_LATR_GATEWAY_URL = "http://127.0.0.1:8080";
 export const DEFAULT_TESTING_LATR_GATEWAY_URL = "https://api.testing.latr.link";
 export const DEFAULT_DEV_LATR_GATEWAY_URL =
@@ -21,9 +27,18 @@ let globalGatewayConfig: LatrGatewayEnvConfig = {
   appEnv: "local",
 };
 
-/** Configure gateway URL and client API key headers for the current runtime. */
+/** Configure gateway URL and client credential headers for the current runtime. */
 export function configureLatrGateway(config: LatrGatewayEnvConfig): void {
-  globalGatewayConfig = { ...globalGatewayConfig, ...config };
+  const next: LatrGatewayEnvConfig = { ...globalGatewayConfig };
+  if (config.gatewayUrl !== undefined) next.gatewayUrl = config.gatewayUrl;
+  if (config.appEnv !== undefined) next.appEnv = config.appEnv;
+  if (config.testingHostname !== undefined) {
+    next.testingHostname = config.testingHostname;
+  }
+  if (config.clientCredential !== undefined) {
+    next.clientCredential = config.clientCredential;
+  }
+  globalGatewayConfig = next;
 }
 
 export function getLatrGatewayConfig(): LatrGatewayEnvConfig {
@@ -103,4 +118,16 @@ export function latrGatewayClientHeaders(
   return {
     [LATR_OFFICIAL_CLIENT_HEADER]: credential,
   };
+}
+
+/** Throws when calling a non-loopback gateway without an official client credential. */
+export function assertLatrGatewayClientCredential(
+  config: LatrGatewayEnvConfig = globalGatewayConfig
+): void {
+  if (latrGatewayClientHeaders(config)[LATR_OFFICIAL_CLIENT_HEADER]) return;
+  const base = latrGatewayBaseUrl(config);
+  if (isLoopbackGatewayUrl(base)) return;
+  throw new Error(
+    `Hosted L@tr gateway requires an official client credential. Set NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL (web) or VITE_LATR_GATEWAY_CLIENT_CREDENTIAL (extension) to the same base64 value as ${LATR_LINK_WEB_CLIENT_ID} in gateway LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS, then redeploy.`
+  );
 }

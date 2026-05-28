@@ -9,14 +9,17 @@ export {
   type SavedItemState,
 } from "./latrRecords";
 export {
+  assertLatrGatewayClientCredential,
   configureLatrGateway,
   getLatrGatewayConfig,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
+  LATR_LINK_WEB_CLIENT_ID,
   LOCAL_LATR_GATEWAY_URL,
   DEFAULT_DEV_LATR_GATEWAY_URL,
   DEFAULT_PROD_LATR_GATEWAY_URL,
   DEFAULT_TESTING_LATR_GATEWAY_URL,
+  THE_SOCIAL_WIRE_WEB_CLIENT_ID,
   type LatrAppEnv,
   type LatrGatewayEnvConfig,
 } from "./latrGatewayConfig";
