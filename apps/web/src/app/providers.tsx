@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import {
   QueryClient,
   type Query,
@@ -8,6 +8,7 @@ import {
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { AuthProvider } from "@/hooks/useAuth";
+import { syncLatrGatewayFromBrowser } from "@/lib/latrGatewayUrl";
 
 const QUERY_PERSIST_KEY = "latr.link.react-query.v1";
 const QUERY_PERSIST_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
@@ -18,6 +19,10 @@ function shouldDehydrateQuery(query: Query): boolean {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  useLayoutEffect(() => {
+    syncLatrGatewayFromBrowser();
+  }, []);
+
   const [queryClient] = useState(
     () =>
       new QueryClient({

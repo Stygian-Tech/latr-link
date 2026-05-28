@@ -41,6 +41,15 @@ function isLoopbackHostname(hostname: string | undefined): boolean {
   );
 }
 
+function isLoopbackGatewayUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return isLoopbackHostname(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** Known hosted web origins → gateway API base when env vars are misconfigured. */
 function gatewayForKnownHostname(hostname: string | undefined): string | undefined {
   switch (hostname?.toLowerCase()) {
@@ -55,10 +64,17 @@ function gatewayForKnownHostname(hostname: string | undefined): string | undefin
 }
 
 export function latrGatewayBaseUrl(config: LatrGatewayEnvConfig = globalGatewayConfig): string {
-  const configured = config.gatewayUrl?.trim();
-  if (configured) return configured.replace(/\/$/, "");
-
   const hostname = config.testingHostname?.trim();
+  const configured = config.gatewayUrl?.trim();
+  if (configured) {
+    const normalized = configured.replace(/\/$/, "");
+    const ignoreLoopbackOverride =
+      Boolean(hostname) &&
+      !isLoopbackHostname(hostname) &&
+      isLoopbackGatewayUrl(normalized);
+    if (!ignoreLoopbackOverride) return normalized;
+  }
+
   const knownHosted = gatewayForKnownHostname(hostname);
   if (knownHosted) return knownHosted;
 

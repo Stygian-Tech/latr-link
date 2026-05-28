@@ -16,7 +16,8 @@ export {
   DEFAULT_PROD_LATR_GATEWAY_URL,
 };
 
-function syncWebGatewayConfig(): void {
+/** Push web env + current browser hostname into shared `latr-web-client` config. */
+export function syncLatrGatewayFromBrowser(): void {
   let testingHostname: string | undefined;
   if (typeof window !== "undefined") {
     try {
@@ -35,10 +36,10 @@ function syncWebGatewayConfig(): void {
 
 /**
  * Base URL for `services/latr-gateway` API calls.
- * Explicit `NEXT_PUBLIC_LATR_GATEWAY_URL` wins; otherwise resolved from app env.
+ * Hostname mapping wins over loopback overrides; non-loopback explicit URL wins otherwise.
  */
 export function latrGatewayBaseUrl(): string {
-  syncWebGatewayConfig();
+  syncLatrGatewayFromBrowser();
   return sharedLatrGatewayBaseUrl();
 }
 

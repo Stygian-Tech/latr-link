@@ -53,4 +53,12 @@ describe("latrGatewayBaseUrl", () => {
     });
     expect(latrGatewayBaseUrl()).toBe("https://custom.gateway.example");
   });
+
+  test("ignores loopback gatewayUrl override on hosted hostnames", () => {
+    configureLatrGateway({
+      gatewayUrl: LOCAL_LATR_GATEWAY_URL,
+      testingHostname: "testing.latr.link",
+    });
+    expect(latrGatewayBaseUrl()).toBe(DEFAULT_TESTING_LATR_GATEWAY_URL);
+  });
 });
