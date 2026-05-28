@@ -7,8 +7,7 @@ import {
 import { toLatrGatewayAppEnv } from "@/lib/environmentBanner";
 
 export {
-  LATR_API_KEY_HEADER,
-  LATR_CLIENT_ID_HEADER,
+  LATR_OFFICIAL_CLIENT_HEADER,
   LATR_UPSTREAM_DPOP_HEADER,
 } from "latr-web-client/latrGatewayClient";
 
@@ -27,8 +26,7 @@ function syncWebGatewayConfig(): void {
     gatewayUrl: process.env.NEXT_PUBLIC_LATR_GATEWAY_URL?.trim(),
     appEnv: toLatrGatewayAppEnv(),
     testingHostname,
-    clientId: process.env.NEXT_PUBLIC_LATR_GATEWAY_CLIENT_ID?.trim(),
-    apiKey: process.env.NEXT_PUBLIC_LATR_GATEWAY_API_KEY?.trim(),
+    clientCredential: process.env.NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL?.trim(),
   });
 }
 

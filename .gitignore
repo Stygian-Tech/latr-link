@@ -48,3 +48,10 @@ bun-debug.log*
 # Coverage
 coverage/
 *.lcov
+
+# swift build artifacts
+.build/
+*.swiftmodule
+*.swiftdeps
+*.d
+*.dia

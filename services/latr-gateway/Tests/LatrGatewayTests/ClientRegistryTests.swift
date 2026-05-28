@@ -17,47 +17,46 @@ final class ClientRegistryTests: XCTestCase {
         return headers
     }
 
-    func testRegisterClientPersistsAndVerifiesAPIKey() async throws {
+    func testRegisterClientPersistsAndVerifiesCredential() async throws {
         let url = registryURL()
-        let registry = ClientRegistry(bootstrapKeys: [:], registryURL: url)
+        let registry = ClientRegistry(officialClients: [:], registryURL: url)
 
         let registered = try await registry.registerClient(
             clientID: "Social-Wire",
             displayName: "The Social Wire"
         )
         XCTAssertEqual(registered.clientId, "social-wire")
-        XCTAssertTrue(registered.apiKey.hasPrefix("latr_"))
+        XCTAssertFalse(registered.clientCredential.isEmpty)
+        XCTAssertNotNil(Data(base64Encoded: registered.clientCredential))
 
         let resolved = try await registry.resolveClientID(
             from: makeHeaders([
-                latrClientIDHeader: registered.clientId,
-                latrAPIKeyHeader: registered.apiKey,
+                latrOfficialClientHeader: registered.clientCredential,
             ]),
             requireClientAPIKey: true
         )
         XCTAssertEqual(resolved, "social-wire")
 
-        let reloaded = ClientRegistry(bootstrapKeys: [:], registryURL: url)
+        let reloaded = ClientRegistry(officialClients: [:], registryURL: url)
         let resolvedAgain = try await reloaded.resolveClientID(
             from: makeHeaders([
-                latrClientIDHeader: registered.clientId,
-                latrAPIKeyHeader: registered.apiKey,
+                latrOfficialClientHeader: registered.clientCredential,
             ]),
             requireClientAPIKey: true
         )
         XCTAssertEqual(resolvedAgain, "social-wire")
     }
 
-    func testBootstrapKeysTakePrecedenceOverRegistry() async throws {
+    func testOfficialEnvCredentialsVerify() async throws {
+        let credential = "dGVzdC1vZmZpY2lhbC1jcmVkZW50aWFs"
         let registry = ClientRegistry(
-            bootstrapKeys: ["latr-web": "bootstrap-secret"],
+            officialClients: ["latr-web": credential],
             registryURL: registryURL()
         )
 
         let resolved = try await registry.resolveClientID(
             from: makeHeaders([
-                latrClientIDHeader: "latr-web",
-                latrAPIKeyHeader: "bootstrap-secret",
+                latrOfficialClientHeader: credential,
             ]),
             requireClientAPIKey: true
         )
@@ -65,7 +64,7 @@ final class ClientRegistryTests: XCTestCase {
     }
 
     func testRegisterClientRejectsDuplicate() async throws {
-        let registry = ClientRegistry(bootstrapKeys: [:], registryURL: registryURL())
+        let registry = ClientRegistry(officialClients: [:], registryURL: registryURL())
         _ = try await registry.registerClient(clientID: "latr-web", displayName: nil)
 
         do {
@@ -78,21 +77,23 @@ final class ClientRegistryTests: XCTestCase {
 
     func testRevokeClientRemovesRegisteredCredential() async throws {
         let url = registryURL()
-        let registry = ClientRegistry(bootstrapKeys: [:], registryURL: url)
+        let registry = ClientRegistry(officialClients: [:], registryURL: url)
         let registered = try await registry.registerClient(clientID: "revoke-me", displayName: nil)
         _ = try await registry.revokeClient(clientID: "revoke-me")
 
         do {
             _ = try await registry.resolveClientID(
                 from: makeHeaders([
-                    latrClientIDHeader: registered.clientId,
-                    latrAPIKeyHeader: registered.apiKey,
+                    latrOfficialClientHeader: registered.clientCredential,
                 ]),
                 requireClientAPIKey: true
             )
             XCTFail("Expected revoked client to fail verification")
         } catch let error as GatewayError {
-            XCTAssertEqual(error.code, "client_api_key_policy")
+            XCTAssertTrue(
+                error.code == "invalid_client_credential" || error.code == "client_credential_policy",
+                "Unexpected error code: \(error.code)"
+            )
         }
     }
 }

@@ -19,7 +19,7 @@ public struct GatewayServices: Sendable {
             config: config,
             httpClient: httpClient,
             clientRegistry: ClientRegistry(
-                bootstrapKeys: config.clientAPIKeys,
+                officialClients: config.officialClientCredentials,
                 registryURL: config.clientRegistryURL
             )
         )

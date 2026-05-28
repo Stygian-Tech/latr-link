@@ -37,7 +37,7 @@ public struct RegisterClientBody: Decodable, Sendable {
 
 public struct RegisterClientResponse: Encodable, Sendable {
     public let clientId: String
-    public let apiKey: String
+    public let clientCredential: String
     public let displayName: String?
     public let createdAt: String
 }
@@ -46,14 +46,14 @@ public struct ListClientsResponse: Encodable, Sendable {
     public let clients: [RegisteredClientSummary]
 }
 
-/// Persisted gateway client credentials merged with bootstrap keys from the environment.
+/// Persisted gateway client credentials merged with official env credentials.
 public actor ClientRegistry {
-    private let bootstrapKeys: [String: String]
+    private let officialClients: [String: String]
     private let registryURL: URL
     private var records: [String: RegisteredClientRecord]
 
-    public init(bootstrapKeys: [String: String], registryURL: URL) {
-        self.bootstrapKeys = bootstrapKeys
+    public init(officialClients: [String: String], registryURL: URL) {
+        self.officialClients = officialClients
         self.registryURL = registryURL
         self.records = Self.loadRecords(from: registryURL)
     }
@@ -61,67 +61,45 @@ public actor ClientRegistry {
     public func resolveClientID(from headers: HTTPFields, requireClientAPIKey: Bool) throws -> String? {
         guard requireClientAPIKey else { return nil }
 
-        guard let clientIDField = HTTPField.Name(latrClientIDHeader),
-              let apiKeyField = HTTPField.Name(latrAPIKeyHeader)
-        else {
+        guard let credentialField = HTTPField.Name(latrOfficialClientHeader) else {
             throw GatewayError(
                 status: .internalServerError,
-                message: "Gateway client API key headers unavailable",
+                message: "Gateway official client header unavailable",
                 code: "internal_error"
             )
         }
 
-        let clientID = headers[clientIDField]?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let apiKey = headers[apiKeyField]?
+        let credential = headers[credentialField]?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        guard !clientID.isEmpty else {
+        guard !credential.isEmpty else {
             throw GatewayError(
                 status: .unauthorized,
-                message: "Missing \(latrClientIDHeader) header",
-                code: "missing_client_id"
+                message: "Missing \(latrOfficialClientHeader) header",
+                code: "missing_client_credential"
             )
         }
 
-        guard !apiKey.isEmpty else {
-            throw GatewayError(
-                status: .unauthorized,
-                message: "Missing \(latrAPIKeyHeader) header",
-                code: "missing_api_key"
-            )
-        }
-
-        if let expected = bootstrapKeys[clientID], timingSafeEqual(apiKey, expected) {
+        for (clientID, expected) in officialClients where timingSafeEqual(credential, expected) {
             return clientID
         }
 
-        if let record = records[clientID],
-           timingSafeEqual(hashAPIKey(apiKey), record.keyHash)
-        {
+        for (clientID, record) in records where timingSafeEqual(hashClientCredential(credential), record.keyHash) {
             return clientID
         }
 
-        if bootstrapKeys[clientID] != nil || records[clientID] != nil {
+        if officialClients.isEmpty, records.isEmpty {
             throw GatewayError(
                 status: .forbidden,
-                message: "Invalid gateway client API key",
-                code: "invalid_api_key"
-            )
-        }
-
-        if bootstrapKeys.isEmpty, records.isEmpty {
-            throw GatewayError(
-                status: .forbidden,
-                message: "Gateway client API key policy enabled but no keys configured",
-                code: "client_api_key_policy"
+                message: "Gateway client credential policy enabled but no clients configured",
+                code: "client_credential_policy"
             )
         }
 
         throw GatewayError(
             status: .forbidden,
-            message: "Unknown gateway client",
-            code: "client_forbidden"
+            message: "Invalid official client credential",
+            code: "invalid_client_credential"
         )
     }
 
@@ -130,7 +108,7 @@ public actor ClientRegistry {
         let normalizedID = try normalizeClientID(clientID)
         let trimmedName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if bootstrapKeys[normalizedID] != nil || records[normalizedID] != nil {
+        if officialClients[normalizedID] != nil || records[normalizedID] != nil {
             throw GatewayError(
                 status: .conflict,
                 message: "Gateway client already registered",
@@ -138,10 +116,10 @@ public actor ClientRegistry {
             )
         }
 
-        let apiKey = generateAPIKey()
+        let clientCredential = generateOfficialClientCredential()
         let createdAt = ISO8601DateFormatter().string(from: Date())
         records[normalizedID] = RegisteredClientRecord(
-            keyHash: hashAPIKey(apiKey),
+            keyHash: hashClientCredential(clientCredential),
             displayName: trimmedName?.isEmpty == false ? trimmedName : nil,
             createdAt: createdAt
         )
@@ -149,24 +127,24 @@ public actor ClientRegistry {
 
         return RegisterClientResponse(
             clientId: normalizedID,
-            apiKey: apiKey,
+            clientCredential: clientCredential,
             displayName: trimmedName?.isEmpty == false ? trimmedName : nil,
             createdAt: createdAt
         )
     }
 
     public func listClients() -> [RegisteredClientSummary] {
-        var summaries: [RegisteredClientSummary] = bootstrapKeys.keys.sorted().map { clientID in
+        var summaries: [RegisteredClientSummary] = officialClients.keys.sorted().map { clientID in
             RegisteredClientSummary(
                 clientId: clientID,
                 displayName: nil,
                 createdAt: "",
-                source: "bootstrap"
+                source: "official"
             )
         }
 
         for (clientID, record) in records.sorted(by: { $0.key < $1.key }) {
-            if bootstrapKeys[clientID] != nil { continue }
+            if officialClients[clientID] != nil { continue }
             summaries.append(
                 RegisteredClientSummary(
                     clientId: clientID,
@@ -184,11 +162,11 @@ public actor ClientRegistry {
     public func revokeClient(clientID: String) throws -> Bool {
         let normalizedID = try normalizeClientID(clientID)
 
-        if bootstrapKeys[normalizedID] != nil {
+        if officialClients[normalizedID] != nil {
             throw GatewayError(
                 status: .forbidden,
-                message: "Bootstrap gateway clients cannot be revoked via the registry API",
-                code: "bootstrap_client"
+                message: "Official gateway clients cannot be revoked via the registry API",
+                code: "official_client"
             )
         }
 
@@ -243,19 +221,14 @@ public func normalizeClientID(_ raw: String) throws -> String {
     return clientID
 }
 
-public func hashAPIKey(_ apiKey: String) -> String {
-    let digest = SHA256.hash(data: Data(apiKey.utf8))
+public func hashClientCredential(_ credential: String) -> String {
+    let digest = SHA256.hash(data: Data(credential.utf8))
     return digest.map { String(format: "%02x", $0) }.joined()
 }
 
-public func generateAPIKey() -> String {
-    let bytes = secureRandomBytes(count: 32)
-    let encoded = Data(bytes)
-        .base64EncodedString()
-        .replacingOccurrences(of: "+", with: "-")
-        .replacingOccurrences(of: "/", with: "_")
-        .replacingOccurrences(of: "=", with: "")
-    return "latr_\(encoded)"
+/// Opaque base64 credential for official/registered gateway clients (shown once at registration).
+public func generateOfficialClientCredential() -> String {
+    Data(secureRandomBytes(count: 32)).base64EncodedString()
 }
 
 private func secureRandomBytes(count: Int) -> [UInt8] {

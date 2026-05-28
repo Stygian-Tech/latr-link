@@ -17,8 +17,7 @@ export function syncExtensionGatewayConfig(): void {
   configureLatrGateway({
     gatewayUrl: import.meta.env.VITE_LATR_GATEWAY_URL?.trim(),
     appEnv: readAppEnv(),
-    clientId: import.meta.env.VITE_LATR_GATEWAY_CLIENT_ID?.trim(),
-    apiKey: import.meta.env.VITE_LATR_GATEWAY_API_KEY?.trim(),
+    clientCredential: import.meta.env.VITE_LATR_GATEWAY_CLIENT_CREDENTIAL?.trim(),
   });
 }
 

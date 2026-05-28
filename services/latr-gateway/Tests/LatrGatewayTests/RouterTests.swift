@@ -60,7 +60,7 @@ final class RouterTests: XCTestCase {
             oauthRequireKnownClient: false,
             oauthAllowedClientIDs: [],
             requireClientAPIKey: true,
-            clientAPIKeys: ["latr-web": "secret"],
+            officialClientCredentials: ["latr-web": "dGVzdC1zZWNyZXQ="],
             clientRegistryURL: registryURL()
         )
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
@@ -97,7 +97,7 @@ final class RouterTests: XCTestCase {
                 XCTAssertEqual(response.status, .created)
                 let body = String(buffer: response.body)
                 XCTAssertTrue(body.contains("\"clientId\":\"social-wire\""))
-                XCTAssertTrue(body.contains("\"apiKey\":\"latr_"))
+                XCTAssertTrue(body.contains("\"clientCredential\":\""))
             }
         }
         try await httpClient.shutdown()

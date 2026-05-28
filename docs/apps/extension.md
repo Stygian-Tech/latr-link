@@ -36,7 +36,7 @@ Append that exact URI to `redirect_uris` in hosted metadata before users can sig
 
 ```bash
 cp apps/extension/.env.example apps/extension/.env.local
-# Set VITE_LATR_GATEWAY_API_KEY from registration response
+# Set VITE_LATR_GATEWAY_CLIENT_CREDENTIAL (base64; match gateway official env or registration response)
 
 bun install
 bun --cwd apps/extension run dev          # Chromium (default)
@@ -68,8 +68,7 @@ See [`apps/extension/.env.example`](../../apps/extension/.env.example).
 |----------|-------------|
 | `VITE_LATR_GATEWAY_URL` | Gateway base URL |
 | `VITE_LATR_APP_ENV` | `local`, `dev`, or `prod` |
-| `VITE_LATR_GATEWAY_CLIENT_ID` | Registered gateway client id |
-| `VITE_LATR_GATEWAY_API_KEY` | Gateway API key |
+| `VITE_LATR_GATEWAY_CLIENT_CREDENTIAL` | Base64 official client credential |
 | `VITE_ATPROTO_CLIENT_ID` | OAuth metadata URL (default `https://latr.link/extension/client-metadata.json`) |
 | `VITE_LATR_WEB_URL` | Web app for “Open library” |
 

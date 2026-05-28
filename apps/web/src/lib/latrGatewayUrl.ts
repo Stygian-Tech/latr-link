@@ -29,8 +29,7 @@ function syncWebGatewayConfig(): void {
     gatewayUrl: process.env.NEXT_PUBLIC_LATR_GATEWAY_URL?.trim(),
     appEnv: toLatrGatewayAppEnv(),
     testingHostname,
-    clientId: process.env.NEXT_PUBLIC_LATR_GATEWAY_CLIENT_ID?.trim(),
-    apiKey: process.env.NEXT_PUBLIC_LATR_GATEWAY_API_KEY?.trim(),
+    clientCredential: process.env.NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL?.trim(),
   });
 }
 

@@ -7,7 +7,7 @@ public struct AuthContext: Sendable {
     public let authorizationHeader: String
     public let dpopProof: String
     public let upstreamDpopProof: String?
-    /// Registered gateway client when `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` is enabled.
+    /// Resolved official client id when `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` is enabled.
     public let clientID: String?
 
     public init(

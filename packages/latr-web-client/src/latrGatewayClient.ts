@@ -2,8 +2,6 @@ import type { OAuthSession } from "@atproto/oauth-client-browser";
 import {
   createSaveUpstreamDpopProofPool,
   createUpstreamDpopProof,
-  LATR_API_KEY_HEADER,
-  LATR_CLIENT_ID_HEADER,
   LATR_UPSTREAM_DPOP_HEADER,
   pdsXrpcMethodForGatewayRequest,
 } from "latr-packages/gateway-client";
@@ -12,13 +10,10 @@ import {
   getLatrGatewayConfig,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
+  LATR_OFFICIAL_CLIENT_HEADER,
 } from "./latrGatewayConfig";
 
-export {
-  LATR_API_KEY_HEADER,
-  LATR_CLIENT_ID_HEADER,
-  LATR_UPSTREAM_DPOP_HEADER,
-};
+export { LATR_OFFICIAL_CLIENT_HEADER, LATR_UPSTREAM_DPOP_HEADER };
 
 export async function latrGatewayFetch(
   oauthSession: OAuthSession,

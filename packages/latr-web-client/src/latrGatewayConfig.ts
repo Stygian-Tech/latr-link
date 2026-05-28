@@ -13,8 +13,8 @@ export type LatrGatewayEnvConfig = {
   appEnv?: LatrAppEnv;
   /** When app env is dev, use testing gateway for this hostname. */
   testingHostname?: string;
-  clientId?: string;
-  apiKey?: string;
+  /** Base64 official client credential (from env; ships in browser/extension bundles). */
+  clientCredential?: string;
 };
 
 let globalGatewayConfig: LatrGatewayEnvConfig = {
@@ -77,14 +77,14 @@ export function latrGatewayBaseUrl(config: LatrGatewayEnvConfig = globalGatewayC
   }
 }
 
+export const LATR_OFFICIAL_CLIENT_HEADER = "X-Latr-Official-Client";
+
 export function latrGatewayClientHeaders(
   config: LatrGatewayEnvConfig = globalGatewayConfig
 ): Record<string, string> {
-  const clientId = config.clientId?.trim();
-  const apiKey = config.apiKey?.trim();
-  if (!clientId || !apiKey) return {};
+  const credential = config.clientCredential?.trim();
+  if (!credential) return {};
   return {
-    "X-Latr-Client-Id": clientId,
-    "X-Latr-API-Key": apiKey,
+    [LATR_OFFICIAL_CLIENT_HEADER]: credential,
   };
 }

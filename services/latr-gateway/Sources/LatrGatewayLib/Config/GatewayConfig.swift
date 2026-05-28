@@ -14,7 +14,7 @@ public struct GatewayConfig: Sendable {
     public let oauthRequireKnownClient: Bool
     public let oauthAllowedClientIDs: Set<String>
     public let requireClientAPIKey: Bool
-    public let clientAPIKeys: [String: String]
+    public let officialClientCredentials: [String: String]
     public let clientRegistryURL: URL
     public let clientRegistrationSecret: String?
     /// SPA origin for OAuth redirect_uris when metadata is served from the gateway.
@@ -27,7 +27,7 @@ public struct GatewayConfig: Sendable {
         oauthRequireKnownClient: Bool,
         oauthAllowedClientIDs: Set<String>,
         requireClientAPIKey: Bool = false,
-        clientAPIKeys: [String: String] = [:],
+        officialClientCredentials: [String: String] = [:],
         clientRegistryURL: URL = GatewayConfig.defaultClientRegistryURL(),
         clientRegistrationSecret: String? = nil,
         oauthPublicOrigin: String? = nil
@@ -38,7 +38,7 @@ public struct GatewayConfig: Sendable {
         self.oauthRequireKnownClient = oauthRequireKnownClient
         self.oauthAllowedClientIDs = oauthAllowedClientIDs
         self.requireClientAPIKey = requireClientAPIKey
-        self.clientAPIKeys = clientAPIKeys
+        self.officialClientCredentials = officialClientCredentials
         self.clientRegistryURL = clientRegistryURL
         self.clientRegistrationSecret = clientRegistrationSecret
         self.oauthPublicOrigin = oauthPublicOrigin
@@ -84,7 +84,9 @@ public struct GatewayConfig: Sendable {
             requireClientAPIKey = appEnv == .prod
         }
 
-        let clientAPIKeys = parseClientAPIKeys(env["LATR_GATEWAY_CLIENT_API_KEYS"])
+        let officialClientCredentials = parseOfficialClientCredentials(
+            env["LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS"]
+        )
         let clientRegistryURL = resolvedClientRegistryURL(from: env)
         let registrationSecret = env["LATR_GATEWAY_CLIENT_REGISTRATION_SECRET"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -98,7 +100,7 @@ public struct GatewayConfig: Sendable {
             oauthRequireKnownClient: requireKnown,
             oauthAllowedClientIDs: allowed,
             requireClientAPIKey: requireClientAPIKey,
-            clientAPIKeys: clientAPIKeys,
+            officialClientCredentials: officialClientCredentials,
             clientRegistryURL: clientRegistryURL,
             clientRegistrationSecret: registrationSecret?.isEmpty == false ? registrationSecret : nil,
             oauthPublicOrigin: oauthPublicOrigin?.isEmpty == false ? oauthPublicOrigin : nil

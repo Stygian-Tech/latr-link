@@ -28,7 +28,7 @@ public struct CorsMiddleware<Context: RequestContext>: RouterMiddleware {
         headers[.accessControlAllowOrigin] = origin
         headers[.accessControlAllowMethods] = "GET, POST, PATCH, DELETE, OPTIONS"
         headers[.accessControlAllowHeaders] =
-            "Authorization, Content-Type, DPoP, X-ATProto-Upstream-DPoP, X-Latr-Client-Id, X-Latr-API-Key"
+            "Authorization, Content-Type, DPoP, X-ATProto-Upstream-DPoP, X-Latr-Official-Client"
         headers[.vary] = "Origin"
         return headers
     }
