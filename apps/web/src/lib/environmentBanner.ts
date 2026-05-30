@@ -2,13 +2,13 @@
  * Non-production ribbon — visibility + `--env-banner-offset` must stay in sync with
  * {@link ../components/shared/EnvironmentBanner.tsx}.
  *
- * `NEXT_PUBLIC_APP_ENV` / `APP_ENV`: **`prod`** | **`local`** | **`dev`**
+ * `NEXT_PUBLIC_APP_ENV` / `APP_ENV`: **`prod`** | **`local`** | **`dev`** | **`test`**
  * (see `apps/web/.env.example`). When unset: `next dev` → **`local`**; Vercel
  * production → **`prod`**; other hosted builds (preview) → **`dev`**.
  */
 import type { LatrAppEnv } from "latr-web-client/latrGatewayConfig";
 
-export type AppEnv = "prod" | "dev" | "local" | (string & {});
+export type AppEnv = "prod" | "dev" | "local" | "test" | (string & {});
 
 export function readAppEnvRaw(): string {
   return (
@@ -48,24 +48,43 @@ export function toLatrGatewayAppEnv(env: AppEnv = getAppEnv()): LatrAppEnv {
 /** @deprecated Prefer {@link getAppEnv}. */
 export const NEXT_PUBLIC_APP_ENV = getAppEnv();
 
-export const ENVIRONMENT_BANNER_CONFIG = {
-  dev: {
-    label: "DEV",
-    message: "You're on the development server",
-    className: "border-b border-amber-500 bg-amber-400 text-amber-900",
-  },
-  local: {
-    label: "LOCAL",
-    message: "Running locally",
-    className: "border-b border-blue-600 bg-blue-500 text-white",
-  },
-} as const;
+export function isNonProd(env: AppEnv): boolean {
+  return env === "local" || env === "dev" || env === "test";
+}
 
-/** Single-line bar: matches `py-1.5` + `text-xs` row in EnvironmentBanner (+ border-b). */
-export const ENVIRONMENT_BANNER_OFFSET = "2.375rem" as const;
+export function bannerMessage(env: AppEnv): string {
+  switch (env) {
+    case "local":
+      return "Local Environment — Development Data and Relaxed Limits.";
+    case "dev":
+      return "Development Server — Not Production; Data May Be Reset.";
+    case "test":
+      return "Testing Server — Not Production; Data May Be Reset.";
+    default:
+      return "";
+  }
+}
+
+const BANNER_CHROME =
+  "supports-backdrop-filter:backdrop-blur-md border-b px-5 py-2.5 text-sm";
+
+export function bannerClasses(env: AppEnv): string {
+  switch (env) {
+    case "local":
+      return `${BANNER_CHROME} border-yellow-500/75 bg-yellow-400/40 font-medium text-yellow-950 shadow-sm supports-backdrop-filter:bg-yellow-400/28 dark:border-yellow-400/50 dark:bg-yellow-500/28 dark:text-yellow-50 dark:supports-backdrop-filter:bg-yellow-500/22`;
+    case "dev":
+    case "test":
+      return `${BANNER_CHROME} border-red-500/70 bg-red-500/28 font-medium text-red-950 shadow-sm supports-backdrop-filter:bg-red-500/20 dark:border-red-400/45 dark:bg-red-500/24 dark:text-red-50 dark:supports-backdrop-filter:bg-red-500/20`;
+    default:
+      return BANNER_CHROME;
+  }
+}
+
+/** Single-line bar: matches `py-2.5` + `text-sm` row in EnvironmentBanner (+ border-b). */
+export const ENVIRONMENT_BANNER_OFFSET = "2.625rem" as const;
 
 export function isEnvironmentBannerShown(appEnv: AppEnv = getAppEnv()): boolean {
-  return appEnv === "dev" || appEnv === "local";
+  return isNonProd(appEnv);
 }
 
 export function environmentBannerOffset(appEnv: AppEnv = getAppEnv()): string {
@@ -78,7 +97,7 @@ export function environmentBannerOffset(appEnv: AppEnv = getAppEnv()): string {
 export function showSaveOutcomeDebugLabels(): boolean {
   const appEnv = getAppEnv();
   if (appEnv === "prod") return false;
-  if (appEnv === "local" || appEnv === "dev") return true;
+  if (isNonProd(appEnv)) return true;
   if (typeof window === "undefined") return false;
   const h = window.location.hostname.toLowerCase();
   return (
