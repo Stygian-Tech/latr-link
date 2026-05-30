@@ -19,6 +19,8 @@ public struct GatewayConfig: Sendable {
     public let clientRegistrationSecret: String?
     /// SPA origin for OAuth redirect_uris when metadata is served from the gateway.
     public let oauthPublicOrigin: String?
+    /// SPA origin for LatrKit console redirect_uris on `/oauth/latrkit-client-metadata.json`.
+    public let oauthLatrkitPublicOrigin: String?
     /// DID allowed to provision official gateway clients via the developer console.
     public let officialClientDID: String?
     /// Supabase/Postgres connection string (apply migrations separately).
@@ -37,6 +39,7 @@ public struct GatewayConfig: Sendable {
         clientRegistryURL: URL = GatewayConfig.defaultClientRegistryURL(),
         clientRegistrationSecret: String? = nil,
         oauthPublicOrigin: String? = nil,
+        oauthLatrkitPublicOrigin: String? = nil,
         officialClientDID: String? = nil,
         databaseURL: String? = nil,
         developerStoreURL: URL = GatewayConfig.defaultDeveloperStoreURL()
@@ -51,6 +54,7 @@ public struct GatewayConfig: Sendable {
         self.clientRegistryURL = clientRegistryURL
         self.clientRegistrationSecret = clientRegistrationSecret
         self.oauthPublicOrigin = oauthPublicOrigin
+        self.oauthLatrkitPublicOrigin = oauthLatrkitPublicOrigin
         self.officialClientDID = officialClientDID
         self.databaseURL = databaseURL
         self.developerStoreURL = developerStoreURL
@@ -113,6 +117,8 @@ public struct GatewayConfig: Sendable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let oauthPublicOrigin = env["OAUTH_PUBLIC_ORIGIN"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        let oauthLatrkitPublicOrigin = env["OAUTH_LATRKIT_PUBLIC_ORIGIN"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let officialClientDID = env["OFFICIAL_CLIENT_DID"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let databaseURL = env["DATABASE_URL"]?
@@ -130,6 +136,7 @@ public struct GatewayConfig: Sendable {
             clientRegistryURL: clientRegistryURL,
             clientRegistrationSecret: registrationSecret?.isEmpty == false ? registrationSecret : nil,
             oauthPublicOrigin: oauthPublicOrigin?.isEmpty == false ? oauthPublicOrigin : nil,
+            oauthLatrkitPublicOrigin: oauthLatrkitPublicOrigin?.isEmpty == false ? oauthLatrkitPublicOrigin : nil,
             officialClientDID: officialClientDID?.isEmpty == false ? officialClientDID : nil,
             databaseURL: databaseURL?.isEmpty == false ? databaseURL : nil,
             developerStoreURL: developerStoreURL
