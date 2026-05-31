@@ -16,7 +16,13 @@ RUN apt-get update \
 
 COPY --from=builder /src/.build/release/LatrGateway /usr/local/bin/latr-gateway
 
+RUN mkdir -p /var/lib/latr-gateway/data \
+    && chown -R nobody:nogroup /var/lib/latr-gateway
+
+WORKDIR /var/lib/latr-gateway
+
 ENV PORT=8080
+ENV LATR_GATEWAY_DEVELOPER_STORE_PATH=/var/lib/latr-gateway/data/developer-store.json
 EXPOSE 8080
 USER nobody
 ENTRYPOINT ["latr-gateway"]

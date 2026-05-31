@@ -1,5 +1,7 @@
 import Foundation
 import HTTPTypes
+import Logging
+import PostgresNIO
 
 public struct DeveloperStoreSnapshot: Codable, Sendable {
     var clients: [String: DeveloperClientRecord]
@@ -7,7 +9,7 @@ public struct DeveloperStoreSnapshot: Codable, Sendable {
     var usage: [String: Int]
 }
 
-/// JSON-backed developer store for Fly volumes and local dev. Apply `migrations/001_developer_console.sql` on Supabase when using `DATABASE_URL` for analytics/reporting.
+/// JSON-backed developer store for local dev without `DATABASE_URL`.
 public actor PersistentDeveloperStore: DeveloperStore {
     private let backing: InMemoryDeveloperStore
     private let storeURL: URL
@@ -21,14 +23,40 @@ public actor PersistentDeveloperStore: DeveloperStore {
         )
     }
 
+    private func persistSnapshot(_ snapshot: DeveloperStoreSnapshot) throws {
+        let directory = storeURL.deletingLastPathComponent()
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(snapshot)
+            try data.write(to: storeURL, options: .atomic)
+        } catch {
+            throw GatewayError(
+                status: .internalServerError,
+                message: "Failed to persist developer store at \(storeURL.path): \(error.localizedDescription)",
+                code: "developer_store_persist_failed"
+            )
+        }
+    }
+
     private func persist() async throws {
         let snapshot = await backing.snapshot()
-        let directory = storeURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(snapshot)
-        try data.write(to: storeURL, options: .atomic)
+        try persistSnapshot(snapshot)
+    }
+
+    private func commit<T>(
+        _ operation: () async throws -> T
+    ) async throws -> T {
+        let before = await backing.snapshot()
+        let result = try await operation()
+        do {
+            try await persist()
+        } catch {
+            await backing.restoreSnapshot(before)
+            throw error
+        }
+        return result
     }
 
     public func resolveClientID(from headers: HTTPFields, requireClientAPIKey: Bool) async throws -> String? {
@@ -45,19 +73,20 @@ public actor PersistentDeveloperStore: DeveloperStore {
         displayName: String?,
         isOfficial: Bool
     ) async throws -> DeveloperClientRecord {
-        let created = try await backing.createClient(
-            ownerDID: ownerDID,
-            clientID: clientID,
-            displayName: displayName,
-            isOfficial: isOfficial
-        )
-        try await persist()
-        return created
+        try await commit {
+            try await backing.createClient(
+                ownerDID: ownerDID,
+                clientID: clientID,
+                displayName: displayName,
+                isOfficial: isOfficial
+            )
+        }
     }
 
     public func deleteClient(ownerDID: String, clientID: String) async throws {
-        try await backing.deleteClient(ownerDID: ownerDID, clientID: clientID)
-        try await persist()
+        try await commit {
+            try await backing.deleteClient(ownerDID: ownerDID, clientID: clientID)
+        }
     }
 
     public func listApiKeys(ownerDID: String, clientID: String) async throws -> [DeveloperApiKeyRecord] {
@@ -69,19 +98,21 @@ public actor PersistentDeveloperStore: DeveloperStore {
         clientID: String,
         label: String?
     ) async throws -> (record: DeveloperApiKeyRecord, apiKey: String) {
-        let created = try await backing.createApiKey(ownerDID: ownerDID, clientID: clientID, label: label)
-        try await persist()
-        return created
+        try await commit {
+            try await backing.createApiKey(ownerDID: ownerDID, clientID: clientID, label: label)
+        }
     }
 
     public func revokeApiKey(ownerDID: String, clientID: String, keyID: String) async throws {
-        try await backing.revokeApiKey(ownerDID: ownerDID, clientID: clientID, keyID: keyID)
-        try await persist()
+        try await commit {
+            try await backing.revokeApiKey(ownerDID: ownerDID, clientID: clientID, keyID: keyID)
+        }
     }
 
     public func recordUsage(clientID: String, routeFamily: String) async throws {
-        try await backing.recordUsage(clientID: clientID, routeFamily: routeFamily)
-        try await persist()
+        try await commit {
+            try await backing.recordUsage(clientID: clientID, routeFamily: routeFamily)
+        }
     }
 
     public func usageSummaries(ownerDID: String) async throws -> [DeveloperUsageSummaryResponse] {
@@ -104,12 +135,29 @@ extension InMemoryDeveloperStore {
     fileprivate func snapshot() -> DeveloperStoreSnapshot {
         DeveloperStoreSnapshot(clients: clients, apiKeys: apiKeys, usage: usage)
     }
+
+    fileprivate func restoreSnapshot(_ snapshot: DeveloperStoreSnapshot) {
+        clients = snapshot.clients
+        apiKeys = snapshot.apiKeys
+        usage = snapshot.usage
+    }
 }
 
 public enum DeveloperStoreFactory {
-    public static func make(config: GatewayConfig) -> any DeveloperStore {
+    public static func make(
+        config: GatewayConfig,
+        postgres: PostgresClient? = nil,
+        logger: Logger = Logger(label: "latr-gateway")
+    ) -> any DeveloperStore {
         if config.appEnv == .test {
             return InMemoryDeveloperStore(officialEnvCredentials: config.officialClientCredentials)
+        }
+        if let postgres, config.databaseURL != nil {
+            return PostgresDeveloperStore(
+                pool: postgres,
+                officialEnvCredentials: config.officialClientCredentials,
+                logger: logger
+            )
         }
         return PersistentDeveloperStore(
             officialEnvCredentials: config.officialClientCredentials,

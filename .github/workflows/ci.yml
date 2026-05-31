@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       gateway: ${{ steps.filter.outputs.gateway }}
+      gateway_migrations: ${{ steps.filter.outputs.gateway_migrations }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,13 +52,44 @@ jobs:
         env:
           NEXT_PUBLIC_APP_ENV: test
 
-  deploy-gateway:
-    name: Deploy Gateway (Fly.io)
+  migrate-gateway-db:
+    name: Migrate gateway database (Supabase)
     needs: [changes, ci]
     if: |
       always() &&
       needs.ci.result == 'success' &&
       needs.changes.result == 'success' &&
+      (
+        needs.changes.outputs.gateway_migrations == 'true' ||
+        (
+          needs.changes.outputs.gateway == 'true' &&
+          (
+            (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.deploy_gateway)
+          )
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply developer console migration
+        env:
+          GATEWAY_DATABASE_URL_DEV: ${{ secrets.GATEWAY_DATABASE_URL_DEV }}
+          GATEWAY_DATABASE_URL_PROD: ${{ secrets.GATEWAY_DATABASE_URL_PROD }}
+        run: bash scripts/run-gateway-migration.sh "${{ github.ref_name }}"
+
+  deploy-gateway:
+    name: Deploy Gateway (Fly.io)
+    needs: [changes, ci, migrate-gateway-db]
+    if: |
+      always() &&
+      needs.ci.result == 'success' &&
+      needs.changes.result == 'success' &&
+      needs.migrate-gateway-db.result == 'success' &&
       needs.changes.outputs.gateway == 'true' &&
       (
         (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')) ||

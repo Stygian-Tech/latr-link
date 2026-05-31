@@ -55,4 +55,10 @@ filter_changed() {
 filter_changed gateway \
   'services/latr-gateway/**' \
   'scripts/fly-deploy-gateway.sh' \
+  'scripts/run-gateway-migration.sh' \
+  '.github/workflows/ci.yml'
+
+filter_changed gateway_migrations \
+  'services/latr-gateway/migrations/**' \
+  'scripts/run-gateway-migration.sh' \
   '.github/workflows/ci.yml'

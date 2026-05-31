@@ -2,6 +2,7 @@ import AsyncHTTPClient
 import Foundation
 import Hummingbird
 import LatrKit
+import Logging
 
 public struct GatewayServices: Sendable {
     public let config: GatewayConfig
@@ -14,11 +15,15 @@ public struct GatewayServices: Sendable {
         self.developerStore = developerStore
     }
 
-    public static func make(config: GatewayConfig, httpClient: HTTPClient) -> GatewayServices {
+    public static func make(
+        config: GatewayConfig,
+        httpClient: HTTPClient,
+        logger: Logger = Logger(label: "latr-gateway")
+    ) -> GatewayServices {
         GatewayServices(
             config: config,
             httpClient: httpClient,
-            developerStore: DeveloperStoreFactory.make(config: config)
+            developerStore: DeveloperStoreFactory.make(config: config, logger: logger)
         )
     }
 

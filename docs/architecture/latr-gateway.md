@@ -96,8 +96,8 @@ Full template: [`services/latr-gateway/.env.example`](../../services/latr-gatewa
 | `OAUTH_GATEWAY_ALLOWED_CLIENT_IDS` | When OAuth policy on | _(empty)_ | OAuth client metadata URLs |
 | `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` | No | `true` when `APP_ENV=prod` | Require app credential headers |
 | `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS` | No | _(empty)_ | Internal legacy `client-id=base64` pairs |
-| `DATABASE_URL` | No | _(empty)_ | Supabase Postgres (run SQL migration; not used by runtime store yet) |
-| `LATR_GATEWAY_DEVELOPER_STORE_PATH` | No | `./data/developer-store.json` | JSON store for clients/keys/usage |
+| `DATABASE_URL` | Yes on Fly | _(empty)_ | Supabase Postgres for developer clients, API keys, and usage (`migrations/001_developer_console.sql`) |
+| `LATR_GATEWAY_DEVELOPER_STORE_PATH` | No | `./data/developer-store.json` | JSON fallback when `DATABASE_URL` is unset (local dev) |
 | `LATR_GATEWAY_CLIENT_REGISTRY_PATH` | No | `./data/client-registry.json` | Legacy JSON registry (deprecated) |
 
 **L@tr web** — `LATR_GATEWAY_CLIENT_CREDENTIAL` or split `LATR_GATEWAY_CLIENT_ID` + `LATR_GATEWAY_API_KEY` via `next.config.ts`.
@@ -125,4 +125,11 @@ psql "$DATABASE_URL" -f services/latr-gateway/migrations/001_developer_console.s
 
 ## Fly deployment (dev)
 
-See existing Fly notes in this file’s git history; mount a volume for `LATR_GATEWAY_DEVELOPER_STORE_PATH` and set OAuth allowlists via Fly secrets.
+Set `DATABASE_URL` as a Fly secret (Supabase Postgres). CI applies `migrations/001_developer_console.sql` before each gateway deploy when gateway paths change on `dev`/`main` (GitHub secrets `GATEWAY_DATABASE_URL_DEV` / `GATEWAY_DATABASE_URL_PROD`, or `DATABASE_URL` fallback).
+
+```bash
+fly secrets set DATABASE_URL='postgresql://...' -a latr-link-dev-gateway
+bash services/latr-gateway/deploy.sh dev
+```
+
+Also set OAuth allowlists via Fly secrets as needed.
