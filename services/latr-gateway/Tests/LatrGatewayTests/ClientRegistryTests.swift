@@ -63,6 +63,10 @@ final class ClientRegistryTests: XCTestCase {
         XCTAssertEqual(resolved, "latr-link-web")
     }
 
+    func testNormalizeClientIDAllowsUnderscores() throws {
+        XCTAssertEqual(try normalizeClientID("my_app-name"), "my_app-name")
+    }
+
     func testRegisterClientPreservesUnicodeDisplayName() async throws {
         let registryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("latr-registry-\(UUID().uuidString).json")

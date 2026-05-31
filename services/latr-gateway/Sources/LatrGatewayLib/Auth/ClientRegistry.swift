@@ -215,12 +215,12 @@ public func normalizeClientID(_ raw: String) throws -> String {
         throw GatewayError(status: .badRequest, message: "clientId is required", code: "missing_client_id")
     }
 
-    let pattern = try NSRegularExpression(pattern: #"^[a-z][a-z0-9-]{0,62}$"#)
+    let pattern = try NSRegularExpression(pattern: #"^[a-z][a-z0-9_\-]{0,62}$"#)
     let range = NSRange(clientID.startIndex..., in: clientID)
     guard pattern.firstMatch(in: clientID, range: range) != nil else {
         throw GatewayError(
             status: .badRequest,
-            message: "clientId must start with a letter and contain only lowercase letters, digits, and hyphens",
+            message: "clientId must start with a letter and contain only lowercase letters, digits, hyphens, and underscores",
             code: "invalid_client_id"
         )
     }

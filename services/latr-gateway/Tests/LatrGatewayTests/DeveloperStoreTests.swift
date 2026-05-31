@@ -63,6 +63,17 @@ final class DeveloperStoreTests: XCTestCase {
         XCTAssertThrowsError(try assertOfficialProvisioner(did: "did:plc:other", config: config))
     }
 
+    func testCreateClientAllowsUnderscoresInClientID() async throws {
+        let store = InMemoryDeveloperStore()
+        let created = try await store.createClient(
+            ownerDID: "did:plc:developer",
+            clientID: "my_app-name",
+            displayName: nil,
+            isOfficial: false
+        )
+        XCTAssertEqual(created.clientID, "my_app-name")
+    }
+
     func testCreateClientPreservesUnicodeDisplayName() async throws {
         let store = InMemoryDeveloperStore()
         let created = try await store.createClient(

@@ -20,7 +20,7 @@ Third-party and [latrkit.dev](https://github.com/Stygian-Tech/latrkit-dev)-issue
 
 | Header | Description |
 |--------|-------------|
-| `X-Latr-Client-Id` | Registered client id (`^[a-z][a-z0-9-]{0,62}$`) |
+| `X-Latr-Client-Id` | Registered client id (`^[a-z][a-z0-9_-]{0,62}$`) |
 | `X-Latr-API-Key` | Opaque key (`lk_…`), shown once at creation |
 
 Keys are hashed at rest (SHA-256). Issue and rotate keys via **[latrkit.dev](https://github.com/Stygian-Tech/latrkit-dev)** or the developer management API (OAuth-protected).
