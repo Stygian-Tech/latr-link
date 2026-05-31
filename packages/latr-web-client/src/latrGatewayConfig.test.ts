@@ -12,6 +12,7 @@ import {
   LOCAL_LATR_GATEWAY_URL,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
+  resolveLatrGatewayConfig,
 } from "./latrGatewayConfig";
 
 afterEach(() => {
@@ -21,7 +22,11 @@ afterEach(() => {
     clientId: "",
     apiKey: "",
     testingHostname: "",
+    gatewayUrl: "",
   });
+  if (typeof window !== "undefined") {
+    delete window.__LATR_GATEWAY_BOOTSTRAP__;
+  }
 });
 
 describe("latrGatewayBaseUrl", () => {
@@ -101,5 +106,29 @@ describe("latrGatewayBaseUrl", () => {
   test("assertLatrGatewayClientCredential allows loopback without credential", () => {
     configureLatrGateway({ appEnv: "local", testingHostname: "127.0.0.1" });
     expect(() => assertLatrGatewayClientCredential()).not.toThrow();
+  });
+
+  test("resolveLatrGatewayConfig merges window bootstrap credentials", () => {
+    configureLatrGateway({
+      appEnv: "dev",
+      testingHostname: "testing.latr.link",
+      clientId: "",
+      apiKey: "",
+    });
+    const previousWindow = globalThis.window;
+    globalThis.window = {
+      __LATR_GATEWAY_BOOTSTRAP__: {
+        clientId: "latr-link-web",
+        apiKey: "lk_test_key",
+      },
+    } as Window & typeof globalThis;
+    try {
+      expect(() => assertLatrGatewayClientCredential()).not.toThrow();
+      const headers = latrGatewayClientHeaders(resolveLatrGatewayConfig());
+      expect(headers[LATR_CLIENT_ID_HEADER]).toBe("latr-link-web");
+      expect(headers[LATR_API_KEY_HEADER]).toBe("lk_test_key");
+    } finally {
+      globalThis.window = previousWindow;
+    }
   });
 });

@@ -5,8 +5,10 @@ import {
   DEFAULT_TESTING_LATR_GATEWAY_URL,
   LOCAL_LATR_GATEWAY_URL,
   latrGatewayBaseUrl as sharedLatrGatewayBaseUrl,
+  publishLatrGatewayWindowBootstrap,
   registerLatrGatewayConfigSync,
   type LatrGatewayEnvConfig,
+  type LatrGatewayWindowBootstrap,
 } from "latr-web-client/latrGatewayConfig";
 
 import { toLatrGatewayAppEnv } from "@/lib/environmentBanner";
@@ -18,16 +20,7 @@ export {
   DEFAULT_PROD_LATR_GATEWAY_URL,
 };
 
-export type LatrGatewayWindowBootstrap = Pick<
-  LatrGatewayEnvConfig,
-  "clientId" | "apiKey" | "clientCredential" | "gatewayUrl" | "appEnv"
->;
-
-declare global {
-  interface Window {
-    __LATR_GATEWAY_BOOTSTRAP__?: LatrGatewayWindowBootstrap;
-  }
-}
+export type { LatrGatewayWindowBootstrap };
 
 /** Credential from the server layout (runtime env); wins over client `process.env`. */
 let injectedGatewayClientCredential: string | undefined;
@@ -51,10 +44,17 @@ export function setInjectedGatewayClientCredentials(credentials: {
   injectedGatewayApiKey = apiKey || undefined;
 }
 
+function readEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value || undefined;
+}
+
 /** Read gateway client credential on the server (layout) or from build-time env. */
 export function readGatewayClientCredentialFromEnv(): string | undefined {
-  const fromEnv = process.env.LATR_GATEWAY_CLIENT_CREDENTIAL?.trim();
-  return fromEnv || undefined;
+  return (
+    readEnv("LATR_GATEWAY_CLIENT_CREDENTIAL") ??
+    readEnv("NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL")
+  );
 }
 
 /** Read split gateway credentials on the server (layout) or from build-time env. */
@@ -62,8 +62,11 @@ export function readGatewayClientCredentialsFromEnv(): {
   clientId?: string;
   apiKey?: string;
 } {
-  const clientId = process.env.LATR_GATEWAY_CLIENT_ID?.trim();
-  const apiKey = process.env.LATR_GATEWAY_API_KEY?.trim();
+  const clientId =
+    readEnv("LATR_GATEWAY_CLIENT_ID") ??
+    readEnv("NEXT_PUBLIC_LATR_GATEWAY_CLIENT_ID");
+  const apiKey =
+    readEnv("LATR_GATEWAY_API_KEY") ?? readEnv("NEXT_PUBLIC_LATR_GATEWAY_API_KEY");
   return {
     ...(clientId ? { clientId } : {}),
     ...(apiKey ? { apiKey } : {}),
@@ -111,13 +114,23 @@ export function syncLatrGatewayFromBrowser(): void {
     splitFromInjection?.apiKey ??
     splitFromBootstrap?.apiKey ??
     splitFromEnv.apiKey;
+  const gatewayUrl =
+    process.env.NEXT_PUBLIC_LATR_GATEWAY_URL?.trim() ??
+    bootstrap?.gatewayUrl?.trim();
+  const appEnv = bootstrap?.appEnv ?? toLatrGatewayAppEnv();
 
   configureLatrGateway({
-    gatewayUrl:
-      process.env.NEXT_PUBLIC_LATR_GATEWAY_URL?.trim() ??
-      bootstrap?.gatewayUrl?.trim(),
-    appEnv: bootstrap?.appEnv ?? toLatrGatewayAppEnv(),
+    gatewayUrl,
+    appEnv,
     testingHostname: testingHostname ?? "",
+    clientCredential: credential ?? "",
+    clientId: clientId ?? "",
+    apiKey: apiKey ?? "",
+  });
+
+  publishLatrGatewayWindowBootstrap({
+    ...(gatewayUrl ? { gatewayUrl } : {}),
+    appEnv,
     ...(credential ? { clientCredential: credential } : {}),
     ...(clientId && apiKey ? { clientId, apiKey } : {}),
   });

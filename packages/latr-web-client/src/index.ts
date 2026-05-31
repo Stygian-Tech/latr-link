@@ -12,8 +12,10 @@ export {
   assertLatrGatewayClientCredential,
   configureLatrGateway,
   getLatrGatewayConfig,
+  hasRegisteredLatrGatewayConfigSync,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
+  publishLatrGatewayWindowBootstrap,
   registerLatrGatewayConfigSync,
   resolveLatrGatewayConfig,
   LATR_LINK_WEB_CLIENT_ID,
@@ -24,6 +26,7 @@ export {
   THE_SOCIAL_WIRE_WEB_CLIENT_ID,
   type LatrAppEnv,
   type LatrGatewayEnvConfig,
+  type LatrGatewayWindowBootstrap,
 } from "./latrGatewayConfig";
 export {
   latrGatewayFetch,

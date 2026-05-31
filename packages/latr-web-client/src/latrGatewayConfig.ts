@@ -34,6 +34,18 @@ export type LatrGatewayEnvConfig = {
   apiKey?: string;
 };
 
+/** Server-injected bootstrap for hosted web apps (survives duplicate client bundles). */
+export type LatrGatewayWindowBootstrap = Pick<
+  LatrGatewayEnvConfig,
+  "clientId" | "apiKey" | "clientCredential" | "gatewayUrl" | "appEnv"
+>;
+
+declare global {
+  interface Window {
+    __LATR_GATEWAY_BOOTSTRAP__?: LatrGatewayWindowBootstrap;
+  }
+}
+
 let globalGatewayConfig: LatrGatewayEnvConfig = {
   appEnv: "local",
 };
@@ -41,15 +53,55 @@ let globalGatewayConfig: LatrGatewayEnvConfig = {
 type LatrGatewayConfigSync = () => void;
 let gatewayConfigSync: LatrGatewayConfigSync | undefined;
 
+function readWindowGatewayBootstrap(): LatrGatewayWindowBootstrap | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.__LATR_GATEWAY_BOOTSTRAP__;
+}
+
+function mergeGatewayConfigWithWindowBootstrap(
+  config: LatrGatewayEnvConfig
+): LatrGatewayEnvConfig {
+  const bootstrap = readWindowGatewayBootstrap();
+  if (!bootstrap) return config;
+
+  const clientId = bootstrap.clientId?.trim();
+  const apiKey = bootstrap.apiKey?.trim();
+  const clientCredential = bootstrap.clientCredential?.trim();
+  const gatewayUrl = bootstrap.gatewayUrl?.trim();
+
+  return {
+    ...config,
+    ...(bootstrap.appEnv ? { appEnv: bootstrap.appEnv } : {}),
+    ...(gatewayUrl ? { gatewayUrl } : {}),
+    ...(clientCredential ? { clientCredential } : {}),
+    ...(clientId && apiKey ? { clientId, apiKey } : {}),
+  };
+}
+
 /** Host apps register runtime sync (env injection, hostname mapping) before gateway calls. */
 export function registerLatrGatewayConfigSync(fn: LatrGatewayConfigSync): void {
   gatewayConfigSync = fn;
 }
 
+export function hasRegisteredLatrGatewayConfigSync(): boolean {
+  return gatewayConfigSync !== undefined;
+}
+
 /** Refresh config from registered host sync, then return the active snapshot. */
 export function resolveLatrGatewayConfig(): LatrGatewayEnvConfig {
   gatewayConfigSync?.();
-  return globalGatewayConfig;
+  return mergeGatewayConfigWithWindowBootstrap(globalGatewayConfig);
+}
+
+/** Persist credentials on `window` so all client bundles share the same runtime config. */
+export function publishLatrGatewayWindowBootstrap(
+  bootstrap: LatrGatewayWindowBootstrap
+): void {
+  if (typeof window === "undefined") return;
+  window.__LATR_GATEWAY_BOOTSTRAP__ = {
+    ...window.__LATR_GATEWAY_BOOTSTRAP__,
+    ...bootstrap,
+  };
 }
 
 /** Configure gateway URL and client credential headers for the current runtime. */
@@ -138,15 +190,16 @@ export function latrGatewayBaseUrl(config: LatrGatewayEnvConfig = globalGatewayC
 export const LATR_OFFICIAL_CLIENT_HEADER = "X-Latr-Official-Client";
 
 export function latrGatewayClientHeaders(
-  config: LatrGatewayEnvConfig = globalGatewayConfig
+  config?: LatrGatewayEnvConfig
 ): Record<string, string> {
-  const clientId = config.clientId?.trim();
-  const apiKey = config.apiKey?.trim();
+  const resolved = config ?? resolveLatrGatewayConfig();
+  const clientId = resolved.clientId?.trim();
+  const apiKey = resolved.apiKey?.trim();
   if (clientId && apiKey) {
     return buildDeveloperGatewayHeaders({ clientId, apiKey });
   }
 
-  const credential = config.clientCredential?.trim();
+  const credential = resolved.clientCredential?.trim();
   if (!credential) return {};
   return {
     [LATR_OFFICIAL_CLIENT_HEADER]: credential,
@@ -155,14 +208,25 @@ export function latrGatewayClientHeaders(
 
 /** Throws when calling a non-loopback gateway without an official client credential. */
 export function assertLatrGatewayClientCredential(
-  config: LatrGatewayEnvConfig = globalGatewayConfig
+  config?: LatrGatewayEnvConfig
 ): void {
-  const headers = latrGatewayClientHeaders(config);
+  const resolved = config ?? resolveLatrGatewayConfig();
+  const headers = latrGatewayClientHeaders(resolved);
   if (headers[LATR_CLIENT_ID_HEADER] && headers[LATR_API_KEY_HEADER]) return;
   if (headers[LATR_OFFICIAL_CLIENT_HEADER]) return;
-  const base = latrGatewayBaseUrl(config);
+  const base = latrGatewayBaseUrl(resolved);
   if (isLoopbackGatewayUrl(base)) return;
+
+  const bootstrap = readWindowGatewayBootstrap();
+  const bootstrapClientId = Boolean(bootstrap?.clientId?.trim());
+  const bootstrapApiKey = Boolean(bootstrap?.apiKey?.trim());
+  const bootstrapCredential = Boolean(bootstrap?.clientCredential?.trim());
   throw new Error(
-    `Hosted L@tr gateway requires client credentials. Set LATR_GATEWAY_CLIENT_ID + LATR_GATEWAY_API_KEY (split headers) or LATR_GATEWAY_CLIENT_CREDENTIAL / VITE_LATR_GATEWAY_CLIENT_CREDENTIAL (legacy official header). On Vercel, enable them for Preview as well as Production when using testing.latr.link, then redeploy.`
+    [
+      "Hosted L@tr gateway requires client credentials.",
+      "Set LATR_GATEWAY_CLIENT_ID + LATR_GATEWAY_API_KEY (split headers) or LATR_GATEWAY_CLIENT_CREDENTIAL (legacy official header).",
+      "On Vercel, enable them for Preview as well as Production when using testing.latr.link, then redeploy.",
+      `Diagnostic: bootstrapClientId=${bootstrapClientId}, bootstrapApiKey=${bootstrapApiKey}, bootstrapCredential=${bootstrapCredential}, configSync=${hasRegisteredLatrGatewayConfigSync()}.`,
+    ].join(" ")
   );
 }
