@@ -61,6 +61,31 @@ export function isExternalWrapperUri(subjectUri: string): boolean {
   }
 }
 
+/** UI / dev-label kind from the saved edge's subject URI (not linkedWebUrl). */
+export function previewKindForSubjectUri(
+  subjectUri: string
+): ResolvedPreview["kind"] {
+  if (isExternalWrapperUri(subjectUri)) return "external";
+  try {
+    if (new AtUri(subjectUri).collection === "app.bsky.feed.post") {
+      return "post";
+    }
+  } catch {
+    /* fall through */
+  }
+  return "record";
+}
+
+function subjectPreviewLooksResolved(
+  preview: ResolvedPreview,
+  subjectUri: string
+): boolean {
+  if (preview.kind === "unknown") return false;
+  const title = preview.title.trim();
+  if (!title || title === subjectUri) return false;
+  return true;
+}
+
 export function savedItemHasProtocolPreview(item: SavedItemRecord): boolean {
   return Boolean(
     item.previewTitle?.trim() ||
@@ -96,7 +121,7 @@ function resolvedPreviewFromOpenGraphFields(
     author?: string;
   },
   item: SavedItemRecord,
-  kind: ResolvedPreview["kind"] = "external"
+  kind: ResolvedPreview["kind"]
 ): ResolvedPreview {
   const linked = item.linkedWebUrl?.trim();
   const canonicalUrl = linked || undefined;
@@ -153,7 +178,7 @@ export function previewFromSavedItemRecord(
     item.subjectUri;
 
   return {
-    kind: external || linked ? "external" : "record",
+    kind: previewKindForSubjectUri(item.subjectUri),
     title,
     subtitle: previewSubtitle(item.previewExcerpt, item.previewAuthor),
     href: canonicalUrl || (external ? linked : undefined),
@@ -174,6 +199,8 @@ export async function resolveSubjectPreviewForRow(
   const cached = readCachedSubjectPreview(subjectUri, fingerprint);
   if (cached) return cached;
 
+  const subjectKind = previewKindForSubjectUri(subjectUri);
+
   if (savedItemHasProtocolPreview(rec.value)) {
     const fromProtocol = previewFromSavedItemRecord(rec);
     if (fromProtocol) {
@@ -183,12 +210,26 @@ export async function resolveSubjectPreviewForRow(
     }
   }
 
+  const fromSubject = await resolveSubjectPreview(repo, subjectUri);
+  if (subjectPreviewLooksResolved(fromSubject, subjectUri)) {
+    const merged = mergeSavedItemOgPreview(
+      {
+        ...fromSubject,
+        kind:
+          fromSubject.kind !== "unknown" ? fromSubject.kind : subjectKind,
+      },
+      rec.value
+    );
+    writeCachedSubjectPreview(subjectUri, fingerprint, merged);
+    return merged;
+  }
+
   const linked = rec.value.linkedWebUrl?.trim();
   if (linked) {
     const og = await repo.fetchOpenGraphPreview(linked);
     if (og && openGraphFieldsHavePreview(og)) {
       const fromOg = mergeSavedItemOgPreview(
-        resolvedPreviewFromOpenGraphFields(og, rec.value),
+        resolvedPreviewFromOpenGraphFields(og, rec.value, subjectKind),
         rec.value
       );
       writeCachedSubjectPreview(subjectUri, fingerprint, fromOg);
@@ -196,8 +237,10 @@ export async function resolveSubjectPreviewForRow(
     }
   }
 
-  const base = await resolveSubjectPreview(repo, subjectUri);
-  const merged = mergeSavedItemOgPreview(base, rec.value);
+  const merged = mergeSavedItemOgPreview(
+    { ...fromSubject, kind: subjectKind },
+    rec.value
+  );
   writeCachedSubjectPreview(subjectUri, fingerprint, merged);
   return merged;
 }

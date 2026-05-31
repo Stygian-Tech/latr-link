@@ -38,7 +38,7 @@ function savedItem(
 
 afterEach(() => {
   if (typeof window !== "undefined") {
-    window.localStorage.removeItem("latr.link.saved-preview.v1");
+    window.localStorage.removeItem("latr.link.saved-preview.v2");
   }
 });
 
@@ -80,6 +80,16 @@ describe("Preview from Saved Item Record", () => {
       })
     );
     expect(preview?.subtitle).toBe("By Jane Doe");
+  });
+
+  test("Native Subject With linkedWebUrl Is Not Classified as External", () => {
+    const preview = previewFromSavedItemRecord(
+      savedItem({
+        subjectUri: "at://did:plc:author/app.bsky.feed.post/3abc",
+        previewTitle: "Hello World",
+      })
+    );
+    expect(preview?.kind).toBe("post");
   });
 });
 

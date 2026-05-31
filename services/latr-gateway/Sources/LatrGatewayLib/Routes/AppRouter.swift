@@ -78,18 +78,36 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
                 )
             case let .subject(subjectURI, linkedWebURL):
                 let linked = linkedWebURL?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let preview: OpenGraphPreview?
-                if let linked, !linked.isEmpty,
-                   let ogFields = await fetchOpenGraphMetadata(url: linked, httpClient: services.httpClient)
+                let normalizedLink: String? = {
+                    guard let linked, !linked.isEmpty else { return nil }
+                    return linked
+                }()
+
+                let resolver = SubjectPreviewResolver(
+                    repository: services.repositoryClient(for: auth),
+                    appView: services.federatedSubjectClient(),
+                    untyped: services.federatedSubjectClient()
+                )
+                let subjectPreview = await resolver.preview(for: subjectURI)
+                var mergedPreview = subjectPreview
+                if let normalizedLink,
+                   let ogFields = await fetchOpenGraphMetadata(
+                       url: normalizedLink,
+                       httpClient: services.httpClient
+                   )
                 {
-                    preview = openGraphPreview(from: ogFields)
-                } else {
-                    preview = nil
+                    mergedPreview = OpenGraphMerger.merge(
+                        primary: subjectPreview,
+                        fallback: openGraphPreview(from: ogFields)
+                    )
                 }
+
+                let previewForSave = openGraphPreviewHasContent(mergedPreview) ? mergedPreview : nil
+
                 try await library.save(
                     subjectURI: subjectURI,
-                    linkedWebURL: linkedWebURL,
-                    preview: preview
+                    linkedWebURL: normalizedLink,
+                    preview: previewForSave
                 )
                 let storage = subjectURI.contains("/com.latr.saved.external/") ? "external" : "native"
                 return try jsonResponse(
@@ -208,6 +226,18 @@ private func openGraphPreview(from fields: OpenGraphFields) -> OpenGraphPreview 
         siteName: fields.siteName,
         author: fields.author
     )
+}
+
+private func openGraphPreviewHasContent(_ preview: OpenGraphPreview) -> Bool {
+    func filled(_ value: String?) -> Bool {
+        guard let value else { return false }
+        return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    return filled(preview.title)
+        || filled(preview.description)
+        || filled(preview.image)
+        || filled(preview.siteName)
+        || filled(preview.author)
 }
 
 private func handleProtected(

@@ -47,7 +47,7 @@ function mockOAuthSession(
 }
 
 describe("Latrrepo Gateway Facade", () => {
-  test("listSavedItems Reads Saved Items From the Viewer PDS", async () => {
+  test("listSavedItems Reads Saved Items From the Gateway", async () => {
     const calls: string[] = [];
     const oauth = mockOAuthSession(async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
@@ -60,7 +60,7 @@ describe("Latrrepo Gateway Facade", () => {
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     const items = await repo.listSavedItems();
     expect(items).toHaveLength(0);
-    expect(calls[0]).toContain("com.atproto.repo.listRecords");
+    expect(calls.some((call) => call.includes("/v1/latr/saves"))).toBe(true);
   });
 
   test("saveExternalUrl POSTs URL Body", async () => {

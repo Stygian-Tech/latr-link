@@ -1,7 +1,7 @@
 import type { SavedItemRecord } from "@/lib/latrRecords";
 import type { ResolvedPreview } from "@/lib/resolveSubject";
 
-const STORAGE_KEY = "latr.link.saved-preview.v1";
+const STORAGE_KEY = "latr.link.saved-preview.v2";
 
 type CacheEntry = {
   fingerprint: string;
