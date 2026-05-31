@@ -172,13 +172,6 @@ public actor InMemoryDeveloperStore: DeveloperStore {
         guard record.ownerDID == ownerDID else {
             throw GatewayError(status: .forbidden, message: "Not authorized for this client", code: "forbidden")
         }
-        if record.isOfficial {
-            throw GatewayError(
-                status: .forbidden,
-                message: "Official gateway clients cannot be deleted via the developer API",
-                code: "official_client"
-            )
-        }
         clients.removeValue(forKey: normalized)
         apiKeys = apiKeys.filter { $0.value.clientID != normalized }
     }

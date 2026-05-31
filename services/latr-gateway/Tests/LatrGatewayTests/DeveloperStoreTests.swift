@@ -49,20 +49,6 @@ final class DeveloperStoreTests: XCTestCase {
         XCTAssertEqual(resolved, "latr-link-web")
     }
 
-    func testOfficialProvisionerGate() throws {
-        let config = GatewayConfig(
-            port: 8080,
-            appEnv: .test,
-            plcURL: "https://plc.directory",
-            oauthRequireKnownClient: false,
-            oauthAllowedClientIDs: [],
-            officialClientDID: "did:plc:official"
-        )
-
-        XCTAssertNoThrow(try assertOfficialProvisioner(did: "did:plc:official", config: config))
-        XCTAssertThrowsError(try assertOfficialProvisioner(did: "did:plc:other", config: config))
-    }
-
     func testCreateClientAllowsUnderscoresInClientID() async throws {
         let store = InMemoryDeveloperStore()
         let created = try await store.createClient(

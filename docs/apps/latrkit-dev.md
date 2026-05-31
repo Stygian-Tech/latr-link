@@ -18,8 +18,7 @@ cd ../latrkit-dev && bun run dev   # http://127.0.0.1:3001
 
 | Variable | Description |
 |----------|-------------|
-| `OFFICIAL_CLIENT_DID` | DID allowed to provision official clients |
-| `DATABASE_URL` | Supabase Postgres — apply `migrations/001_developer_console.sql` |
 | `LATR_GATEWAY_DEVELOPER_STORE_PATH` | JSON persistence for clients/keys/usage |
+| `DATABASE_URL` | Supabase Postgres — apply `migrations/001_developer_console.sql` (schema only today) |
 
 See [`docs/architecture/latr-gateway.md`](../architecture/latr-gateway.md) and the [latrkit-dev README](https://github.com/Stygian-Tech/latrkit-dev/blob/main/README.md).

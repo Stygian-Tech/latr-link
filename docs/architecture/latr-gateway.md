@@ -27,7 +27,7 @@ Keys are hashed at rest (SHA-256). Issue and rotate keys via **[latrkit.dev](htt
 
 When `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY=true` (default in `APP_ENV=prod`), these headers (or legacy official header below) are required on every `/v1/latr/*` route except developer management routes.
 
-### Internal official clients (migration)
+### Legacy env credentials (migration)
 
 Legacy first-party apps may still use:
 
@@ -35,7 +35,7 @@ Legacy first-party apps may still use:
 |--------|-------------|
 | `X-Latr-Official-Client` | Base64 credential from env map `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS` |
 
-Provision new official clients through **[latrkit.dev](https://github.com/Stygian-Tech/latrkit-dev)** when `OFFICIAL_CLIENT_DID` matches the signed-in operator DID (`POST /v1/latr/developer/official/clients`). Do not document public base64 self-registration.
+Register new clients (including first-party apps) through **[latrkit.dev](https://github.com/Stygian-Tech/latrkit-dev)** like any other developer: create a client, issue an API key, and configure `X-Latr-Client-Id` + `X-Latr-API-Key` in your app. Client records are not labeled differently in the console or management API.
 
 Local development (`APP_ENV=local`) skips client credentials by default.
 
@@ -51,7 +51,6 @@ Authenticated with the operator’s ATProto session only (no app API key):
 | GET | `/v1/latr/developer/clients/:clientId/keys` | List API keys |
 | POST | `/v1/latr/developer/clients/:clientId/keys` | Create API key (shown once) |
 | DELETE | `/v1/latr/developer/clients/:clientId/keys/:keyId` | Revoke key |
-| POST | `/v1/latr/developer/official/clients` | Provision official client + key (`OFFICIAL_CLIENT_DID` only) |
 | GET | `/v1/latr/developer/usage` | Usage summary (preview limits) |
 
 ### User OAuth + DPoP
@@ -97,8 +96,7 @@ Full template: [`services/latr-gateway/.env.example`](../../services/latr-gatewa
 | `OAUTH_GATEWAY_ALLOWED_CLIENT_IDS` | When OAuth policy on | _(empty)_ | OAuth client metadata URLs |
 | `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` | No | `true` when `APP_ENV=prod` | Require app credential headers |
 | `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS` | No | _(empty)_ | Internal legacy `client-id=base64` pairs |
-| `OFFICIAL_CLIENT_DID` | No | _(empty)_ | DID allowed to provision official clients |
-| `DATABASE_URL` | No | _(empty)_ | Supabase Postgres (run SQL migration) |
+| `DATABASE_URL` | No | _(empty)_ | Supabase Postgres (run SQL migration; not used by runtime store yet) |
 | `LATR_GATEWAY_DEVELOPER_STORE_PATH` | No | `./data/developer-store.json` | JSON store for clients/keys/usage |
 | `LATR_GATEWAY_CLIENT_REGISTRY_PATH` | No | `./data/client-registry.json` | Legacy JSON registry (deprecated) |
 
@@ -127,4 +125,4 @@ psql "$DATABASE_URL" -f services/latr-gateway/migrations/001_developer_console.s
 
 ## Fly deployment (dev)
 
-See existing Fly notes in this file’s git history; mount a volume for `LATR_GATEWAY_DEVELOPER_STORE_PATH` and set `OFFICIAL_CLIENT_DID`, `DATABASE_URL`, and OAuth allowlists via Fly secrets.
+See existing Fly notes in this file’s git history; mount a volume for `LATR_GATEWAY_DEVELOPER_STORE_PATH` and set OAuth allowlists via Fly secrets.

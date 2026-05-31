@@ -12,7 +12,7 @@ public enum DeveloperRoutes {
                     DeveloperClientSummaryResponse(
                         clientId: $0.clientID,
                         displayName: $0.displayName,
-                        kind: $0.isOfficial ? "official" : "developer",
+                        kind: "developer",
                         createdAt: $0.createdAt
                     )
                 }
@@ -112,59 +112,12 @@ public enum DeveloperRoutes {
             }
         }
 
-        developer.post("official/clients") { request, _ in
-            await handleDeveloper(request: request, services: services) { auth in
-                try assertOfficialProvisioner(did: auth.did, config: services.config)
-                let body = try await decodeJSONBody(request, as: CreateDeveloperClientBody.self)
-                let created = try await services.developerStore.createClient(
-                    ownerDID: auth.did,
-                    clientID: body.clientId,
-                    displayName: body.displayName,
-                    isOfficial: true
-                )
-                let apiKey = try await services.developerStore.createApiKey(
-                    ownerDID: auth.did,
-                    clientID: created.clientID,
-                    label: "official-bootstrap"
-                )
-                return try jsonResponse(
-                    CreateDeveloperApiKeyResponse(
-                        keyId: apiKey.record.keyID,
-                        clientId: created.clientID,
-                        apiKey: apiKey.apiKey,
-                        label: apiKey.record.label,
-                        createdAt: apiKey.record.createdAt
-                    ),
-                    status: .created
-                )
-            }
-        }
-
         developer.get("usage") { request, _ in
             await handleDeveloper(request: request, services: services) { auth in
                 let usage = try await services.developerStore.usageSummaries(ownerDID: auth.did)
                 return try jsonResponse(ListDeveloperUsageResponse(usage: usage))
             }
         }
-    }
-}
-
-public func assertOfficialProvisioner(did: String, config: GatewayConfig) throws {
-    guard let officialDID = config.officialClientDID?.trimmingCharacters(in: .whitespacesAndNewlines),
-          !officialDID.isEmpty
-    else {
-        throw GatewayError(
-            status: .forbidden,
-            message: "Official client provisioning is not configured",
-            code: "official_provisioning_disabled"
-        )
-    }
-    guard did == officialDID else {
-        throw GatewayError(
-            status: .forbidden,
-            message: "Only the configured official provisioner DID may create official clients",
-            code: "official_provisioning_forbidden"
-        )
     }
 }
 
