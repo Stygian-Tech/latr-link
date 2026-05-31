@@ -40,9 +40,9 @@ export default function SettingsPage() {
       a.download = `latr-export-${repo.did.slice(-8)}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
-      setMessage("Download started.");
+      setMessage("Download Started.");
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Export failed.");
+      setMessage(e instanceof Error ? e.message : "Export Failed.");
     }
   }
 
@@ -54,7 +54,7 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-semibold leading-tight">Settings</h1>
           <p className="text-sm leading-snug text-zinc-500 dark:text-zinc-400">
-            Local data and exports.
+            Local Data and Exports.
           </p>
         </div>
       </header>
@@ -64,8 +64,8 @@ export default function SettingsPage() {
             Export
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Download a JSON snapshot of your `com.latr.saved.item` records (raw
-            repo payloads). Resolved previews are not included.
+            Download a JSON Snapshot of Your `com.latr.saved.item` Records (Raw
+            Repo Payloads). Resolved Previews Are Not Included.
           </p>
           <button
             type="button"
@@ -83,25 +83,25 @@ export default function SettingsPage() {
         </section>
         <section>
           <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-            Clear local cache
+            Clear Local Cache
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Remove persisted React Query data from this browser (saved list
-            cache). Your PDS records are unchanged.
+            Remove Persisted React Query Data From This Browser (Saved List
+            Cache). Your PDS Records Are Unchanged.
           </p>
           <button
             type="button"
             onClick={() => {
               try {
                 localStorage.removeItem("latr.link.react-query.v1");
-                setMessage("Cleared local React Query cache.");
+                setMessage("Cleared Local React Query Cache.");
               } catch {
-                setMessage("Could not clear storage.");
+                setMessage("Could Not Clear Storage.");
               }
             }}
             className="mt-3 rounded-md border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-600"
           >
-            Clear browser cache
+            Clear Browser Cache
           </button>
         </section>
       </div>

@@ -14,5 +14,5 @@ if [ -z "${FLY_API_TOKEN:-}" ]; then
 fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-echo "::notice::Fly gateway deploy (${BRANCH})"
+echo "::notice::Fly Gateway Deploy (${BRANCH})"
 exec bash "$ROOT/services/latr-gateway/deploy.sh" "$BRANCH"

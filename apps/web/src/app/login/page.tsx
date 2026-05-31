@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 
 const callbackErrorMessage =
-  "Sign-in callback failed. Try an external browser (Chrome/Safari) if preview tools block WebSockets or storage.";
+  "Sign-In Callback Failed. Try an External Browser (Chrome/Safari) if Preview Tools Block WebSockets or Storage.";
 
 function getInitialCallbackError(): string | null {
   if (typeof window === "undefined") return null;
@@ -48,7 +48,7 @@ export default function LoginPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Sign-in failed. Check your handle and try again."
+          : "Sign-In Failed. Check Your Handle and Try Again."
       );
       setIsPending(false);
     }
@@ -60,7 +60,7 @@ export default function LoginPage() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold tracking-tight">L@tr.link</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Read later — stored on your PDS, not our servers.
+            Read Later — Stored on Your PDS, Not Our Servers.
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export default function LoginPage() {
         </form>
       </div>
       <p className="text-center text-xs text-zinc-500">
-        New here?{" "}
+        New Here?{" "}
         <Link
           href="https://bsky.app"
           className="underline underline-offset-2"

@@ -41,26 +41,26 @@ afterEach(() => {
   });
 });
 
-describe("latrGatewayBaseUrl", () => {
-  test("defaults to local gateway for local app env", () => {
+describe("Latr Gateway Base URL", () => {
+  test("Defaults to Local Gateway for Local App Env", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "local";
     delete process.env.NEXT_PUBLIC_LATR_GATEWAY_URL;
     expect(latrGatewayBaseUrl()).toBe(LOCAL_LATR_GATEWAY_URL);
   });
 
-  test("uses dev Fly gateway for dev app env", () => {
+  test("Uses Dev Fly Gateway for Dev App Env", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "dev";
     delete process.env.NEXT_PUBLIC_LATR_GATEWAY_URL;
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_DEV_LATR_GATEWAY_URL);
   });
 
-  test("uses prod Fly gateway for prod app env", () => {
+  test("Uses Prod Fly Gateway for Prod App Env", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "prod";
     delete process.env.NEXT_PUBLIC_LATR_GATEWAY_URL;
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_PROD_LATR_GATEWAY_URL);
   });
 
-  test("honors explicit NEXT_PUBLIC_LATR_GATEWAY_URL", () => {
+  test("Honors Explicit NEXT_PUBLIC_LATR_GATEWAY_URL", () => {
     process.env.NEXT_PUBLIC_LATR_GATEWAY_URL = "https://custom.gateway.example/";
     expect(latrGatewayBaseUrl()).toBe("https://custom.gateway.example");
   });

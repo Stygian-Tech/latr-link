@@ -14,7 +14,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MIGRATION="$ROOT/services/latr-gateway/migrations/001_developer_console.sql"
 
 if [ ! -f "$MIGRATION" ]; then
-  echo "::error::Migration file not found: $MIGRATION"
+  echo "::error::Migration File Not Found: $MIGRATION"
   exit 1
 fi
 
@@ -28,18 +28,18 @@ fi
 
 if [ -z "$DATABASE_URL" ]; then
   if [ "$BRANCH" = "main" ]; then
-    echo '::error::Missing database URL for production. Set GATEWAY_DATABASE_URL_PROD or DATABASE_URL.'
+    echo '::error::Missing Database URL for Production. Set GATEWAY_DATABASE_URL_PROD or DATABASE_URL.'
   else
-    echo '::error::Missing database URL for dev. Set GATEWAY_DATABASE_URL_DEV or DATABASE_URL.'
+    echo '::error::Missing Database URL for Dev. Set GATEWAY_DATABASE_URL_DEV or DATABASE_URL.'
   fi
   exit 1
 fi
 
 if ! command -v psql >/dev/null 2>&1; then
-  echo '::error::psql is required (install postgresql-client).'
+  echo '::error::psql Is Required (Install postgresql-client).'
   exit 1
 fi
 
-echo "::notice::Applying latr-gateway developer console migration (${ENV_LABEL})"
+echo "::notice::Applying Latr-Gateway Developer Console Migration (${ENV_LABEL})"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$MIGRATION"
-echo '::notice::Gateway migration applied successfully.'
+echo '::notice::Gateway Migration Applied Successfully.'

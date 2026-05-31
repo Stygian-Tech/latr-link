@@ -46,8 +46,8 @@ afterEach(() => {
   }
 });
 
-describe("local OAuth config", () => {
-  test("builds a loopback client ID with a 127.0.0.1 callback for localhost", () => {
+describe("Local OAuth Config", () => {
+  test("Builds a Loopback Client ID with a 127.0.0.1 Callback for Localhost", () => {
     setWindowUrl("http://localhost:3000/login?next=/library#ignored");
 
     const clientId = new URL(resolveClientId());
@@ -59,7 +59,7 @@ describe("local OAuth config", () => {
     expect(clientId.searchParams.get("scope")).toBe(AT_PROTO_OAUTH_SCOPES);
   });
 
-  test("uses the current loopback port for 127.0.0.1 callback URLs", () => {
+  test("Uses the Current Loopback Port for 127.0.0.1 Callback Urls", () => {
     setWindowUrl("http://127.0.0.1:4173/somewhere");
 
     expect(buildDefaultLocalCallbackUrl()).toBe(
@@ -67,7 +67,7 @@ describe("local OAuth config", () => {
     );
   });
 
-  test("falls back to hosted metadata outside local mode", () => {
+  test("Falls Back to Hosted Metadata outside Local Mode", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "prod";
     Object.defineProperty(globalThis, "window", {
       configurable: true,
@@ -77,7 +77,7 @@ describe("local OAuth config", () => {
     expect(resolveClientId()).toBe("https://latr.link/client-metadata.json");
   });
 
-  test("uses gateway hosted metadata on testing.latr.link", () => {
+  test("Uses Gateway Hosted Metadata on Testing.latr.link", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "dev";
     setWindowUrl("https://testing.latr.link/login");
 
@@ -86,7 +86,7 @@ describe("local OAuth config", () => {
     );
   });
 
-  test("detects fragment callback params by default", () => {
+  test("Detects Fragment Callback Params by Default", () => {
     setWindowUrl("http://127.0.0.1:3000/callback#state=s1&code=c1");
 
     const params = readOAuthCallbackParamsFromWindow();
@@ -96,7 +96,7 @@ describe("local OAuth config", () => {
     expect(hasPendingOAuthBrowserCallback()).toBe(true);
   });
 
-  test("detects query callback params when query response mode is enabled", () => {
+  test("Detects Query Callback Params when Query Response Mode is Enabled", () => {
     process.env.NEXT_PUBLIC_OAUTH_RESPONSE_MODE = "query";
     setWindowUrl("http://127.0.0.1:3000/callback?state=s1&code=c1");
 

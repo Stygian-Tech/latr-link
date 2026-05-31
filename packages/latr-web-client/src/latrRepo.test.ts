@@ -47,8 +47,8 @@ function mockOAuthSession(
   } as unknown as OAuthSession;
 }
 
-describe("LatrRepo gateway facade", () => {
-  test("saveExternalUrl POSTs url body", async () => {
+describe("LatrRepo Gateway Facade", () => {
+  test("saveExternalUrl POSTs URL Body", async () => {
     let body = "";
     const oauth = mockOAuthSession(async (_url, init) => {
       body = String(init?.body ?? "");

@@ -24,7 +24,7 @@ export default function ArchivePage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-semibold leading-tight">Archive</h1>
           <p className="text-sm leading-snug text-zinc-500 dark:text-zinc-400">
-            Items marked archived.
+            Items Marked Archived.
           </p>
         </div>
       </header>

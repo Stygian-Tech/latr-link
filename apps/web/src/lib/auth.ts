@@ -114,7 +114,7 @@ export async function getOAuthClient(): Promise<BrowserOAuthClient> {
         String(cause).toLowerCase().includes("fetch")
       ) {
         throw new Error(
-          `Could not load OAuth client metadata from ${clientId}. For local dev, use a loopback URL (localhost / 127.0.0.1) or set NEXT_PUBLIC_APP_ENV=local in apps/web/.env.local. (${cause})`,
+          `Could Not Load OAuth Client Metadata From ${clientId}. For Local Dev, Use a Loopback URL (localhost / 127.0.0.1) or Set NEXT_PUBLIC_APP_ENV=local in apps/web/.env.local. (${cause})`,
           { cause: err }
         );
       }

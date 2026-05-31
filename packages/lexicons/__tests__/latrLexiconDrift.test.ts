@@ -9,8 +9,8 @@ const canonicalLexicon = join(
 );
 const localLexicon = join(import.meta.dir, "../com.latr.saved.item.json");
 
-describe("com.latr.saved.item lexicon drift", () => {
-  it("matches latr-packages canonical schema", () => {
+describe("Com.latr.saved.item Lexicon Drift", () => {
+  it("Matches Latr-packages Canonical Schema", () => {
     const canonical = JSON.parse(readFileSync(canonicalLexicon, "utf8"));
     const local = JSON.parse(readFileSync(localLexicon, "utf8"));
     expect(local).toEqual(canonical);

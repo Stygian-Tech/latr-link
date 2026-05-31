@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy_gateway:
-        description: Deploy latr-gateway to Fly after CI checks
+        description: Deploy Latr-Gateway to Fly After CI Checks
         required: true
         type: boolean
         default: false
@@ -76,7 +76,7 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Apply developer console migration
+      - name: Apply Developer Console Migration
         env:
           GATEWAY_DATABASE_URL_DEV: ${{ secrets.GATEWAY_DATABASE_URL_DEV }}
           GATEWAY_DATABASE_URL_PROD: ${{ secrets.GATEWAY_DATABASE_URL_PROD }}
@@ -101,7 +101,7 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@v1
 
-      - name: Deploy gateway to Fly.io
+      - name: Deploy Gateway to Fly.io
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ secrets.FLY_ORG }}

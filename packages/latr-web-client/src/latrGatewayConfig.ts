@@ -223,9 +223,9 @@ export function assertLatrGatewayClientCredential(
   const bootstrapCredential = Boolean(bootstrap?.clientCredential?.trim());
   throw new Error(
     [
-      "Hosted L@tr gateway requires client credentials.",
-      "Set LATR_GATEWAY_CLIENT_ID + LATR_GATEWAY_API_KEY (split headers) or LATR_GATEWAY_CLIENT_CREDENTIAL (legacy official header).",
-      "On Vercel, enable them for Preview as well as Production when using testing.latr.link, then redeploy.",
+      "Hosted L@tr Gateway Requires Client Credentials.",
+      "Set LATR_GATEWAY_CLIENT_ID + LATR_GATEWAY_API_KEY (Split Headers) or LATR_GATEWAY_CLIENT_CREDENTIAL (Legacy Official Header).",
+      "On Vercel, Enable Them for Preview as Well as Production When Using testing.latr.link, Then Redeploy.",
       `Diagnostic: bootstrapClientId=${bootstrapClientId}, bootstrapApiKey=${bootstrapApiKey}, bootstrapCredential=${bootstrapCredential}, configSync=${hasRegisteredLatrGatewayConfigSync()}.`,
     ].join(" ")
   );

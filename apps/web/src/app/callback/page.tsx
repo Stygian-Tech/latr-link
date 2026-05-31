@@ -48,7 +48,7 @@ export default function CallbackPage() {
       if (flowFinished.current) return;
       window.location.replace(
         `/login?error=callback_watchdog&message=${encodeURIComponent(
-          `No response after ${WATCHDOG_MS}ms — try NEXT_PUBLIC_OAUTH_RESPONSE_MODE=query in .env.local or a regular Chrome window (not embedded preview).`
+          `No Response After ${WATCHDOG_MS}ms — Try NEXT_PUBLIC_OAUTH_RESPONSE_MODE=query in .env.local or a Regular Chrome Window (Not Embedded Preview).`
         )}`
       );
     }, WATCHDOG_MS);
@@ -59,17 +59,17 @@ export default function CallbackPage() {
     <div className="flex min-h-app items-center justify-center bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-md space-y-3 px-4 text-center">
         <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
-        <p className="text-sm text-zinc-500">Completing sign-in…</p>
+        <p className="text-sm text-zinc-500">Completing Sign-In…</p>
         {slowHint ? (
           <p className="text-xs text-zinc-400">
-            If this lasts more than ~{Math.ceil(OAUTH_CALLBACK_TIMEOUT_MS / 1000)}s,
-            add{" "}
+            If This Lasts More Than ~{Math.ceil(OAUTH_CALLBACK_TIMEOUT_MS / 1000)}s,
+            Add{" "}
             <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
               NEXT_PUBLIC_OAUTH_RESPONSE_MODE=query
             </code>{" "}
             to <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">.env.local</code>{" "}
-            and sign in again (uses query params instead of URL hash). HMR WebSocket
-            errors are unrelated.
+            and Sign In Again (Uses Query Params Instead of URL Hash). HMR WebSocket
+            Errors Are Unrelated.
           </p>
         ) : null}
       </div>

@@ -46,7 +46,7 @@ function setSaveStatus(message: string): void {
 
 async function refreshTabPreview(): Promise<string | null> {
   const url = await getActiveTabUrl();
-  tabUrlEl.textContent = url ?? "No active tab URL.";
+  tabUrlEl.textContent = url ?? "No Active Tab URL.";
   return url;
 }
 
@@ -65,7 +65,7 @@ signInBtn.addEventListener("click", () => {
     setAuthError(null);
     const handle = handleInput.value.trim();
     if (!handle) {
-      setAuthError("Enter your Bluesky handle.");
+      setAuthError("Enter Your Bluesky Handle.");
       return;
     }
     signInBtn.disabled = true;
@@ -73,7 +73,7 @@ signInBtn.addEventListener("click", () => {
       await signInWithHandle(handle);
     } catch (err) {
       setAuthError(
-        err instanceof Error ? err.message : "Could not start sign-in."
+        err instanceof Error ? err.message : "Could Not Start Sign-In."
       );
       signInBtn.disabled = false;
     }
@@ -97,7 +97,7 @@ saveBtn.addEventListener("click", () => {
     }
     const url = await refreshTabPreview();
     if (!url) {
-      setSaveStatus("No URL to save on this tab.");
+      setSaveStatus("No URL to Save on This Tab.");
       return;
     }
     saveBtn.disabled = true;
@@ -106,7 +106,7 @@ saveBtn.addEventListener("click", () => {
     saveBtn.disabled = false;
     if (result.ok) {
       setSaveStatus(
-        result.kind === "subject" ? "Saved AT Proto record." : "Saved link."
+        result.kind === "subject" ? "Saved AT Proto Record." : "Saved Link."
       );
     } else {
       setSaveStatus(result.message);

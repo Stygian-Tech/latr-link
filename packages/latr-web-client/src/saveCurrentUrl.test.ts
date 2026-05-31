@@ -2,17 +2,17 @@ import { describe, expect, test } from "bun:test";
 
 import { isSupportedSaveUrl } from "./saveCurrentUrl";
 
-describe("isSupportedSaveUrl", () => {
-  test("accepts https URLs", () => {
+describe("Is Supported Save URL", () => {
+  test("Accepts HTTPS URLs", () => {
     expect(isSupportedSaveUrl("https://example.com/article")).toBe(true);
   });
 
-  test("rejects browser-internal URLs", () => {
+  test("Rejects Browser-Internal URLs", () => {
     expect(isSupportedSaveUrl("chrome://newtab/")).toBe(false);
     expect(isSupportedSaveUrl("chrome-extension://abc/popup.html")).toBe(false);
   });
 
-  test("rejects empty input", () => {
+  test("Rejects Empty Input", () => {
     expect(isSupportedSaveUrl("")).toBe(false);
   });
 });

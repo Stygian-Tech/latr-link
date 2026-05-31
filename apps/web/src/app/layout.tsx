@@ -19,7 +19,7 @@ import {
 import { Providers } from "./providers";
 
 const title = "L@tr.link";
-const description = "Save now. Read later. Yours everywhere.";
+const description = "Save Now. Read Later. Yours Everywhere.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://latr.link"),

@@ -29,8 +29,8 @@ afterEach(() => {
   }
 });
 
-describe("latrGatewayBaseUrl", () => {
-  test("uses testing gateway on testing.latr.link even when app env is local", () => {
+describe("Latr Gateway Base URL", () => {
+  test("Uses Testing Gateway on testing.latr.link Even When App Env Is Local", () => {
     configureLatrGateway({
       appEnv: "local",
       testingHostname: "testing.latr.link",
@@ -38,7 +38,7 @@ describe("latrGatewayBaseUrl", () => {
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_TESTING_LATR_GATEWAY_URL);
   });
 
-  test("uses prod gateway on latr.link even when app env is local", () => {
+  test("Uses Prod Gateway on latr.link Even When App Env Is Local", () => {
     configureLatrGateway({
       appEnv: "local",
       testingHostname: "latr.link",
@@ -46,7 +46,7 @@ describe("latrGatewayBaseUrl", () => {
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_PROD_LATR_GATEWAY_URL);
   });
 
-  test("never uses loopback gateway on non-loopback hostnames", () => {
+  test("Never uses Loopback Gateway on Non-loopback Hostnames", () => {
     configureLatrGateway({
       appEnv: "local",
       testingHostname: "my-preview.vercel.app",
@@ -54,7 +54,7 @@ describe("latrGatewayBaseUrl", () => {
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_DEV_LATR_GATEWAY_URL);
   });
 
-  test("uses loopback gateway on localhost for local app env", () => {
+  test("Uses Loopback Gateway on Localhost for Local App Env", () => {
     configureLatrGateway({
       appEnv: "local",
       testingHostname: "127.0.0.1",
@@ -62,7 +62,7 @@ describe("latrGatewayBaseUrl", () => {
     expect(latrGatewayBaseUrl()).toBe(LOCAL_LATR_GATEWAY_URL);
   });
 
-  test("honors explicit gatewayUrl override", () => {
+  test("Honors Explicit gatewayUrl Override", () => {
     configureLatrGateway({
       gatewayUrl: "https://custom.gateway.example/",
       testingHostname: "testing.latr.link",
@@ -70,7 +70,7 @@ describe("latrGatewayBaseUrl", () => {
     expect(latrGatewayBaseUrl()).toBe("https://custom.gateway.example");
   });
 
-  test("ignores loopback gatewayUrl override on hosted hostnames", () => {
+  test("Ignores Loopback gatewayUrl Override on Hosted Hostnames", () => {
     configureLatrGateway({
       gatewayUrl: LOCAL_LATR_GATEWAY_URL,
       testingHostname: "testing.latr.link",
@@ -78,14 +78,14 @@ describe("latrGatewayBaseUrl", () => {
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_TESTING_LATR_GATEWAY_URL);
   });
 
-  test("sends official client header when credential is configured", () => {
+  test("Sends Official Client Header When Credential Is Configured", () => {
     configureLatrGateway({ clientCredential: "dGVzdC1zZWNyZXQ=" });
     expect(latrGatewayClientHeaders()[LATR_OFFICIAL_CLIENT_HEADER]).toBe(
       "dGVzdC1zZWNyZXQ="
     );
   });
 
-  test("sends split developer headers when client id and api key are configured", () => {
+  test("Sends Split Developer Headers When Client ID and API Key Are Configured", () => {
     configureLatrGateway({
       clientId: "the-social-wire-web",
       apiKey: "lk_test_key",
@@ -95,7 +95,7 @@ describe("latrGatewayBaseUrl", () => {
     expect(headers[LATR_API_KEY_HEADER]).toBe("lk_test_key");
   });
 
-  test("assertLatrGatewayClientCredential throws for hosted gateway without credential", () => {
+  test("assertLatrGatewayClientCredential Throws for Hosted Gateway Without Credential", () => {
     configureLatrGateway({
       appEnv: "dev",
       testingHostname: "testing.latr.link",
@@ -103,12 +103,12 @@ describe("latrGatewayBaseUrl", () => {
     expect(() => assertLatrGatewayClientCredential()).toThrow(/client credentials/i);
   });
 
-  test("assertLatrGatewayClientCredential allows loopback without credential", () => {
+  test("assertLatrGatewayClientCredential Allows Loopback Without Credential", () => {
     configureLatrGateway({ appEnv: "local", testingHostname: "127.0.0.1" });
     expect(() => assertLatrGatewayClientCredential()).not.toThrow();
   });
 
-  test("resolveLatrGatewayConfig merges window bootstrap credentials", () => {
+  test("resolveLatrGatewayConfig Merges Window Bootstrap Credentials", () => {
     configureLatrGateway({
       appEnv: "dev",
       testingHostname: "testing.latr.link",

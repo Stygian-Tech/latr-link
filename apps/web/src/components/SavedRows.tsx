@@ -17,14 +17,14 @@ import { Archive, ArchiveRestore, Link2, Trash2 } from "lucide-react";
 const showSavedStorageDevHint = isEnvironmentBannerShown();
 
 function devSavedStorageLabel(kind: ResolvedPreview["kind"]) {
-  return kind === "external" ? "External" : "AT record";
+  return kind === "external" ? "External" : "AT Record";
 }
 
 function SavedLinkThumbnailPlaceholder() {
   return (
     <div
       role="img"
-      aria-label="No preview image"
+      aria-label="No Preview Image"
       className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-zinc-300 bg-zinc-100 text-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/70 dark:text-zinc-500"
     >
       <Link2 className="h-6 w-6" aria-hidden strokeWidth={1.75} />
@@ -75,7 +75,7 @@ function filterRows(
 }
 
 function mutationErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Something went wrong";
+  return error instanceof Error ? error.message : "Something Went Wrong";
 }
 
 export function SavedRows({ mode }: { mode: "unread" | "archive" }) {
@@ -87,19 +87,19 @@ export function SavedRows({ mode }: { mode: "unread" | "archive" }) {
 
   let main: ReactElement;
   if (isLoading) {
-    main = <p className="p-4 text-sm text-zinc-500">Loading saved items…</p>;
+    main = <p className="p-4 text-sm text-zinc-500">Loading Saved Items…</p>;
   } else if (error) {
     main = (
       <p className="p-4 text-sm text-red-600">
-        {error instanceof Error ? error.message : "Failed to load"}
+        {error instanceof Error ? error.message : "Failed to Load"}
       </p>
     );
   } else if (!rows.length) {
     main = (
       <p className="p-6 text-sm text-zinc-500">
         {mode === "unread"
-          ? "Nothing in your queue yet. Paste a URL or AT URI above to save it."
-          : "Archive is empty."}
+          ? "Nothing in Your Queue Yet. Paste a URL or AT URI Above to Save It."
+          : "Archive Is Empty."}
       </p>
     );
   } else {
@@ -134,7 +134,7 @@ function activateSavedHref(
     return;
   }
   const parsed = parsedHttpHttpsUrl(rawHref);
-  if (parsed) openEmbedded(parsed.href, previewTitle || "Saved link");
+  if (parsed) openEmbedded(parsed.href, previewTitle || "Saved Link");
   else window.open(rawHref, "_blank", "noopener,noreferrer");
 }
 
@@ -162,7 +162,7 @@ function SavedRowItem({
   const [busy, setBusy] = useState(false);
   const isArchived = row.rec.value.state === "archived";
 
-  const openLabel = `Open saved link: ${p.title}`;
+  const openLabel = `Open Saved Link: ${p.title}`;
 
   return (
     <li className="group relative flex flex-col gap-3 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/40 sm:flex-row sm:items-stretch sm:gap-4">
@@ -230,8 +230,8 @@ function SavedRowItem({
                   <span
                     title={
                       p.kind === "external"
-                        ? "Saved via com.latr.saved.external wrapper"
-                        : "Saved subject is a native at:// record reference"
+                        ? "Saved Via com.latr.saved.external Wrapper"
+                        : "Saved Subject Is a Native at:// Record Reference"
                     }
                     className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
                       p.kind === "external"
@@ -278,12 +278,12 @@ function SavedRowItem({
             type="button"
             className={savedRowDangerButtonClass}
             disabled={busy}
-            aria-label="Remove from library"
-            title="Remove from library"
+            aria-label="Remove From Library"
+            title="Remove From Library"
             onClick={async () => {
               if (busy) return;
               const ok = window.confirm(
-                "Remove this saved item from your library? This cannot be undone."
+                "Remove This Saved Item From Your Library? This Cannot Be Undone."
               );
               if (!ok) return;
               setBusy(true);

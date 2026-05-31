@@ -18,19 +18,19 @@ function collectJsonFiles(dir: string): string[] {
   return files;
 }
 
-describe("lexicon JSON schemas", () => {
+describe("Lexicon JSON Schemas", () => {
   const files = collectJsonFiles(ROOT).filter(
     (f) => !f.endsWith("package.json")
   );
 
-  it("includes expected L@tr collections", () => {
+  it("Includes Expected L@tr Collections", () => {
     const names = files.map((f) => f.split("/").pop());
     expect(names).toContain("com.latr.saved.external.json");
     expect(names).toContain("com.latr.saved.item.json");
   });
 
   for (const file of files) {
-    it(`parses ${file.replace(ROOT + "/", "")}`, () => {
+    it(`Parses ${file.replace(ROOT + "/", "")}`, () => {
       const raw = readFileSync(file, "utf8");
       const json = JSON.parse(raw) as {
         lexicon?: number;
@@ -44,8 +44,8 @@ describe("lexicon JSON schemas", () => {
   }
 });
 
-describe("saved item schema", () => {
-  it("main record requires subjectUri and savedAt", () => {
+describe("Saved Item Schema", () => {
+  it("Main Record Requires subjectUri and savedAt", () => {
     const schema = JSON.parse(
       readFileSync(join(ROOT, "com.latr.saved.item.json"), "utf8")
     ) as {

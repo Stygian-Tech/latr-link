@@ -78,7 +78,7 @@ function LibrarySidebarBody({
           <button
             type="button"
             className="md:hidden inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            aria-label="Close menu"
+            aria-label="Close Menu"
             onClick={onMobileClose}
           >
             <X className="h-5 w-5" aria-hidden strokeWidth={2} />
@@ -138,7 +138,7 @@ function LibrarySidebarBody({
             onClick={() => void signOut()}
             className="w-full rounded-md px-3 py-2 text-left text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
           >
-            Sign out
+            Sign Out
           </button>
         </div>
       </div>
@@ -219,7 +219,7 @@ export function LibraryChrome({ children }: { children: ReactNode }) {
         <button
           type="button"
           className="fixed inset-0 z-[90] cursor-default bg-black/40 md:hidden"
-          aria-label="Close menu"
+          aria-label="Close Menu"
           onClick={closeMobileNav}
         />
       ) : null}
@@ -242,7 +242,7 @@ export function LibraryChrome({ children }: { children: ReactNode }) {
             className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-zinc-800"
             aria-expanded={mobileNavOpen}
             aria-controls={LIBRARY_NAV_ID}
-            aria-label="Open menu"
+            aria-label="Open Menu"
             onClick={() => setMobileNavOpen(true)}
           >
             <Menu className="h-5 w-5" aria-hidden strokeWidth={2} />

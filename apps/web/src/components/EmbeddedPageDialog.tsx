@@ -77,7 +77,7 @@ export function EmbeddedPageDialog({
         <div className="relative isolate flex min-h-0 flex-1 flex-col overflow-hidden">
           <iframe
             key={url!}
-            title={title || "Embedded page"}
+            title={title || "Embedded Page"}
             src={url!}
             className="min-h-0 flex-1 w-full border-0 bg-white dark:bg-zinc-950"
             referrerPolicy="no-referrer-when-downgrade"
@@ -98,17 +98,17 @@ export function EmbeddedPageDialog({
                   href={url!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Open in new tab"
+                  title="Open in New Tab"
                   className={iconChip}
                 >
                   <ExternalLink className="h-4 w-4" aria-hidden strokeWidth={2} />
-                  <span className="sr-only">Open in new tab</span>
+                  <span className="sr-only">Open in New Tab</span>
                 </a>
                 <button
                   type="button"
                   className={iconChip}
                   onClick={() => dlgRef.current?.close()}
-                  aria-label="Close reader"
+                  aria-label="Close Reader"
                   title="Close"
                 >
                   <X className="h-4 w-4" aria-hidden strokeWidth={2} />
@@ -122,7 +122,7 @@ export function EmbeddedPageDialog({
               className={`pointer-events-none max-w-lg text-center leading-snug md:max-w-xl ${textChip} px-3 py-2 font-normal [&>a]:pointer-events-auto`}
             >
               <span className="text-[11px] text-zinc-600 dark:text-zinc-400">
-                Some sites refuse embedding —
+                Some Sites Refuse Embedding —
               </span>{" "}
               <a
                 href={url!}
@@ -130,7 +130,7 @@ export function EmbeddedPageDialog({
                 rel="noopener noreferrer"
                 className="inline text-[11px] text-zinc-700 underline decoration-zinc-400 underline-offset-2 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50"
               >
-                open in new tab
+                Open in New Tab
               </a>
             </p>
           </div>

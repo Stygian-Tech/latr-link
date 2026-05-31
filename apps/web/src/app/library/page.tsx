@@ -27,7 +27,7 @@ export default function LibraryPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-semibold leading-tight">Unread</h1>
           <p className="text-sm leading-snug text-zinc-500 dark:text-zinc-400">
-            Newest saves first.
+            Newest Saves First.
           </p>
         </div>
       </header>

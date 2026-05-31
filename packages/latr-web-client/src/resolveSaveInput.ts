@@ -102,7 +102,7 @@ export async function resolvePasteForSave(
     !httpUrl ||
     (httpUrl.protocol !== "http:" && httpUrl.protocol !== "https:")
   ) {
-    throw new Error("Paste a URL (https://…) or at:// URI.");
+    throw new Error("Paste A URL (https://…) or at:// URI.");
   }
 
   const actorToDid = options.actorToDid ?? defaultActorToDid;

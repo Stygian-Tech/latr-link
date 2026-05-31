@@ -6,13 +6,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 import {
-  mergeSavedItemOgPreview,
-  resolveSubjectPreview,
+  resolveSubjectPreviewForRow,
   type ResolvedPreview,
 } from "@/lib/resolveSubject";
 import type { LatrRepo, RepoRecord } from "@/lib/latrRepo";
 import type { SavedItemRecord, SavedItemState } from "@/lib/latrRecords";
 import { rkeyFromAtUri } from "@/lib/rkey";
+import { removeCachedSubjectPreview } from "@/lib/savedPreviewCache";
 
 export type SavedRow = {
   rec: RepoRecord<SavedItemRecord>;
@@ -24,13 +24,10 @@ async function buildLibrary(
 ): Promise<SavedRow[]> {
   const items = await repo.listSavedItems();
   const rows: SavedRow[] = await Promise.all(
-    items.map(async (rec) => {
-      const base = await resolveSubjectPreview(repo, rec.value.subjectUri);
-      return {
-        rec,
-        preview: mergeSavedItemOgPreview(base, rec.value),
-      };
-    })
+    items.map(async (rec) => ({
+      rec,
+      preview: await resolveSubjectPreviewForRow(repo, rec),
+    }))
   );
   rows.sort(
     (a, b) =>
@@ -48,6 +45,7 @@ export function useSavedLibrary() {
     queryKey: ["saved-library", session?.did],
     queryFn: () => buildLibrary(repo!),
     enabled: !!repo && !!session,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -83,7 +81,7 @@ export function useSavedLibraryMutations() {
 
   const setItemState = useCallback(
     async (itemRkey: string, state: SavedItemState) => {
-      if (!repo) throw new Error("Sign in to update saved items");
+      if (!repo) throw new Error("Sign In to Update Saved Items");
 
       const previous = queryClient.getQueryData<SavedRow[]>(queryKey);
       patchRows((rows) =>
@@ -113,7 +111,7 @@ export function useSavedLibraryMutations() {
 
   const unsave = useCallback(
     async (itemRkey: string) => {
-      if (!repo) throw new Error("Sign in to remove saved items");
+      if (!repo) throw new Error("Sign In to Remove Saved Items");
 
       const previous = queryClient.getQueryData<SavedRow[]>(queryKey);
       patchRows((rows) =>
@@ -122,6 +120,10 @@ export function useSavedLibraryMutations() {
 
       try {
         await repo.unsave(itemRkey);
+        const removed = previous?.find((row) => rkeyFromAtUri(row.rec.uri) === itemRkey);
+        if (removed) {
+          removeCachedSubjectPreview(removed.rec.value.subjectUri);
+        }
       } catch (error) {
         if (previous !== undefined) {
           queryClient.setQueryData(queryKey, previous);

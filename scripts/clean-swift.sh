@@ -24,4 +24,4 @@ for dir in "${SWIFT_PACKAGES[@]}"; do
   rm -rf "$dir/.build" "$dir/.swiftpm" 2>/dev/null || true
 done
 
-echo "Swift build artifacts removed."
+echo "Swift Build Artifacts Removed."

@@ -6,8 +6,8 @@ import {
   tryParseHttpUrl,
 } from "./resolveSaveInput";
 
-describe("tryCanonicalAtUri", () => {
-  test("accepts canonical at uri with collection+rkey", () => {
+describe("Try Canonical At URI", () => {
+  test("Accepts Canonical at Uri with Collection+rkey", () => {
     const u = tryCanonicalAtUri(
       "at://did:plc:abcxyz/app.bsky.feed.post/rkey12345"
     );
@@ -15,24 +15,24 @@ describe("tryCanonicalAtUri", () => {
     expect(u).toContain("did:plc:abcxyz");
   });
 
-  test("rejects collection without rkey", () => {
+  test("Rejects Collection without Rkey", () => {
     expect(tryCanonicalAtUri("at://did:plc:abc/app.bsky.feed.post")).toBeNull();
   });
 });
 
-describe("tryParseHttpUrl", () => {
-  test("adds scheme when omitted", () => {
+describe("Try Parse HTTP URL", () => {
+  test("Adds Scheme when Omitted", () => {
     const u = tryParseHttpUrl("example.org/path");
     expect(u?.href).toBe("https://example.org/path");
   });
 
-  test("preserves scheme", () => {
+  test("Preserves Scheme", () => {
     expect(tryParseHttpUrl("http://localhost/x")?.protocol).toBe("http:");
   });
 });
 
-describe("extractBskyAppProfilePostParts", () => {
-  test("parses did-based profile URLs", () => {
+describe("Extract Bsky App Profile Post Parts", () => {
+  test("Parses Did-based Profile Urls", () => {
     expect(
       extractBskyAppProfilePostParts(
         new URL(
@@ -42,7 +42,7 @@ describe("extractBskyAppProfilePostParts", () => {
     ).toEqual({ actor: "did:plc:test123", rkey: "3jzabc" });
   });
 
-  test("rejects non-bsky hosts", () => {
+  test("Rejects Non-bsky Hosts", () => {
     expect(
       extractBskyAppProfilePostParts(
         new URL("https://google.com/profile/x/post/y")

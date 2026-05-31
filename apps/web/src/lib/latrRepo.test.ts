@@ -46,8 +46,8 @@ function mockOAuthSession(
   } as unknown as OAuthSession;
 }
 
-describe("LatrRepo gateway facade", () => {
-  test("listSavedItems reads saved items from the viewer PDS", async () => {
+describe("Latrrepo Gateway Facade", () => {
+  test("listSavedItems Reads Saved Items From the Viewer PDS", async () => {
     const calls: string[] = [];
     const oauth = mockOAuthSession(async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
@@ -63,7 +63,7 @@ describe("LatrRepo gateway facade", () => {
     expect(calls[0]).toContain("com.atproto.repo.listRecords");
   });
 
-  test("saveExternalUrl POSTs url body", async () => {
+  test("saveExternalUrl POSTs URL Body", async () => {
     let body = "";
     const oauth = mockOAuthSession(async (_url, init) => {
       body = String(init?.body ?? "");
@@ -81,7 +81,7 @@ describe("LatrRepo gateway facade", () => {
     });
   });
 
-  test("setItemState PATCHes state route", async () => {
+  test("setItemState PATCHes State Route", async () => {
     let path = "";
     const oauth = mockOAuthSession(async (url) => {
       path = url;
@@ -96,7 +96,7 @@ describe("LatrRepo gateway facade", () => {
     expect(path).toContain("/v1/latr/saves/abc123/state");
   });
 
-  test("unsave DELETEs item route", async () => {
+  test("Unsave Deletes Item Route", async () => {
     let method = "";
     const oauth = mockOAuthSession(async (_url, init) => {
       method = init?.method ?? "";
@@ -112,8 +112,8 @@ describe("LatrRepo gateway facade", () => {
   });
 });
 
-describe("latrGatewayBaseUrl", () => {
-  test("re-exports env-aware gateway URL resolution", async () => {
+describe("Latr Gateway Base URL", () => {
+  test("Re-exports Env-aware Gateway URL Resolution", async () => {
     const prev = process.env.NEXT_PUBLIC_LATR_GATEWAY_URL;
     process.env.NEXT_PUBLIC_APP_ENV = "local";
     delete process.env.NEXT_PUBLIC_LATR_GATEWAY_URL;

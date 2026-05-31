@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import { parseOpenGraphMarkup } from "./openGraph";
 
-describe("parseOpenGraphMarkup", () => {
-  test("reads og:title, description, image, site_name", () => {
+describe("Parse Open Graph Markup", () => {
+  test("Reads og:title, Description, Image, and site_name", () => {
     const html = `<!DOCTYPE html><html><head>
       <meta property="og:title" content=" Hello   world ">
       <meta property="og:description" content="A page &amp; stuff" />
@@ -19,7 +19,7 @@ describe("parseOpenGraphMarkup", () => {
     });
   });
 
-  test("resolves relative og:image against resolved page URL", () => {
+  test("Resolves Relative og:image Against Resolved Page URL", () => {
     const html = `<head>
       <meta property="og:image" content="/images/card.png"/>
     </head>`;
@@ -28,7 +28,7 @@ describe("parseOpenGraphMarkup", () => {
     });
   });
 
-  test("Twitter fallbacks fill missing og fields", () => {
+  test("Twitter Fallbacks Fill Missing Og Fields", () => {
     const html = `<head>
       <meta name="twitter:title" content="Tw title"/>
       <meta name="twitter:description" content="Tw desc"/>
@@ -42,21 +42,21 @@ describe("parseOpenGraphMarkup", () => {
     });
   });
 
-  test("falls back to document title", () => {
+  test("Falls Back to Document Title", () => {
     const html = `<head><title>Plain &gt; Doc</title></head>`;
     expect(parseOpenGraphMarkup(html, "https://plain.example/a")).toEqual({
       title: "Plain > Doc",
     });
   });
 
-  test("reads article author", () => {
+  test("Reads Article Author", () => {
     const html = `<head><meta property="article:author" content="Ada"/></head>`;
     expect(parseOpenGraphMarkup(html, "https://z.example")).toEqual({
       author: "Ada",
     });
   });
 
-  test("reads og:author and twitter:creator fallbacks", () => {
+  test("Reads og:author and twitter:creator Fallbacks", () => {
     const html = `<head>
       <meta property="article:author" content="https://facebook.com/pages/example"/>
       <meta name="twitter:creator" content="@ada"/>
@@ -66,7 +66,7 @@ describe("parseOpenGraphMarkup", () => {
     });
   });
 
-  test("reads og:image secure/url and image_src fallbacks", () => {
+  test("Reads og:image Secure_url and Image_src Fallbacks", () => {
     const html = `<head>
       <meta property="og:image:secure_url" content="https://cdn.example/secure.png"/>
       <link rel="image_src" href="https://cdn.example/legacy.png"/>
@@ -76,7 +76,7 @@ describe("parseOpenGraphMarkup", () => {
     });
   });
 
-  test("reads JSON-LD author", () => {
+  test("Reads JSON-LD Author", () => {
     const html = `<head>
       <script type="application/ld+json">
         {"@type":"Article","author":{"@type":"Person","name":"Grace Hopper"}}
@@ -87,7 +87,7 @@ describe("parseOpenGraphMarkup", () => {
     });
   });
 
-  test("decodes apostrophe entities in metadata", () => {
+  test("Decodes Apostrophe Entities in Metadata", () => {
     const html = `<head>
       <meta property="og:title" content="Tom&amp;#39;s Guide"/>
       <meta property="og:description" content="It&apos;s \\u0027great\\u0027"/>

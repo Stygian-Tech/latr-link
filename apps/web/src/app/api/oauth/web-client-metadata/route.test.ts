@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { GET } from "@/app/api/oauth/web-client-metadata/route";
 
 describe("GET /api/oauth/web-client-metadata", () => {
-  test("returns metadata for the forwarded host", async () => {
+  test("Returns Metadata for the Forwarded Host", async () => {
     const request = new Request(
       "https://internal/api/oauth/web-client-metadata",
       {

@@ -4,9 +4,15 @@ import {
   type SavedExternalRecord,
   type SavedItemRecord,
 } from "@/lib/latrRecords";
+import type { RepoRecord } from "@/lib/latrRepo";
 
 import { publicAppviewAgent } from "@/lib/appview";
 import type { LatrRepo } from "@/lib/latrRepo";
+import {
+  previewCacheFingerprint,
+  readCachedSubjectPreview,
+  writeCachedSubjectPreview,
+} from "@/lib/savedPreviewCache";
 
 function previewTitleForExternal(rec: SavedExternalRecord): string {
   return (
@@ -14,7 +20,7 @@ function previewTitleForExternal(rec: SavedExternalRecord): string {
     rec.site?.trim() ||
     rec.normalizedUrl ||
     rec.url ||
-    "Saved link"
+    "Saved Link"
   );
 }
 
@@ -45,6 +51,88 @@ function previewSubtitle(excerpt?: string, author?: string): string | undefined 
   }
 
   return undefined;
+}
+
+export function isExternalWrapperUri(subjectUri: string): boolean {
+  try {
+    return new AtUri(subjectUri).collection === COLLECTION_SAVED_EXTERNAL;
+  } catch {
+    return false;
+  }
+}
+
+export function savedItemHasProtocolPreview(item: SavedItemRecord): boolean {
+  return Boolean(
+    item.previewTitle?.trim() ||
+      item.previewImage?.trim() ||
+      item.previewAuthor?.trim() ||
+      item.previewExcerpt?.trim() ||
+      item.previewSite?.trim()
+  );
+}
+
+/** Build a row preview from on-protocol `com.latr.saved.item` fields (no network). */
+export function previewFromSavedItemRecord(
+  rec: RepoRecord<SavedItemRecord>
+): ResolvedPreview | null {
+  const item = rec.value;
+  const linked = item.linkedWebUrl?.trim();
+  const external = isExternalWrapperUri(item.subjectUri);
+
+  if (!external && !linked && !savedItemHasProtocolPreview(item)) {
+    return null;
+  }
+
+  const canonicalUrl = linked || undefined;
+  let siteLabel = item.previewSite?.trim();
+  if (!siteLabel && canonicalUrl) {
+    try {
+      siteLabel = new URL(canonicalUrl).hostname;
+    } catch {
+      siteLabel = undefined;
+    }
+  }
+
+  const title =
+    item.previewTitle?.trim() ||
+    (external && linked ? linked : undefined) ||
+    item.subjectUri;
+
+  return {
+    kind: external || linked ? "external" : "record",
+    title,
+    subtitle: previewSubtitle(item.previewExcerpt, item.previewAuthor),
+    href: canonicalUrl || (external ? linked : undefined),
+    imageHref: item.previewImage?.trim(),
+    canonicalUrl,
+    siteLabel,
+    authorLabel: item.previewAuthor?.trim(),
+  };
+}
+
+/** Prefer cached protocol preview metadata; fetch Bluesky/external records only when needed. */
+export async function resolveSubjectPreviewForRow(
+  repo: LatrRepo,
+  rec: RepoRecord<SavedItemRecord>
+): Promise<ResolvedPreview> {
+  const { subjectUri } = rec.value;
+  const fingerprint = previewCacheFingerprint(rec.value);
+  const cached = readCachedSubjectPreview(subjectUri, fingerprint);
+  if (cached) return cached;
+
+  if (savedItemHasProtocolPreview(rec.value)) {
+    const fromProtocol = previewFromSavedItemRecord(rec);
+    if (fromProtocol) {
+      const merged = mergeSavedItemOgPreview(fromProtocol, rec.value);
+      writeCachedSubjectPreview(subjectUri, fingerprint, merged);
+      return merged;
+    }
+  }
+
+  const base = await resolveSubjectPreview(repo, subjectUri);
+  const merged = mergeSavedItemOgPreview(base, rec.value);
+  writeCachedSubjectPreview(subjectUri, fingerprint, merged);
+  return merged;
 }
 
 /** Prefer cached OG fields from `com.latr.saved.item` when the user saved from a web URL. */
@@ -96,10 +184,10 @@ export function mergeSavedItemOgPreview(
 }
 
 function pickPostText(record: unknown): string {
-  if (!record || typeof record !== "object") return "ATProto post";
+  if (!record || typeof record !== "object") return "ATProto Post";
   const r = record as { text?: string; title?: string };
   const t = r.title ?? r.text?.slice(0, 160);
-  return t?.trim() || "ATProto post";
+  return t?.trim() || "ATProto Post";
 }
 
 export async function resolveSubjectPreview(

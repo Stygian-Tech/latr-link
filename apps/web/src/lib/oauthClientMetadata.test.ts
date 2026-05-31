@@ -8,8 +8,8 @@ import {
   resolveHostedOAuthClientId,
 } from "@/lib/oauthClientMetadata";
 
-describe("buildWebOAuthClientMetadata", () => {
-  test("uses the request origin for client_id and redirect_uris", () => {
+describe("Buildweboauthclientmetadata", () => {
+  test("Uses the Request Origin for Client_id and Redirect_uris", () => {
     const metadata = buildWebOAuthClientMetadata(
       "https://preview.example.vercel.app"
     );
@@ -23,34 +23,34 @@ describe("buildWebOAuthClientMetadata", () => {
   });
 });
 
-describe("hostedOAuthClientIdForOrigin", () => {
-  test("uses same-origin metadata for unmapped preview hosts", () => {
+describe("Hostedoauthclientidfororigin", () => {
+  test("Uses Same-origin Metadata for Unmapped Preview Hosts", () => {
     expect(
       hostedOAuthClientIdForOrigin("https://preview.example.vercel.app")
     ).toBe("https://preview.example.vercel.app/client-metadata.json");
   });
 
-  test("uses testing API gateway metadata for testing.latr.link", () => {
+  test("Uses Testing API Gateway Metadata for Testing.latr.link", () => {
     expect(hostedOAuthClientIdForOrigin("https://testing.latr.link")).toBe(
       "https://api.testing.latr.link/oauth/client-metadata.json"
     );
   });
 });
 
-describe("resolveHostedOAuthClientId", () => {
-  test("uses same-origin metadata on preview hosts instead of prod default", () => {
+describe("Resolvehostedoauthclientid", () => {
+  test("Uses Same-origin Metadata on Preview Hosts instead of Prod Default", () => {
     expect(
       resolveHostedOAuthClientId("https://testing-latr-link.vercel.app")
     ).toBe("https://testing-latr-link.vercel.app/client-metadata.json");
   });
 
-  test("uses gateway metadata for deployment-protected testing host", () => {
+  test("Uses Gateway Metadata for Deployment-protected Testing Host", () => {
     expect(resolveHostedOAuthClientId("https://testing.latr.link")).toBe(
       "https://api.testing.latr.link/oauth/client-metadata.json"
     );
   });
 
-  test("honors NEXT_PUBLIC_ATPROTO_CLIENT_ID on unmapped preview hosts", () => {
+  test("Honors NEXT_PUBLIC_ATPROTO_CLIENT_ID on Unmapped Preview Hosts", () => {
     const prevClientId = process.env.NEXT_PUBLIC_ATPROTO_CLIENT_ID;
     process.env.NEXT_PUBLIC_ATPROTO_CLIENT_ID =
       "https://custom.example/client-metadata.json";
@@ -67,7 +67,7 @@ describe("resolveHostedOAuthClientId", () => {
     }
   });
 
-  test("ignores prod default NEXT_PUBLIC_ATPROTO_CLIENT_ID on preview hosts", () => {
+  test("Ignores Prod Default NEXT_PUBLIC_ATPROTO_CLIENT_ID on Preview Hosts", () => {
     const prevClientId = process.env.NEXT_PUBLIC_ATPROTO_CLIENT_ID;
     process.env.NEXT_PUBLIC_ATPROTO_CLIENT_ID =
       "https://latr.link/client-metadata.json";
@@ -85,8 +85,8 @@ describe("resolveHostedOAuthClientId", () => {
   });
 });
 
-describe("gatewayWebOAuthClientMetadataUrl", () => {
-  test("builds the gateway discoverable client_id URL", () => {
+describe("Gatewayweboauthclientmetadataurl", () => {
+  test("Builds the Gateway Discoverable Client_id URL", () => {
     expect(
       gatewayWebOAuthClientMetadataUrl("https://latr-link-dev-gateway.fly.dev")
     ).toBe(

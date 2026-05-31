@@ -41,13 +41,13 @@ export async function saveCurrentUrl(
   if (!isSupportedSaveUrl(url)) {
     return {
       ok: false,
-      message: "This page cannot be saved (browser-internal or invalid URL).",
+      message: "This Page Cannot Be Saved (Browser-Internal or Invalid URL).",
     };
   }
 
   const did = oauthSession.did;
   if (!did) {
-    return { ok: false, message: "Sign in to save links." };
+    return { ok: false, message: "Sign In to Save Links." };
   }
 
   try {
@@ -67,7 +67,7 @@ export async function saveCurrentUrl(
   } catch (err) {
     return {
       ok: false,
-      message: err instanceof Error ? err.message : "Could not save this link.",
+      message: err instanceof Error ? err.message : "Could Not Save This Link.",
     };
   }
 }
