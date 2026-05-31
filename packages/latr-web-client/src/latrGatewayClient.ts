@@ -8,10 +8,10 @@ import {
 
 import {
   assertLatrGatewayClientCredential,
-  getLatrGatewayConfig,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
   LATR_OFFICIAL_CLIENT_HEADER,
+  resolveLatrGatewayConfig,
 } from "./latrGatewayConfig";
 
 export { LATR_OFFICIAL_CLIENT_HEADER, LATR_UPSTREAM_DPOP_HEADER };
@@ -28,7 +28,7 @@ export async function latrGatewayFetch(
   options?: LatrGatewayFetchOptions
 ): Promise<Response> {
   const gatewayPath = path.startsWith("/") ? path : `/${path}`;
-  const config = getLatrGatewayConfig();
+  const config = resolveLatrGatewayConfig();
   if (!options?.skipClientCredential) {
     assertLatrGatewayClientCredential(config);
   }

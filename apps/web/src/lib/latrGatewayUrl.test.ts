@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { configureLatrGateway } from "latr-web-client/latrGatewayConfig";
 
 import {
   DEFAULT_DEV_LATR_GATEWAY_URL,
@@ -25,7 +26,20 @@ function restoreEnv(): void {
   }
 }
 
-afterEach(restoreEnv);
+afterEach(() => {
+  restoreEnv();
+  if (typeof window !== "undefined") {
+    delete window.__LATR_GATEWAY_BOOTSTRAP__;
+  }
+  configureLatrGateway({
+    appEnv: "local",
+    clientCredential: "",
+    clientId: "",
+    apiKey: "",
+    testingHostname: "",
+    gatewayUrl: "",
+  });
+});
 
 describe("latrGatewayBaseUrl", () => {
   test("defaults to local gateway for local app env", () => {

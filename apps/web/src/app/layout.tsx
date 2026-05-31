@@ -7,10 +7,12 @@ import { EnvironmentBanner } from "@/components/shared/EnvironmentBanner";
 import {
   environmentBannerOffset,
   getAppEnv,
+  toLatrGatewayAppEnv,
 } from "@/lib/environmentBanner";
 
 import "./globals.css";
 import {
+  buildGatewayWindowBootstrap,
   readGatewayClientCredentialFromEnv,
   readGatewayClientCredentialsFromEnv,
 } from "@/lib/latrGatewayUrl";
@@ -54,6 +56,9 @@ export const metadata: Metadata = {
   },
 };
 
+/** Runtime env for gateway credentials (Vercel sensitive vars are not available at static build). */
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -62,6 +67,7 @@ export default function RootLayout({
   const appEnv = getAppEnv();
   const gatewayClientCredential = readGatewayClientCredentialFromEnv();
   const gatewayClientCredentials = readGatewayClientCredentialsFromEnv();
+  const gatewayBootstrap = buildGatewayWindowBootstrap(toLatrGatewayAppEnv(appEnv));
   const bodyStyle = {
     "--env-banner-offset": environmentBannerOffset(appEnv),
   } as CSSProperties;
@@ -75,6 +81,9 @@ export default function RootLayout({
       >
         <Script id="latr-loopback-host" strategy="beforeInteractive">
           {`if(location.protocol==="http:"&&(location.hostname==="localhost"||location.hostname==="[::1]")){location.replace("http://127.0.0.1"+(location.port?":"+location.port:"")+location.pathname+location.search+location.hash)}`}
+        </Script>
+        <Script id="latr-gateway-bootstrap" strategy="beforeInteractive">
+          {`window.__LATR_GATEWAY_BOOTSTRAP__=${JSON.stringify(gatewayBootstrap)};`}
         </Script>
         <Providers
           gatewayClientCredential={gatewayClientCredential}

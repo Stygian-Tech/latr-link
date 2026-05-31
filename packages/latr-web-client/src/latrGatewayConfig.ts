@@ -38,6 +38,20 @@ let globalGatewayConfig: LatrGatewayEnvConfig = {
   appEnv: "local",
 };
 
+type LatrGatewayConfigSync = () => void;
+let gatewayConfigSync: LatrGatewayConfigSync | undefined;
+
+/** Host apps register runtime sync (env injection, hostname mapping) before gateway calls. */
+export function registerLatrGatewayConfigSync(fn: LatrGatewayConfigSync): void {
+  gatewayConfigSync = fn;
+}
+
+/** Refresh config from registered host sync, then return the active snapshot. */
+export function resolveLatrGatewayConfig(): LatrGatewayEnvConfig {
+  gatewayConfigSync?.();
+  return globalGatewayConfig;
+}
+
 /** Configure gateway URL and client credential headers for the current runtime. */
 export function configureLatrGateway(config: LatrGatewayEnvConfig): void {
   const next: LatrGatewayEnvConfig = { ...globalGatewayConfig };

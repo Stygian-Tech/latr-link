@@ -14,6 +14,8 @@ export {
   getLatrGatewayConfig,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
+  registerLatrGatewayConfigSync,
+  resolveLatrGatewayConfig,
   LATR_LINK_WEB_CLIENT_ID,
   LOCAL_LATR_GATEWAY_URL,
   DEFAULT_DEV_LATR_GATEWAY_URL,
