@@ -63,6 +63,18 @@ final class ClientRegistryTests: XCTestCase {
         XCTAssertEqual(resolved, "latr-link-web")
     }
 
+    func testRegisterClientPreservesUnicodeDisplayName() async throws {
+        let registryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("latr-registry-\(UUID().uuidString).json")
+        let registry = ClientRegistry(officialClients: [:], registryURL: registryURL)
+
+        let registered = try await registry.registerClient(
+            clientID: "unicode-name",
+            displayName: "L@tr.link 🔖 日本語"
+        )
+        XCTAssertEqual(registered.displayName, "L@tr.link 🔖 日本語")
+    }
+
     func testRegisterClientRejectsDuplicate() async throws {
         let registry = ClientRegistry(officialClients: [:], registryURL: registryURL())
         _ = try await registry.registerClient(clientID: "latr-link-web", displayName: nil)

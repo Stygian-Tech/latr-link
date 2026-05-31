@@ -46,7 +46,7 @@ Authenticated with the operator’s ATProto session only (no app API key):
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/v1/latr/developer/clients` | List clients owned by signed-in DID |
-| POST | `/v1/latr/developer/clients` | Create developer client |
+| POST | `/v1/latr/developer/clients` | Create developer client (`clientId` slug; optional `displayName`, any Unicode) |
 | DELETE | `/v1/latr/developer/clients/:clientId` | Delete developer client |
 | GET | `/v1/latr/developer/clients/:clientId/keys` | List API keys |
 | POST | `/v1/latr/developer/clients/:clientId/keys` | Create API key (shown once) |

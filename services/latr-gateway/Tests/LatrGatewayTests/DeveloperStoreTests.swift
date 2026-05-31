@@ -63,6 +63,17 @@ final class DeveloperStoreTests: XCTestCase {
         XCTAssertThrowsError(try assertOfficialProvisioner(did: "did:plc:other", config: config))
     }
 
+    func testCreateClientPreservesUnicodeDisplayName() async throws {
+        let store = InMemoryDeveloperStore()
+        let created = try await store.createClient(
+            ownerDID: "did:plc:developer",
+            clientID: "my-app",
+            displayName: "L@tr.link 🔖 日本語",
+            isOfficial: false
+        )
+        XCTAssertEqual(created.displayName, "L@tr.link 🔖 日本語")
+    }
+
     func testRevokeApiKeyBlocksVerification() async throws {
         let store = InMemoryDeveloperStore()
         _ = try await store.createClient(

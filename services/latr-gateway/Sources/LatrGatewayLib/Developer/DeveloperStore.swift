@@ -153,7 +153,7 @@ public actor InMemoryDeveloperStore: DeveloperStore {
         let record = DeveloperClientRecord(
             clientID: normalized,
             ownerDID: ownerDID,
-            displayName: trimmedOptional(displayName),
+            displayName: normalizeClientDisplayName(displayName),
             isOfficial: isOfficial,
             billingStatus: isOfficial ? "internal" : "preview",
             stripeCustomerID: nil,

@@ -106,7 +106,7 @@ public actor ClientRegistry {
     @discardableResult
     public func registerClient(clientID: String, displayName: String?) throws -> RegisterClientResponse {
         let normalizedID = try normalizeClientID(clientID)
-        let trimmedName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedName = normalizeClientDisplayName(displayName)
 
         if officialClients[normalizedID] != nil || records[normalizedID] != nil {
             throw GatewayError(
@@ -120,7 +120,7 @@ public actor ClientRegistry {
         let createdAt = ISO8601DateFormatter().string(from: Date())
         records[normalizedID] = RegisteredClientRecord(
             keyHash: hashClientCredential(clientCredential),
-            displayName: trimmedName?.isEmpty == false ? trimmedName : nil,
+            displayName: normalizedName,
             createdAt: createdAt
         )
         try persist()
@@ -128,7 +128,7 @@ public actor ClientRegistry {
         return RegisterClientResponse(
             clientId: normalizedID,
             clientCredential: clientCredential,
-            displayName: trimmedName?.isEmpty == false ? trimmedName : nil,
+            displayName: normalizedName,
             createdAt: createdAt
         )
     }
@@ -200,6 +200,13 @@ public actor ClientRegistry {
         }
         return file.clients
     }
+}
+
+/// Human-readable client label. Any Unicode is valid after trimming surrounding whitespace.
+public func normalizeClientDisplayName(_ raw: String?) -> String? {
+    guard let raw else { return nil }
+    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
 }
 
 public func normalizeClientID(_ raw: String) throws -> String {
