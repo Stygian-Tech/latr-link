@@ -7,7 +7,6 @@ import {
   latrGatewayBaseUrl as sharedLatrGatewayBaseUrl,
   publishLatrGatewayWindowBootstrap,
   registerLatrGatewayConfigSync,
-  type LatrGatewayEnvConfig,
   type LatrGatewayWindowBootstrap,
 } from "latr-web-client/latrGatewayConfig";
 
