@@ -315,3 +315,9 @@ public func parseOpenGraphMarkup(html: String, resolvedPageURL: String) -> OpenG
     let fromDocument = parseOpenGraphFields(in: html, html: html, resolvedPageURL: resolvedPageURL)
     return mergeFields(fromHead, fallback: fromDocument)
 }
+
+/// HEAD-only Open Graph parse for the unified save pipeline (no full-document fallback).
+public func parseOpenGraphFromHeadOnly(html: String, resolvedPageURL: String) -> OpenGraphFields {
+    let headSlice = sliceForMarkup(html)
+    return parseOpenGraphFields(in: headSlice, html: headSlice, resolvedPageURL: resolvedPageURL)
+}

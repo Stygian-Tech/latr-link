@@ -1,6 +1,5 @@
 /**
- * Resolve Standard.site HTTPS documents to canonical `at://` subject URIs per
- * {@link https://standard.site/#verification}.
+ * Resolve HTTPS documents to canonical `at://` subject URIs from early `<head>` markup.
  */
 import { tryCanonicalAtUri } from "@/lib/canonicalAtUri";
 import { decodeHtmlText } from "@/lib/decodeHtmlText";
@@ -18,23 +17,45 @@ function sliceForEarlyHeadMarkup(html: string): string {
   return html.length > 300_000 ? html.slice(0, 300_000) : html;
 }
 
-/** Extract `<link rel="site.standard.document" href="at://…">` when present */
-export function extractSiteStandardDocumentAtUri(html: string): string | null {
+function collectionFromAtUri(uri: string): string | null {
+  if (!uri.startsWith("at://")) return null;
+  const parts = uri.slice("at://".length).split("/");
+  return parts[1] ?? null;
+}
+
+/** Extract the first canonical native `at://` URI from early `<head>` markup. */
+export function extractAtUriFromHead(html: string): string | null {
   const scope = sliceForEarlyHeadMarkup(html);
+  const candidates: { index: number; uri: string }[] = [];
 
-  const relFirst =
-    /<link\b[^>]*?\brel\s*=\s*["']site\.standard\.document["'][^>]*?\bhref\s*=\s*["']([^"']+)["'][^>]*>/i.exec(
-      scope
-    );
+  const linkPattern =
+    /<link\b[^>]*?\bhref\s*=\s*["'](at:\/\/[^"']+)["'][^>]*>/gi;
+  for (const match of scope.matchAll(linkPattern)) {
+    const cleaned = decodeMinimalHref(match[1]);
+    const canonical = tryCanonicalAtUri(cleaned);
+    if (canonical && match.index !== undefined) {
+      candidates.push({ index: match.index, uri: canonical });
+    }
+  }
 
-  const hrefFirst =
-    /<link\b[^>]*?\bhref\s*=\s*["'](at:\/\/[^"']+)["'][^>]*?\brel\s*=\s*["']site\.standard\.document["'][^>]*>/i.exec(
-      scope
-    );
+  const metaPattern =
+    /<meta\b[^>]*?\bcontent\s*=\s*["'](at:\/\/[^"']+)["'][^>]*>/gi;
+  for (const match of scope.matchAll(metaPattern)) {
+    const cleaned = decodeMinimalHref(match[1]);
+    const canonical = tryCanonicalAtUri(cleaned);
+    if (canonical && match.index !== undefined) {
+      candidates.push({ index: match.index, uri: canonical });
+    }
+  }
 
-  const raw = hrefFirst?.[1] ?? relFirst?.[1];
-  if (!raw) return null;
+  candidates.sort((a, b) => a.index - b.index);
+  const native = candidates.find(
+    (c) => collectionFromAtUri(c.uri) !== "com.latr.saved.external"
+  );
+  return native?.uri ?? candidates[0]?.uri ?? null;
+}
 
-  const cleaned = decodeMinimalHref(raw);
-  return tryCanonicalAtUri(cleaned);
+/** @deprecated Use {@link extractAtUriFromHead} */
+export function extractSiteStandardDocumentAtUri(html: string): string | null {
+  return extractAtUriFromHead(html);
 }

@@ -20,7 +20,7 @@ private func decodeMinimalHref(_ string: String) -> String {
     HtmlTextDecoder.decode(string.trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
-private func sliceForEarlyHeadMarkup(_ html: String) -> String {
+func sliceForEarlyHeadMarkup(_ html: String) -> String {
     let lower = html.lowercased()
     if let range = lower.range(of: "</head>") {
         return String(html[..<range.upperBound])
@@ -28,26 +28,65 @@ private func sliceForEarlyHeadMarkup(_ html: String) -> String {
     return html.count > 300_000 ? String(html.prefix(300_000)) : html
 }
 
-public func extractSiteStandardDocumentAtURI(_ html: String) -> String? {
-    let scope = sliceForEarlyHeadMarkup(html)
+private func collectionFromAtURI(_ uri: String) -> String? {
+    guard uri.hasPrefix("at://") else { return nil }
+    let withoutScheme = String(uri.dropFirst("at://".count))
+    let parts = withoutScheme.split(separator: "/", omittingEmptySubsequences: false)
+    guard parts.count >= 2 else { return nil }
+    return String(parts[1])
+}
 
-    let relFirstPattern =
-        #"<link\b[^>]*?\brel\s*=\s*["']site\.standard\.document["'][^>]*?\bhref\s*=\s*["']([^"']+)["'][^>]*>"#
-    let hrefFirstPattern =
-        #"<link\b[^>]*?\bhref\s*=\s*["'](at://[^"']+)["'][^>]*?\brel\s*=\s*["']site\.standard\.document["'][^>]*>"#
+private func isWrapperExternalURI(_ uri: String) -> Bool {
+    collectionFromAtURI(uri) == "com.latr.saved.external"
+}
 
-    let patterns = [hrefFirstPattern, relFirstPattern]
-    for pattern in patterns {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
-        let range = NSRange(scope.startIndex..., in: scope)
-        if let match = regex.firstMatch(in: scope, range: range),
-           let capture = Range(match.range(at: 1), in: scope)
-        {
-            let cleaned = decodeMinimalHref(String(scope[capture]))
-            if let canonical = tryCanonicalAtURI(cleaned) {
-                return canonical
-            }
-        }
+private struct HeadAtURICandidate {
+    let index: Int
+    let uri: String
+}
+
+private func linkHrefCandidates(in scope: String) -> [HeadAtURICandidate] {
+    let pattern = #"<link\b[^>]*?\bhref\s*=\s*["'](at://[^"']+)["'][^>]*>"#
+    guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+        return []
     }
-    return nil
+
+    let range = NSRange(scope.startIndex..., in: scope)
+    return regex.matches(in: scope, range: range).compactMap { match in
+        guard let capture = Range(match.range(at: 1), in: scope) else { return nil }
+        let cleaned = decodeMinimalHref(String(scope[capture]))
+        guard let canonical = tryCanonicalAtURI(cleaned) else { return nil }
+        return HeadAtURICandidate(index: match.range.location, uri: canonical)
+    }
+}
+
+private func metaContentCandidates(in scope: String) -> [HeadAtURICandidate] {
+    let pattern = #"<meta\b[^>]*?\bcontent\s*=\s*["'](at://[^"']+)["'][^>]*>"#
+    guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+        return []
+    }
+
+    let range = NSRange(scope.startIndex..., in: scope)
+    return regex.matches(in: scope, range: range).compactMap { match in
+        guard let capture = Range(match.range(at: 1), in: scope) else { return nil }
+        let cleaned = decodeMinimalHref(String(scope[capture]))
+        guard let canonical = tryCanonicalAtURI(cleaned) else { return nil }
+        return HeadAtURICandidate(index: match.range.location, uri: canonical)
+    }
+}
+
+/// Scans early `<head>` markup for the first canonical native `at://` URI.
+public func extractAtUriFromHead(_ html: String) -> String? {
+    let scope = sliceForEarlyHeadMarkup(html)
+    let candidates = (linkHrefCandidates(in: scope) + metaContentCandidates(in: scope))
+        .sorted { $0.index < $1.index }
+
+    if let preferred = candidates.first(where: { !isWrapperExternalURI($0.uri) }) {
+        return preferred.uri
+    }
+    return candidates.first?.uri
+}
+
+public func extractSiteStandardDocumentAtURI(_ html: String) -> String? {
+    extractAtUriFromHead(html)
 }

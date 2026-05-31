@@ -76,12 +76,36 @@ All `/v1/latr/*` save/list routes also require:
 | GET | `/v1/latr/saves/subject?subjectUri=` | Lookup saved item by subject |
 | PATCH | `/v1/latr/saves/:itemRkey/state` | Body: `{ state: "unread" \| "archived" }` |
 | DELETE | `/v1/latr/saves/:itemRkey` | Unsave (item edge only) |
-| GET | `/v1/latr/discover/at-uri?url=` | Standard.site / HTML AT URI discovery |
+| GET | `/v1/latr/discover/at-uri?url=` | Debug: HEAD AT URI + Bluesky URL normalization |
 | GET | `/v1/latr/og-preview?url=` | Server OG fetch (SSRF guarded) |
 
 Developer management routes are listed above.
 
 Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). Open Graph metadata is stored on `com.latr.saved.external` / `com.latr.saved.item`.
+
+## URL save pipeline
+
+Clients should call **`POST /v1/latr/saves { kind: "url", url }`** only. The gateway runs a single SSRF-safe fetch and:
+
+1. **Native subject discovery** — Bluesky profile/post URLs normalize to `at://…/app.bsky.feed.post/…`; otherwise scan early `<head>` for any canonical `at://did/collection/rkey` in `<link href>` or `<meta content>` (Standard.site is one supported pattern, not the only one). Wrapper `com.latr.saved.external` URIs in HEAD are deprioritized.
+2. **Subject metadata** — For native subjects, resolve on-protocol preview fields: **PDS-first** `com.atproto.repo.getRecord` (from the repo DID document via PLC or `did:web`), **AppView enrichment** for Bluesky posts by trying AppView services discovered from the subject repo’s DID document (`#bsky_appview`, `#atproto_appview`, `BskyAppView`, `AtprotoAppView`), then `LATR_GATEWAY_APPVIEW_URLS`, then `https://public.api.bsky.app`, then raw PDS post text. Handle → DID uses `LATR_GATEWAY_IDENTITY_URL` (default `https://bsky.social`).
+3. **HEAD Open Graph gap-fill** — Parse OG from the HEAD slice only; subject-derived fields win, OG fills empty `preview*` slots.
+
+Direct **`POST /v1/latr/saves { kind: "subject", subjectUri, linkedWebUrl? }`** remains for rare `at://` paste.
+
+**Save response** (201):
+
+```json
+{
+  "ok": true,
+  "kind": "subject",
+  "subjectUri": "at://did:plc:…/app.bsky.feed.post/…",
+  "linkedWebUrl": "https://…",
+  "storage": "native"
+}
+```
+
+`storage`: `"native"` = saved edge points at a non-wrapper AT URI; `"external"` = subject is a `com.latr.saved.external` wrapper.
 
 ## Environment variables
 
@@ -92,6 +116,8 @@ Full template: [`services/latr-gateway/.env.example`](../../services/latr-gatewa
 | `PORT` | No | `8080` | HTTP listen port |
 | `APP_ENV` | No | `local` | `local`, `dev`, `prod`, or `test` |
 | `PLC_URL` | No | `https://plc.directory` | PLC directory base URL |
+| `LATR_GATEWAY_APPVIEW_URLS` | No | `https://public.api.bsky.app` | Fallback AppView bases after DID-document discovery |
+| `LATR_GATEWAY_IDENTITY_URL` | No | `https://bsky.social` | Identity relay for handle → DID resolution |
 | `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` | No | `true` when `APP_ENV=prod` | Require JWT client allowlist |
 | `OAUTH_GATEWAY_ALLOWED_CLIENT_IDS` | When OAuth policy on | _(empty)_ | OAuth client metadata URLs |
 | `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` | No | `true` when `APP_ENV=prod` | Require app credential headers |

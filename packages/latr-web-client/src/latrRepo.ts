@@ -20,6 +20,14 @@ export type OpenGraphPreviewFields = {
   author?: string;
 };
 
+export type SaveUrlResponse = {
+  ok: true;
+  kind: "subject" | "url";
+  subjectUri?: string;
+  linkedWebUrl?: string;
+  storage?: "native" | "external";
+};
+
 export class LatrRepo {
   private readAgent: Agent;
 
@@ -57,8 +65,12 @@ export class LatrRepo {
     return records;
   }
 
-  async saveExternalUrl(url: string): Promise<void> {
-    await latrGatewayJson(this.oauthSession, "/v1/latr/saves", {
+  async saveExternalUrl(url: string): Promise<SaveUrlResponse> {
+    return this.saveUrl(url);
+  }
+
+  async saveUrl(url: string): Promise<SaveUrlResponse> {
+    return latrGatewayJson<SaveUrlResponse>(this.oauthSession, "/v1/latr/saves", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind: "url", url }),
@@ -68,9 +80,9 @@ export class LatrRepo {
   async saveSubjectUri(
     subjectUri: string,
     options: { linkedWebUrl?: string } = {}
-  ): Promise<void> {
+  ): Promise<SaveUrlResponse> {
     new AtUri(subjectUri);
-    await latrGatewayJson(this.oauthSession, "/v1/latr/saves", {
+    return latrGatewayJson<SaveUrlResponse>(this.oauthSession, "/v1/latr/saves", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

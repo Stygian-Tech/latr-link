@@ -40,9 +40,8 @@ export {
   extractBskyAppProfilePostParts,
   BSKY_APPVIEW_PUBLIC,
   type ResolvedSavePaste,
-  type ResolvePasteOptions,
 } from "./resolveSaveInput";
-export { LatrRepo } from "./latrRepo";
+export { LatrRepo, type SaveUrlResponse } from "./latrRepo";
 export {
   isSupportedSaveUrl,
   saveCurrentUrl,

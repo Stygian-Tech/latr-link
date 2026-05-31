@@ -1,7 +1,7 @@
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 
 import { LatrRepo } from "./latrRepo";
-import { resolvePasteForSave, type ResolvePasteOptions } from "./resolveSaveInput";
+import { resolvePasteForSave } from "./resolveSaveInput";
 
 const UNSUPPORTED_TAB_URL_PREFIXES = [
   "chrome://",
@@ -30,13 +30,16 @@ export function isSupportedSaveUrl(url: string): boolean {
 }
 
 export type SaveCurrentUrlResult =
-  | { ok: true; kind: "subject" | "external" }
+  | {
+      ok: true;
+      kind: "subject" | "url";
+      storage?: "native" | "external";
+    }
   | { ok: false; message: string };
 
 export async function saveCurrentUrl(
   url: string,
-  oauthSession: OAuthSession,
-  resolveOptions: Omit<ResolvePasteOptions, "oauthSession"> = {}
+  oauthSession: OAuthSession
 ): Promise<SaveCurrentUrlResult> {
   if (!isSupportedSaveUrl(url)) {
     return {
@@ -51,19 +54,22 @@ export async function saveCurrentUrl(
   }
 
   try {
-    const resolved = await resolvePasteForSave(url, {
-      ...resolveOptions,
-      oauthSession,
-    });
+    const resolved = resolvePasteForSave(url);
     const repo = new LatrRepo(oauthSession, did);
     if (resolved.kind === "subject") {
-      await repo.saveSubjectUri(resolved.subjectUri, {
-        linkedWebUrl: resolved.discoveryWebUrl,
-      });
-      return { ok: true, kind: "subject" };
+      const response = await repo.saveSubjectUri(resolved.subjectUri);
+      return {
+        ok: true,
+        kind: "subject",
+        storage: response.storage,
+      };
     }
-    await repo.saveExternalUrl(resolved.url);
-    return { ok: true, kind: "external" };
+    const response = await repo.saveUrl(resolved.url);
+    return {
+      ok: true,
+      kind: response.kind,
+      storage: response.storage,
+    };
   } catch (err) {
     return {
       ok: false,

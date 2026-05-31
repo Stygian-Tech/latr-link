@@ -1,26 +1,20 @@
 /**
- * Decide whether a pasted string should save as a native AT subject or as an external URL.
+ * Validate pasted save input for thin clients (gateway owns discovery).
  */
-import { AtUri } from "@atproto/syntax";
-import { Agent } from "@atproto/api";
-import type { OAuthSession } from "@atproto/oauth-client-browser";
-
 import { tryCanonicalAtUri } from "./canonicalAtUri";
-import { latrGatewayFetch } from "./latrGatewayClient";
 
 export { tryCanonicalAtUri } from "./canonicalAtUri";
 
+/** Public Bluesky AppView base URL (shared with OAuth handle resolution). */
 export const BSKY_APPVIEW_PUBLIC = "https://public.api.bsky.app";
 
 export type ResolvedSavePaste =
   | {
       kind: "subject";
       subjectUri: string;
-      /** HTTP(S) page the user pasted; used for Open Graph snapshot on saved items. */
-      discoveryWebUrl?: string;
-      via: "at-uri" | "bsky-app" | "standard-site";
+      via: "at-uri";
     }
-  | { kind: "external"; url: string };
+  | { kind: "url"; url: string };
 
 /** `https:` / `http:` URL, optionally prepending https when no scheme */
 export function tryParseHttpUrl(trimmedInput: string): URL | null {
@@ -37,6 +31,7 @@ export function tryParseHttpUrl(trimmedInput: string): URL | null {
 
 /**
  * Parses `…/profile/{actor}/post/{rkey}` on bsky hostnames (e.g. bsky.app, *.bsky.app).
+ * Kept for tests and optional client-side display helpers.
  */
 export function extractBskyAppProfilePostParts(
   url: URL
@@ -60,33 +55,8 @@ export function extractBskyAppProfilePostParts(
   return actor.length && rkey.length ? { actor, rkey } : null;
 }
 
-function discoveryWebUrlFromHttpPaste(httpUrl: URL): string {
-  return httpUrl.href;
-}
-
-export type ResolvePasteOptions = {
-  oauthSession?: OAuthSession | null;
-  /** Optional fallback when gateway discovery is unavailable (e.g. Next.js API route). */
-  discoverAtUriWithoutSession?: (httpUrl: URL) => Promise<string | null>;
-  actorToDid?: (actor: string) => Promise<string | null>;
-};
-
-async function defaultActorToDid(actor: string): Promise<string | null> {
-  if (actor.startsWith("did:")) return actor;
-  try {
-    const agent = new Agent(BSKY_APPVIEW_PUBLIC);
-    const res = await agent.app.bsky.actor.getProfile({ actor });
-    return typeof res?.data?.did === "string" ? res.data.did : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Throw if empty or unusable paste; resolves Bluesky URLs to native `at://` when possible */
-export async function resolvePasteForSave(
-  rawInput: string,
-  options: ResolvePasteOptions = {}
-): Promise<ResolvedSavePaste> {
+/** Throw if empty or unusable paste; gateway resolves native subjects for HTTPS URLs. */
+export function resolvePasteForSave(rawInput: string): ResolvedSavePaste {
   const trimmed = rawInput.trim();
   if (!trimmed) {
     throw new Error("Enter a URL or at:// URI.");
@@ -105,64 +75,5 @@ export async function resolvePasteForSave(
     throw new Error("Paste A URL (https://…) or at:// URI.");
   }
 
-  const actorToDid = options.actorToDid ?? defaultActorToDid;
-  const profilePost = extractBskyAppProfilePostParts(httpUrl);
-  if (profilePost) {
-    const did = await actorToDid(profilePost.actor);
-    if (did) {
-      const candidate = `at://${did}/app.bsky.feed.post/${profilePost.rkey}`;
-      try {
-        new AtUri(candidate);
-        return {
-          kind: "subject",
-          subjectUri: candidate,
-          discoveryWebUrl: discoveryWebUrlFromHttpPaste(httpUrl),
-          via: "bsky-app",
-        };
-      } catch {
-        /* invalid ref — save as plain link */
-      }
-    }
-  }
-
-  try {
-    const discoverUrl = `/v1/latr/discover/at-uri?${new URLSearchParams({ url: httpUrl.href }).toString()}`;
-    const oauthSession = options.oauthSession;
-    const rr = oauthSession
-      ? await latrGatewayFetch(oauthSession, discoverUrl)
-      : options.discoverAtUriWithoutSession
-        ? await discoverViaFallback(httpUrl, options.discoverAtUriWithoutSession)
-        : null;
-    if (rr?.ok) {
-      const data = (await rr.json()) as {
-        subjectUri?: string | null;
-      };
-      if (data.subjectUri) {
-        const canon = tryCanonicalAtUri(data.subjectUri);
-        if (canon) {
-          return {
-            kind: "subject",
-            subjectUri: canon,
-            discoveryWebUrl: discoveryWebUrlFromHttpPaste(httpUrl),
-            via: "standard-site",
-          };
-        }
-      }
-    }
-  } catch {
-    /* non-fatal */
-  }
-
-  return { kind: "external", url: httpUrl.href };
-}
-
-async function discoverViaFallback(
-  httpUrl: URL,
-  discover: (httpUrl: URL) => Promise<string | null>
-): Promise<Response> {
-  const subjectUri = await discover(httpUrl);
-  return new Response(
-    JSON.stringify({ subjectUri: subjectUri ?? null }),
-    { status: subjectUri ? 200 : 404, headers: { "Content-Type": "application/json" } }
-  );
+  return { kind: "url", url: httpUrl.href };
 }

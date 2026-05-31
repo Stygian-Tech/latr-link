@@ -3,7 +3,6 @@ import Foundation
 import Logging
 
 private let maxHTMLBytes = 512 * 1024
-private let maxWellKnownBytes = 4096
 private let ogLogger = Logger(label: "latr-gateway.og")
 
 public struct DiscoverAtURIResult: Encodable, Sendable {
@@ -16,23 +15,10 @@ public struct DiscoverAtURIResult: Encodable, Sendable {
     }
 }
 
-private func isPublicationRootPath(_ url: URL) -> Bool {
-    let norm = url.path.replacingOccurrences(of: "//+", with: "/", options: .regularExpression)
-        .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-    return norm.isEmpty
-}
-
-private func urlOrigin(_ url: URL) -> String {
-    var origin = "\(url.scheme ?? "https")://\(url.host ?? "")"
-    if let port = url.port {
-        origin += ":\(port)"
-    }
-    return origin
-}
-
 public func discoverAtURIFromURL(
     _ rawURL: String,
-    httpClient: HTTPClient
+    httpClient: HTTPClient,
+    subjectClient: FederatedSubjectClient
 ) async -> DiscoverAtURIResult {
     guard let pageURL = URL(string: rawURL) else {
         return DiscoverAtURIResult(subjectUri: nil, warning: "invalid_url")
@@ -46,38 +32,24 @@ public func discoverAtURIFromURL(
         return DiscoverAtURIResult(subjectUri: nil, warning: block)
     }
 
+    let appView = subjectClient
+    if let profilePost = extractBskyAppProfilePostParts(from: pageURL),
+       let did = await appView.resolveActorDID(profilePost.actor)
+    {
+        return DiscoverAtURIResult(
+            subjectUri: bskyPostSubjectURI(
+                actor: profilePost.actor,
+                rkey: profilePost.rkey,
+                did: did
+            )
+        )
+    }
+
     switch await fetchURLBodyLimited(target: pageURL.absoluteString, maxBytes: maxHTMLBytes, httpClient: httpClient) {
-    case let .success(text, finalURL):
-        if let fromHTML = extractSiteStandardDocumentAtURI(text) {
-            return DiscoverAtURIResult(subjectUri: fromHTML)
+    case let .success(text, _):
+        if let fromHead = extractAtUriFromHead(text) {
+            return DiscoverAtURIResult(subjectUri: fromHead)
         }
-
-        guard let final = URL(string: finalURL) else {
-            return DiscoverAtURIResult(subjectUri: nil)
-        }
-
-        if isPublicationRootPath(final) {
-            let origin = urlOrigin(final)
-            let wellKnown = "\(origin)/.well-known/site.standard.publication"
-            switch await fetchURLBodyLimited(
-                target: wellKnown,
-                maxBytes: maxWellKnownBytes,
-                accept: "text/plain,*/*",
-                httpClient: httpClient
-            ) {
-            case let .success(text, _):
-                let line = text
-                    .split(whereSeparator: { $0.isNewline })
-                    .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .first(where: { !$0.isEmpty })
-                if let line, let canonical = tryCanonicalAtURI(line) {
-                    return DiscoverAtURIResult(subjectUri: canonical)
-                }
-            case let .failure(reason):
-                return DiscoverAtURIResult(subjectUri: nil, warning: reason)
-            }
-        }
-
         return DiscoverAtURIResult(subjectUri: nil)
     case let .failure(reason):
         return DiscoverAtURIResult(subjectUri: nil, warning: reason)
@@ -111,7 +83,7 @@ public func fetchOpenGraphMetadata(url: String, httpClient: HTTPClient) async ->
     }
 }
 
-private func enrichOpenGraphFields(_ fields: OpenGraphFields, resolvedPageURL: String) -> OpenGraphFields {
+func enrichOpenGraphFields(_ fields: OpenGraphFields, resolvedPageURL: String) -> OpenGraphFields {
     var enriched = fields
     guard let host = hostnameLabel(from: resolvedPageURL) else { return enriched }
 

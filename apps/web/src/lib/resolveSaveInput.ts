@@ -3,8 +3,6 @@
  */
 import "./latrGatewayUrl";
 
-import type { OAuthSession } from "@atproto/oauth-client-browser";
-
 import {
   resolvePasteForSave as sharedResolvePasteForSave,
   tryCanonicalAtUri,
@@ -20,22 +18,7 @@ export {
   type ResolvedSavePaste,
 };
 
-/** Throw if empty or unusable paste; resolves Bluesky URLs to native `at://` when possible */
-export async function resolvePasteForSave(
-  rawInput: string,
-  oauthSession?: OAuthSession | null
-): Promise<ResolvedSavePaste> {
-  return sharedResolvePasteForSave(rawInput, {
-    oauthSession,
-    discoverAtUriWithoutSession: oauthSession
-      ? undefined
-      : async (httpUrl) => {
-          const res = await fetch(
-            `/api/at-uri-from-url?${new URLSearchParams({ url: httpUrl.href }).toString()}`
-          );
-          if (!res.ok) return null;
-          const data = (await res.json()) as { subjectUri?: string | null };
-          return data.subjectUri ?? null;
-        },
-  });
+/** Throw if empty or unusable paste; gateway resolves native subjects for HTTPS URLs. */
+export function resolvePasteForSave(rawInput: string): ResolvedSavePaste {
+  return sharedResolvePasteForSave(rawInput);
 }

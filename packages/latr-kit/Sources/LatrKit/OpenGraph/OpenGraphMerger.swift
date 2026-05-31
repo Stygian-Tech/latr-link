@@ -1,6 +1,23 @@
 import Foundation
 
-enum OpenGraphMerger {
+public enum OpenGraphMerger {
+    /// Subject-derived fields win; fallback fills only empty slots.
+    public static func merge(primary: OpenGraphPreview, fallback: OpenGraphPreview) -> OpenGraphPreview {
+        OpenGraphPreview(
+            title: filled(primary.title) ?? fallback.title,
+            description: filled(primary.description) ?? fallback.description,
+            image: filled(primary.image) ?? fallback.image,
+            siteName: filled(primary.siteName) ?? fallback.siteName,
+            author: filled(primary.author) ?? fallback.author
+        )
+    }
+
+    private static func filled(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     static func externalSaveNeedsPreview(_ record: ExternalSave) -> Bool {
         !hasFilledString(record.title)
             || !hasFilledString(record.image)

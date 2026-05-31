@@ -3,7 +3,6 @@
 import { FormEvent, useState } from "react";
 
 import { useInvalidateSavedLibrary } from "@/hooks/useSavedLibrary";
-import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 import { showSaveOutcomeDebugLabels } from "@/lib/environmentBanner";
 import { resolvePasteForSave } from "@/lib/resolveSaveInput";
@@ -16,9 +15,18 @@ type SaveFeedback =
   | { mode: "plain"; text: string }
   | { mode: "debug"; detail: string };
 
+function debugDetailForSave(
+  kind: "subject" | "url",
+  storage?: "native" | "external"
+): string {
+  if (kind === "subject" || storage === "native") {
+    return "Saved AT Proto Record.";
+  }
+  return "Saved Link.";
+}
+
 export function SaveUrlBar() {
   const repo = useLatrRepo();
-  const { getOAuthSession } = useAuth();
   const invalidate = useInvalidateSavedLibrary();
   const [paste, setPaste] = useState("");
   const [feedback, setFeedback] = useState<SaveFeedback | null>(null);
@@ -30,30 +38,30 @@ export function SaveUrlBar() {
     setBusy(true);
     setFeedback(null);
     try {
-      const resolved = await resolvePasteForSave(paste, getOAuthSession());
+      const resolved = resolvePasteForSave(paste);
       if (resolved.kind === "subject") {
-        await repo.saveSubjectUri(resolved.subjectUri, {
-          linkedWebUrl: resolved.discoveryWebUrl,
-        });
+        const response = await repo.saveSubjectUri(resolved.subjectUri);
         if (!showSaveOutcomeDebugLabels()) {
           setFeedback({ mode: "plain", text: "Saved." });
-        } else if (resolved.via === "bsky-app") {
-          setFeedback({
-            mode: "debug",
-            detail: "Saved as AT Proto Record (Bluesky Post Link).",
-          });
-        } else if (resolved.via === "standard-site") {
-          setFeedback({
-            mode: "debug",
-            detail:
-              "Saved AT Proto Record (Detected Standard.site Link Tag).",
-          });
         } else {
-          setFeedback({ mode: "debug", detail: "Saved AT Proto Record." });
+          setFeedback({
+            mode: "debug",
+            detail: debugDetailForSave("subject", response.storage),
+          });
         }
       } else {
-        await repo.saveExternalUrl(resolved.url);
-        setFeedback({ mode: "plain", text: "Saved Link." });
+        const response = await repo.saveUrl(resolved.url);
+        if (!showSaveOutcomeDebugLabels()) {
+          setFeedback({
+            mode: "plain",
+            text: response.storage === "native" ? "Saved." : "Saved Link.",
+          });
+        } else {
+          setFeedback({
+            mode: "debug",
+            detail: debugDetailForSave(response.kind, response.storage),
+          });
+        }
       }
       setPaste("");
       invalidate();

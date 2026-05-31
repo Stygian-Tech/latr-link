@@ -31,6 +31,15 @@ final class OpenGraphMergerTests: XCTestCase {
         XCTAssertFalse(OpenGraphMerger.externalSaveNeedsPreview(record))
     }
 
+    func testMergePrefersPrimaryFields() {
+        let primary = OpenGraphPreview(title: "Native Title")
+        let fallback = OpenGraphPreview(title: "OG Title", description: "Lead")
+
+        let merged = OpenGraphMerger.merge(primary: primary, fallback: fallback)
+        XCTAssertEqual(merged.title, "Native Title")
+        XCTAssertEqual(merged.description, "Lead")
+    }
+
     func testMergingAddsMissingAuthor() {
         let existing = ExternalSave(
             url: "https://example.com",

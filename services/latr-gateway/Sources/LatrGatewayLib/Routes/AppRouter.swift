@@ -34,6 +34,17 @@ public struct GatewayServices: Sendable {
     public func savedLibrary(for auth: AuthContext) -> SavedLibrary {
         SavedLibrary(repository: repositoryClient(for: auth), repositoryDID: auth.did)
     }
+
+    public func federatedSubjectClient() -> FederatedSubjectClient {
+        FederatedSubjectClient(
+            httpClient: httpClient,
+            config: FederatedSubjectClientConfig(
+                plcURL: config.plcURL,
+                appViewBaseURLs: config.appViewBaseURLs,
+                identityBaseURL: config.identityBaseURL
+            )
+        )
+    }
 }
 
 public struct HealthResponse: Encodable, Sendable {
@@ -81,6 +92,23 @@ public enum SaveBody: Decodable, Sendable {
 public struct SaveOKResponse: Encodable, Sendable {
     public let ok: Bool
     public let kind: String
+    public let subjectUri: String?
+    public let linkedWebUrl: String?
+    public let storage: String?
+
+    public init(
+        ok: Bool,
+        kind: String,
+        subjectUri: String? = nil,
+        linkedWebUrl: String? = nil,
+        storage: String? = nil
+    ) {
+        self.ok = ok
+        self.kind = kind
+        self.subjectUri = subjectUri
+        self.linkedWebUrl = linkedWebUrl
+        self.storage = storage
+    }
 }
 
 public struct StatePatchBody: Decodable, Sendable {
@@ -158,11 +186,23 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
 
             switch body {
             case let .url(url):
-                let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
-                let ogFields = await fetchOpenGraphMetadata(url: trimmed, httpClient: services.httpClient)
-                let preview = ogFields.map(openGraphPreview(from:))
-                try await library.save(url: trimmed, preview: preview)
-                return try jsonResponse(SaveOKResponse(ok: true, kind: "url"), status: .created)
+                let result = try await SaveURLPipeline.run(
+                    url: url,
+                    library: library,
+                    httpClient: services.httpClient,
+                    repository: services.repositoryClient(for: auth),
+                    subjectClient: services.federatedSubjectClient()
+                )
+                return try jsonResponse(
+                    SaveOKResponse(
+                        ok: true,
+                        kind: result.kind,
+                        subjectUri: result.subjectUri,
+                        linkedWebUrl: result.linkedWebUrl,
+                        storage: result.storage
+                    ),
+                    status: .created
+                )
             case let .subject(subjectURI, linkedWebURL):
                 let linked = linkedWebURL?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let preview: OpenGraphPreview?
@@ -178,7 +218,17 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
                     linkedWebURL: linkedWebURL,
                     preview: preview
                 )
-                return try jsonResponse(SaveOKResponse(ok: true, kind: "subject"), status: .created)
+                let storage = subjectURI.contains("/com.latr.saved.external/") ? "external" : "native"
+                return try jsonResponse(
+                    SaveOKResponse(
+                        ok: true,
+                        kind: "subject",
+                        subjectUri: subjectURI,
+                        linkedWebUrl: linked?.isEmpty == false ? linked : nil,
+                        storage: storage
+                    ),
+                    status: .created
+                )
             }
         }
     }
@@ -242,7 +292,11 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
             else {
                 throw GatewayError(status: .badRequest, message: "missing url", code: "missing_url")
             }
-            let result = await discoverAtURIFromURL(raw, httpClient: services.httpClient)
+            let result = await discoverAtURIFromURL(
+                raw,
+                httpClient: services.httpClient,
+                subjectClient: services.federatedSubjectClient()
+            )
             return try jsonResponse(result)
         }
     }

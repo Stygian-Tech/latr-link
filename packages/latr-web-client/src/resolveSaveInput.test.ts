@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   extractBskyAppProfilePostParts,
+  resolvePasteForSave,
   tryCanonicalAtUri,
   tryParseHttpUrl,
 } from "./resolveSaveInput";
@@ -28,6 +29,25 @@ describe("Try Parse HTTP URL", () => {
 
   test("Preserves Scheme", () => {
     expect(tryParseHttpUrl("http://localhost/x")?.protocol).toBe("http:");
+  });
+});
+
+describe("Resolve Paste For Save", () => {
+  test("Returns Subject for Direct at Uri", () => {
+    expect(
+      resolvePasteForSave("at://did:plc:abc/app.bsky.feed.post/rkey")
+    ).toEqual({
+      kind: "subject",
+      subjectUri: "at://did:plc:abc/app.bsky.feed.post/rkey",
+      via: "at-uri",
+    });
+  });
+
+  test("Returns URL for Http Paste", () => {
+    expect(resolvePasteForSave("https://example.com/article")).toEqual({
+      kind: "url",
+      url: "https://example.com/article",
+    });
   });
 });
 

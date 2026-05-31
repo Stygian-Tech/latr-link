@@ -25,6 +25,10 @@ public struct GatewayConfig: Sendable {
     public let databaseURL: String?
     /// JSON persistence path for developer clients, keys, and usage counters.
     public let developerStoreURL: URL
+    /// AppView bases tried in order for Bluesky feed enrichment (`app.bsky.feed.getPosts`).
+    public let appViewBaseURLs: [String]
+    /// Identity relay for handle → DID resolution (`com.atproto.identity.resolveHandle`).
+    public let identityBaseURL: String
 
     public init(
         port: Int,
@@ -39,7 +43,9 @@ public struct GatewayConfig: Sendable {
         oauthPublicOrigin: String? = nil,
         oauthLatrkitPublicOrigin: String? = nil,
         databaseURL: String? = nil,
-        developerStoreURL: URL = GatewayConfig.defaultDeveloperStoreURL()
+        developerStoreURL: URL = GatewayConfig.defaultDeveloperStoreURL(),
+        appViewBaseURLs: [String] = [FederatedSubjectClient.defaultAppViewBaseURL],
+        identityBaseURL: String = FederatedSubjectClient.defaultIdentityBaseURL
     ) {
         self.port = port
         self.appEnv = appEnv
@@ -54,6 +60,8 @@ public struct GatewayConfig: Sendable {
         self.oauthLatrkitPublicOrigin = oauthLatrkitPublicOrigin
         self.databaseURL = databaseURL
         self.developerStoreURL = developerStoreURL
+        self.appViewBaseURLs = appViewBaseURLs
+        self.identityBaseURL = identityBaseURL
     }
 
     public static func defaultDeveloperStoreURL() -> URL {
@@ -118,6 +126,16 @@ public struct GatewayConfig: Sendable {
         let databaseURL = env["DATABASE_URL"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let developerStoreURL = resolvedDeveloperStoreURL(from: env)
+        let appViewBaseURLs = parseURLList(
+            env["LATR_GATEWAY_APPVIEW_URLS"],
+            defaultValue: [FederatedSubjectClient.defaultAppViewBaseURL]
+        )
+        let identityBaseURL = env["LATR_GATEWAY_IDENTITY_URL"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let resolvedIdentityBaseURL = (identityBaseURL?.isEmpty == false)
+            ? identityBaseURL!
+            : FederatedSubjectClient.defaultIdentityBaseURL
 
         return GatewayConfig(
             port: port,
@@ -132,9 +150,22 @@ public struct GatewayConfig: Sendable {
             oauthPublicOrigin: oauthPublicOrigin?.isEmpty == false ? oauthPublicOrigin : nil,
             oauthLatrkitPublicOrigin: oauthLatrkitPublicOrigin?.isEmpty == false ? oauthLatrkitPublicOrigin : nil,
             databaseURL: databaseURL?.isEmpty == false ? databaseURL : nil,
-            developerStoreURL: developerStoreURL
+            developerStoreURL: developerStoreURL,
+            appViewBaseURLs: appViewBaseURLs,
+            identityBaseURL: resolvedIdentityBaseURL
         )
     }
+}
+
+private func parseURLList(_ value: String?, defaultValue: [String]) -> [String] {
+    guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        return defaultValue
+    }
+    let parts = value.split { $0.isWhitespace || $0 == "," }.map(String.init)
+    let trimmed = parts
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
+        .filter { !$0.isEmpty }
+    return trimmed.isEmpty ? defaultValue : trimmed
 }
 
 private func parseBool(_ value: String) -> Bool {

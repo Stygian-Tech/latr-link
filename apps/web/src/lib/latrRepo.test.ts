@@ -67,10 +67,13 @@ describe("Latrrepo Gateway Facade", () => {
     let body = "";
     const oauth = mockOAuthSession(async (_url, init) => {
       body = String(init?.body ?? "");
-      return new Response(JSON.stringify({ ok: true }), {
+      return new Response(
+        JSON.stringify({ ok: true, kind: "url", storage: "external" }),
+        {
         status: 201,
         headers: { "Content-Type": "application/json" },
-      });
+      }
+      );
     });
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
