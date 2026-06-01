@@ -35,6 +35,15 @@ public func fetchURLBodyLimited(
             request.headers.add(name: "Accept-Language", value: "en-US,en;q=0.9")
             request.headers.add(name: "Cache-Control", value: "no-cache")
             request.headers.add(name: "User-Agent", value: ogFetchUserAgent)
+            if let scheme = currentURL.scheme, let host = currentURL.host {
+                let portSuffix = currentURL.port.map { ":\($0)" } ?? ""
+                request.headers.add(name: "Referer", value: "\(scheme)://\(host)\(portSuffix)/")
+            }
+            request.headers.add(name: "Sec-Fetch-Dest", value: "document")
+            request.headers.add(name: "Sec-Fetch-Mode", value: "navigate")
+            request.headers.add(name: "Sec-Fetch-Site", value: "none")
+            request.headers.add(name: "Sec-Fetch-User", value: "?1")
+            request.headers.add(name: "Upgrade-Insecure-Requests", value: "1")
 
             let response = try await httpClient.execute(request, timeout: .seconds(fetchTimeoutSeconds))
 

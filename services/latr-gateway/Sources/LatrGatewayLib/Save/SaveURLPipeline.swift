@@ -51,12 +51,15 @@ public enum SaveURLPipeline {
             break
         }
 
-        let headOgFields = html.isEmpty
-            ? OpenGraphFields()
-            : enrichOpenGraphFields(
-                parseOpenGraphFromHeadOnly(html: html, resolvedPageURL: resolvedPageURL),
-                resolvedPageURL: resolvedPageURL
-            )
+        let headOgFields = await resolveOpenGraphForURL(
+            url: linkedWebUrl,
+            httpClient: httpClient,
+            prefetchedHTML: html.isEmpty ? nil : html,
+            prefetchedFinalURL: resolvedPageURL
+        ) ?? enrichOpenGraphFields(
+            degradedOpenGraphFields(from: linkedWebUrl),
+            resolvedPageURL: linkedWebUrl
+        )
         let headOgPreview = openGraphPreview(from: headOgFields)
 
         if let subjectURI = nativeSubjectURI {

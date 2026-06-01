@@ -208,10 +208,13 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
                 throw GatewayError(status: .badRequest, message: "invalid url", code: "invalid_url")
             }
 
-            if let og = await fetchOpenGraphMetadata(url: parsed.absoluteString, httpClient: services.httpClient) {
-                return try jsonResponse(og)
+            guard let og = await resolveOpenGraphForURL(
+                url: parsed.absoluteString,
+                httpClient: services.httpClient
+            ) else {
+                throw GatewayError(status: .badRequest, message: "invalid url", code: "invalid_url")
             }
-            return try jsonResponse(OGPreviewFailureResponse(error: "fetch_failed"), status: .badGateway)
+            return try jsonResponse(og)
         }
     }
 

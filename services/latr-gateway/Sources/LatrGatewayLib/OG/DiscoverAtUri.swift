@@ -1,9 +1,7 @@
 import AsyncHTTPClient
 import Foundation
-import Logging
 
 private let maxHTMLBytes = 512 * 1024
-private let ogLogger = Logger(label: "latr-gateway.og")
 
 public func discoverAtURIFromURL(
     _ rawURL: String,
@@ -47,59 +45,5 @@ public func discoverAtURIFromURL(
 }
 
 public func fetchOpenGraphMetadata(url: String, httpClient: HTTPClient) async -> OpenGraphFields? {
-    let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-
-    switch await fetchURLBodyLimited(target: trimmed, maxBytes: maxHTMLBytes, httpClient: httpClient) {
-    case let .success(text, finalURL):
-        let fields = enrichOpenGraphFields(
-            parseOpenGraphMarkup(html: text, resolvedPageURL: finalURL),
-            resolvedPageURL: finalURL
-        )
-        if fields.hasAnyValue {
-            return fields
-        }
-        ogLogger.info(
-            "OG parse returned no usable fields",
-            metadata: ["url": .string(trimmed), "finalUrl": .string(finalURL)]
-        )
-        return nil
-    case let .failure(reason):
-        ogLogger.warning(
-            "OG fetch failed",
-            metadata: ["url": .string(trimmed), "reason": .string(reason)]
-        )
-        return nil
-    }
-}
-
-func enrichOpenGraphFields(_ fields: OpenGraphFields, resolvedPageURL: String) -> OpenGraphFields {
-    var enriched = fields
-    guard let host = hostnameLabel(from: resolvedPageURL) else { return enriched }
-
-    if enriched.siteName == nil {
-        enriched.siteName = host
-    }
-    if enriched.title == nil, let siteName = enriched.siteName {
-        enriched.title = siteName
-    }
-    return enriched
-}
-
-private func hostnameLabel(from urlString: String) -> String? {
-    guard let host = URL(string: urlString)?.host?.lowercased() else { return nil }
-    if host.hasPrefix("www.") {
-        return String(host.dropFirst(4))
-    }
-    return host
-}
-
-private extension OpenGraphFields {
-    var hasAnyValue: Bool {
-        title != nil
-            || description != nil
-            || image != nil
-            || siteName != nil
-            || author != nil
-    }
+    await resolveOpenGraphForURL(url: url, httpClient: httpClient)
 }
