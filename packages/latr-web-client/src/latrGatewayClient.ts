@@ -4,6 +4,7 @@ import {
   createUpstreamDpopProof,
   LATR_UPSTREAM_DPOP_HEADER,
   pdsXrpcMethodForGatewayRequest,
+  primePdsDpopNonce,
 } from "latr-packages/gateway-client";
 
 import {
@@ -45,6 +46,7 @@ export async function latrGatewayFetch(
   const proofOptions = { accessToken: tokenSet.access_token };
 
   if (method === "POST" && gatewayPath === "/v1/latr/saves") {
+    await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createSaveUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (upstream) {
