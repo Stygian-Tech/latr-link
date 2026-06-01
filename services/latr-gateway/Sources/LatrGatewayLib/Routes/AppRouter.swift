@@ -47,8 +47,17 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     latr.get("saves") { request, _ in
         await handleProtected(request: request, services: services) { auth in
             let library = services.savedLibrary(for: auth)
+            _ = try await library.migrateLegacyLexiconsIfNeeded()
             let items = try await library.savedItems()
             return try jsonResponse(SavedItemsResponse(records: items))
+        }
+    }
+
+    latr.post("migrate-lexicons") { request, _ in
+        await handleProtected(request: request, services: services) { auth in
+            let library = services.savedLibrary(for: auth)
+            let summary = try await library.migrateLegacyLexiconsIfNeeded()
+            return try jsonResponse(LexiconMigrationResponse(summary: summary))
         }
     }
 
@@ -109,7 +118,7 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
                     linkedWebURL: normalizedLink,
                     preview: previewForSave
                 )
-                let storage = subjectURI.contains("/com.latr.saved.external/") ? "external" : "native"
+                let storage = LexiconURI.isExternalWrapper(subjectURI) ? "external" : "native"
                 return try jsonResponse(
                     SaveOKResponse(
                         ok: true,

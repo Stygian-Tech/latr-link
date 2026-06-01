@@ -71,7 +71,8 @@ All `/v1/latr/*` save/list routes also require:
 |--------|------|-------------|
 | GET | `/health` | Public health check |
 | POST | `/v1/latr/auth/probe` | Authenticated PDS connectivity check |
-| GET | `/v1/latr/saves` | List `com.latr.saved.item` records |
+| GET | `/v1/latr/saves` | List `link.latr.saved.item` records (auto-migrates legacy `com.latr.*` first) |
+| POST | `/v1/latr/migrate-lexicons` | Explicit one-time migration from `com.latr.saved.*` to `link.latr.saved.*` |
 | POST | `/v1/latr/saves` | Save URL or subject |
 | GET | `/v1/latr/saves/subject?subjectUri=` | Lookup saved item by subject |
 | PATCH | `/v1/latr/saves/:itemRkey/state` | Body: `{ state: "unread" \| "archived" }` |
@@ -81,7 +82,7 @@ All `/v1/latr/*` save/list routes also require:
 
 Developer management routes are listed above.
 
-Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). Open Graph metadata is stored on `com.latr.saved.external` / `com.latr.saved.item`.
+Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). Open Graph metadata is stored on `link.latr.saved.external` / `link.latr.saved.item`.
 
 **Client read path:** list saved items via **`GET /v1/latr/saves`** (not direct PDS `listRecords`). L@tr.link and The Social Wire use the gateway for list, save, archive, and delete so app credentials and OAuth policy apply consistently.
 
@@ -89,7 +90,7 @@ Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). Open Gra
 
 Clients should call **`POST /v1/latr/saves { kind: "url", url }`** only. The gateway runs a single SSRF-safe fetch and:
 
-1. **Native subject discovery** — Bluesky profile/post URLs normalize to `at://…/app.bsky.feed.post/…`; otherwise scan early `<head>` for any canonical `at://did/collection/rkey` in `<link href>` or `<meta content>` (Standard.site is one supported pattern, not the only one). Wrapper `com.latr.saved.external` URIs in HEAD are deprioritized.
+1. **Native subject discovery** — Bluesky profile/post URLs normalize to `at://…/app.bsky.feed.post/…`; otherwise scan early `<head>` for any canonical `at://did/collection/rkey` in `<link href>` or `<meta content>` (Standard.site is one supported pattern, not the only one). Wrapper `link.latr.saved.external` URIs in HEAD are deprioritized.
 2. **Subject metadata** — For native subjects, resolve on-protocol preview fields: **PDS-first** `com.atproto.repo.getRecord` (from the repo DID document via PLC or `did:web`), **AppView enrichment** for Bluesky posts by trying AppView services discovered from the subject repo’s DID document (`#bsky_appview`, `#atproto_appview`, `BskyAppView`, `AtprotoAppView`), then `LATR_GATEWAY_APPVIEW_URLS`, then `https://public.api.bsky.app`, then raw PDS post text. Handle → DID uses `LATR_GATEWAY_IDENTITY_URL` (default `https://bsky.social`).
 3. **HEAD Open Graph gap-fill** — Parse OG from the HEAD slice only; subject-derived fields win, OG fills empty `preview*` slots.
 
@@ -107,7 +108,7 @@ Direct **`POST /v1/latr/saves { kind: "subject", subjectUri, linkedWebUrl? }`** 
 }
 ```
 
-`storage`: `"native"` = saved edge points at a non-wrapper AT URI; `"external"` = subject is a `com.latr.saved.external` wrapper.
+`storage`: `"native"` = saved edge points at a non-wrapper AT URI; `"external"` = subject is a `link.latr.saved.external` wrapper.
 
 ## Environment variables
 

@@ -3,6 +3,7 @@
  */
 import { tryCanonicalAtUri } from "@/lib/canonicalAtUri";
 import { decodeHtmlText } from "@/lib/decodeHtmlText";
+import { isLatrExternalWrapperCollection } from "@/lib/latrRecords";
 
 function decodeMinimalHref(s: string): string {
   return decodeHtmlText(s.trim());
@@ -50,7 +51,7 @@ export function extractAtUriFromHead(html: string): string | null {
 
   candidates.sort((a, b) => a.index - b.index);
   const native = candidates.find(
-    (c) => collectionFromAtUri(c.uri) !== "com.latr.saved.external"
+    (c) => !isLatrExternalWrapperCollection(collectionFromAtUri(c.uri) ?? "")
   );
   return native?.uri ?? candidates[0]?.uri ?? null;
 }

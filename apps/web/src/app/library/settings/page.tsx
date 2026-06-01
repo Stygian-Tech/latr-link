@@ -64,7 +64,7 @@ export default function SettingsPage() {
             Export
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Download a JSON Snapshot of Your `com.latr.saved.item` Records (Raw
+            Download a JSON Snapshot of Your `link.latr.saved.item` Records (Raw
             Repo Payloads). Resolved Previews Are Not Included.
           </p>
           <button

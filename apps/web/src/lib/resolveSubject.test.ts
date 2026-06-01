@@ -14,16 +14,16 @@ import {
 } from "@/lib/savedPreviewCache";
 
 const externalSubject =
-  "at://did:plc:viewer/com.latr.saved.external/3abc";
+  "at://did:plc:viewer/link.latr.saved.external/3abc";
 
 function savedItem(
   overrides: Partial<SavedItemRecord> = {}
 ): RepoRecord<SavedItemRecord> {
   return {
-    uri: "at://did:plc:viewer/com.latr.saved.item/item1",
+    uri: "at://did:plc:viewer/link.latr.saved.item/item1",
     cid: "bafyitem",
     value: {
-      $type: "com.latr.saved.item",
+      $type: "link.latr.saved.item",
       subjectUri: externalSubject,
       savedAt: "2026-05-31T12:00:00.000Z",
       linkedWebUrl: "https://example.com/article",

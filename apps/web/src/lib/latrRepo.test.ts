@@ -55,12 +55,12 @@ describe("Latrrepo Gateway Facade", () => {
         JSON.stringify({
           records: [
             {
-              uri: "at://did:plc:viewer/com.latr.saved.item/item1",
+              uri: "at://did:plc:viewer/link.latr.saved.item/item1",
               cid: "cid",
               value: {
-                $type: "com.latr.saved.item",
+                $type: "link.latr.saved.item",
                 subjectUri:
-                  "at://did:plc:viewer/com.latr.saved.external/ext1",
+                  "at://did:plc:viewer/link.latr.saved.external/ext1",
                 savedAt: "2026-06-01T12:00:00.000Z",
               },
             },

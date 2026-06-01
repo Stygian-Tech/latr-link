@@ -4,6 +4,8 @@ import Foundation
 public enum ATProtoOAuthScopes {
     public static let scope = [
         "atproto",
+        "repo:link.latr.saved.external?action=create&action=update&action=delete",
+        "repo:link.latr.saved.item?action=create&action=update&action=delete",
         "repo:com.latr.saved.external?action=create&action=update&action=delete",
         "repo:com.latr.saved.item?action=create&action=update&action=delete",
     ].joined(separator: " ")

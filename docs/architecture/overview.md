@@ -24,8 +24,8 @@ flowchart LR
 
 | Data | Location |
 |------|----------|
-| Saved items | `com.latr.saved.item` on the user’s repo |
-| External URL wrappers | `com.latr.saved.external` on the user’s repo |
+| Saved items | `link.latr.saved.item` on the user’s repo |
+| External URL wrappers | `link.latr.saved.external` on the user’s repo |
 | Session tokens | OAuth client browser storage (IndexedDB / memory) |
 | Optional UI cache | Browser `localStorage` / memory (React Query persistence) |
 
@@ -33,9 +33,9 @@ Save, list, archive, and unsave run through the L@tr gateway. The web app no lon
 
 ## Flows (summary)
 
-1. **Save external URL** — Web POSTs to gateway → normalize URL → upsert `com.latr.saved.external` → upsert `com.latr.saved.item` → server OG enrichment.
-2. **Save ATProto record** — Web POSTs subject URI (+ optional linked web URL) → gateway upserts `com.latr.saved.item` with preview metadata when OG is available.
-3. **List** — Gateway lists `com.latr.saved.item`; web resolves each `subjectUri` for display (App View + read-only repo get).
+1. **Save external URL** — Web POSTs to gateway → normalize URL → upsert `link.latr.saved.external` → upsert `link.latr.saved.item` → server OG enrichment.
+2. **Save ATProto record** — Web POSTs subject URI (+ optional linked web URL) → gateway upserts `link.latr.saved.item` with preview metadata when OG is available.
+3. **List** — Gateway lists `link.latr.saved.item`; web resolves each `subjectUri` for display (App View + read-only repo get).
 4. **Unsave / archive** — Gateway PATCH/DELETE on saved-item records.
 
 ## OAuth scopes

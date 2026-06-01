@@ -230,7 +230,7 @@ function SavedRowItem({
                   <span
                     title={
                       p.kind === "external"
-                        ? "Saved Via com.latr.saved.external Wrapper"
+                        ? "Saved Via link.latr.saved.external Wrapper"
                         : "Saved Subject Is a Native at:// Record Reference"
                     }
                     className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${

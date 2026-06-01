@@ -1,18 +1,30 @@
-/** Lexicon shapes for L@tr records returned by the gateway. */
+import {
+  COLLECTION_SAVED_EXTERNAL,
+  COLLECTION_SAVED_ITEM,
+  LEGACY_COLLECTION_SAVED_EXTERNAL,
+  LEGACY_COLLECTION_SAVED_ITEM,
+  isLatrExternalWrapperCollection,
+  remapLegacyLatrSubjectUri,
+} from "latr-packages/gateway-client";
 
-export const COLLECTION_SAVED_EXTERNAL = "com.latr.saved.external" as const;
-export const COLLECTION_SAVED_ITEM = "com.latr.saved.item" as const;
+export {
+  COLLECTION_SAVED_EXTERNAL,
+  COLLECTION_SAVED_ITEM,
+  LEGACY_COLLECTION_SAVED_EXTERNAL,
+  LEGACY_COLLECTION_SAVED_ITEM,
+  isLatrExternalWrapperCollection,
+  remapLegacyLatrSubjectUri,
+};
 
 export type SavedItemState = "unread" | "archived";
 
-/** ATProto repo record returned from gateway list/get responses. */
-export interface RepoRecord<T> {
+export type RepoRecord<T> = {
   uri: string;
   cid: string;
   value: T;
-}
+};
 
-export interface SavedExternalRecord {
+export type SavedExternalRecord = {
   $type: typeof COLLECTION_SAVED_EXTERNAL;
   url: string;
   normalizedUrl: string;
@@ -25,9 +37,9 @@ export interface SavedExternalRecord {
   language?: string;
   publishedAt?: string;
   author?: string;
-}
+};
 
-export interface SavedItemRecord {
+export type SavedItemRecord = {
   $type: typeof COLLECTION_SAVED_ITEM;
   subjectUri: string;
   savedAt: string;
@@ -35,11 +47,10 @@ export interface SavedItemRecord {
   tags?: string[];
   note?: string;
   lastOpenedAt?: string;
-  /** Canonical HTTP(S) page used for Open Graph scraping (native subjects). */
   linkedWebUrl?: string;
   previewTitle?: string;
   previewExcerpt?: string;
   previewSite?: string;
   previewImage?: string;
   previewAuthor?: string;
-}
+};

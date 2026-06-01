@@ -1,6 +1,6 @@
 import { AtUri } from "@atproto/syntax";
 import {
-  COLLECTION_SAVED_EXTERNAL,
+  isLatrExternalWrapperCollection,
   type SavedExternalRecord,
   type SavedItemRecord,
 } from "@/lib/latrRecords";
@@ -29,7 +29,7 @@ export interface ResolvedPreview {
   subtitle?: string;
   href?: string;
   kind: "external" | "post" | "record" | "unknown";
-  /** `com.latr.saved.external.image` — Open Graph thumbnail */
+  /** `link.latr.saved.external.image` — Open Graph thumbnail */
   imageHref?: string;
   /** Preferred display/canonical HTTP(S) URL for external subjects */
   canonicalUrl?: string;
@@ -55,7 +55,7 @@ function previewSubtitle(excerpt?: string, author?: string): string | undefined 
 
 export function isExternalWrapperUri(subjectUri: string): boolean {
   try {
-    return new AtUri(subjectUri).collection === COLLECTION_SAVED_EXTERNAL;
+    return isLatrExternalWrapperCollection(new AtUri(subjectUri).collection);
   } catch {
     return false;
   }
@@ -447,7 +447,7 @@ export async function resolveSubjectPreview(
   const direct = await repo.getRecordByAtUri(subjectUri);
   if (direct?.value && typeof direct.value === "object") {
     const v = direct.value as { $type?: string };
-    if (v.$type === COLLECTION_SAVED_EXTERNAL) {
+    if (v.$type && isLatrExternalWrapperCollection(v.$type)) {
       const ext = direct.value as SavedExternalRecord;
       const canonicalUrl =
         ext.normalizedUrl?.trim() || ext.url.trim() || undefined;

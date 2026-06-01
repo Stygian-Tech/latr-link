@@ -1,3 +1,4 @@
+import LatrKit
 import Foundation
 
 public func tryCanonicalAtURI(_ trimmedInput: String) -> String? {
@@ -37,7 +38,7 @@ private func collectionFromAtURI(_ uri: String) -> String? {
 }
 
 private func isWrapperExternalURI(_ uri: String) -> Bool {
-    collectionFromAtURI(uri) == "com.latr.saved.external"
+    LexiconURI.isExternalWrapper(uri)
 }
 
 private struct HeadAtURICandidate {
