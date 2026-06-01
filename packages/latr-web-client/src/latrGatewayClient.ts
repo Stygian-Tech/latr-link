@@ -46,6 +46,8 @@ export async function latrGatewayFetch(
   const proofOptions = { accessToken: tokenSet.access_token };
 
   if (method === "POST" && gatewayPath === "/v1/latr/saves") {
+    // Mint upstream write proofs for the gateway. Brief PDS GET listRecords calls
+    // advance the DPoP nonce chain only — record writes happen on the gateway.
     await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createSaveUpstreamDpopProofPool(oauthSession, proofOptions);
