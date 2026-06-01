@@ -232,7 +232,7 @@ export async function resolveSubjectPreviewForRow(
     if (fromProtocol) {
       let merged = mergeSavedItemOgPreview(fromProtocol, rec.value);
       if (linked) {
-        merged = await backfillPreviewImageFromOpenGraph(repo, merged, linked);
+        merged = await backfillPreviewFromOpenGraph(repo, merged, linked);
       }
       writeCachedSubjectPreview(subjectUri, fingerprint, merged);
       return merged;
@@ -288,22 +288,59 @@ export async function resolveSubjectPreviewForRow(
   return merged;
 }
 
-async function backfillPreviewImageFromOpenGraph(
+async function backfillPreviewFromOpenGraph(
   repo: LatrRepo,
   preview: ResolvedPreview,
   linkedWebUrl: string
 ): Promise<ResolvedPreview> {
-  if (preview.imageHref?.trim()) return preview;
+  const weakTitle = isWeakPreviewTitle(
+    preview.title,
+    preview.siteLabel,
+    linkedWebUrl
+  );
+  const missingImage = !preview.imageHref?.trim();
+  if (!weakTitle && !missingImage) return preview;
 
   const og = await repo.fetchOpenGraphPreview(linkedWebUrl);
-  if (!og?.image?.trim()) return preview;
+  if (!og) return preview;
+
+  const ogTitle = og.title?.trim();
+  const ogImage = og.image?.trim();
 
   return {
     ...preview,
-    imageHref: og.image.trim(),
+    title: weakTitle && ogTitle ? ogTitle : preview.title,
+    imageHref: missingImage && ogImage ? ogImage : preview.imageHref,
     subtitle:
       preview.subtitle || previewSubtitle(og.description, og.author),
+    siteLabel: preview.siteLabel || og.siteName?.trim(),
+    authorLabel: preview.authorLabel || og.author?.trim(),
   };
+}
+
+function isWeakPreviewTitle(
+  title: string,
+  siteLabel: string | undefined,
+  linkedWebUrl: string
+): boolean {
+  const trimmed = title.trim();
+  if (!trimmed) return true;
+
+  let hostname: string | undefined;
+  try {
+    hostname = new URL(linkedWebUrl).hostname.replace(/^www\./i, "");
+  } catch {
+    hostname = undefined;
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (siteLabel && lower === siteLabel.trim().toLowerCase()) return true;
+  if (hostname && lower === hostname.toLowerCase()) return true;
+
+  const genericTitles = ["home", "homepage", "the verge", "verge", "news", "latest"];
+  if (genericTitles.includes(lower)) return true;
+
+  return false;
 }
 
 /** Prefer cached OG fields from `com.latr.saved.item` when the user saved from a web URL. */

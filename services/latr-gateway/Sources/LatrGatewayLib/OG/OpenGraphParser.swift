@@ -299,3 +299,14 @@ public func parseOpenGraphFromHeadOnly(html: String, resolvedPageURL: String) ->
     let headSlice = sliceForMarkup(html)
     return parseOpenGraphFields(in: headSlice, html: headSlice, resolvedPageURL: resolvedPageURL)
 }
+
+public func openGraphMetaSignals(html: String, resolvedPageURL: String) -> OpenGraphMetaSignals {
+    let headSlice = sliceForMarkup(html)
+    let hasExplicitTitle = metaTagContent(scope: headSlice, kind: "property", key: "og:title") != nil
+        || metaTagContent(scope: headSlice, kind: "name", key: "twitter:title") != nil
+    let hasExplicitImage = parseImage(scope: headSlice, resolvedPageURL: resolvedPageURL) != nil
+    return OpenGraphMetaSignals(
+        hasExplicitTitle: hasExplicitTitle,
+        hasExplicitImage: hasExplicitImage
+    )
+}

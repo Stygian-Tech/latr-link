@@ -20,31 +20,23 @@ public func resolveOpenGraphForURL(
     }
 
     var resolvedURL = prefetchedFinalURL ?? trimmed
+    var htmlForSignals: String?
+    var fields = OpenGraphFields()
 
     if let html = prefetchedHTML, !html.isEmpty {
-        let fields = enrichOpenGraphFields(
+        htmlForSignals = html
+        fields = enrichOpenGraphFields(
             parseOpenGraphFromHeadOnly(html: html, resolvedPageURL: resolvedURL),
             resolvedPageURL: resolvedURL
         )
-        if fields.hasAnyValue {
-            return fields
-        }
-    }
-
-    if prefetchedHTML == nil || prefetchedHTML?.isEmpty == true {
+    } else {
         switch await fetchURLBodyLimited(target: trimmed, maxBytes: maxHTMLBytes, httpClient: httpClient) {
         case let .success(text, finalURL):
+            htmlForSignals = text
             resolvedURL = finalURL
-            let fields = enrichOpenGraphFields(
+            fields = enrichOpenGraphFields(
                 parseOpenGraphMarkup(html: text, resolvedPageURL: finalURL),
                 resolvedPageURL: finalURL
-            )
-            if fields.hasAnyValue {
-                return fields
-            }
-            ogResolverLogger.info(
-                "OG parse returned no usable fields",
-                metadata: ["url": .string(trimmed), "finalUrl": .string(finalURL)]
             )
         case let .failure(reason):
             ogResolverLogger.warning(
@@ -54,14 +46,36 @@ public func resolveOpenGraphForURL(
         }
     }
 
-    if let proxyFields = await fetchOpenGraphViaReaderProxy(url: trimmed, httpClient: httpClient),
+    let signals = htmlForSignals.map {
+        openGraphMetaSignals(html: $0, resolvedPageURL: resolvedURL)
+    }
+
+    if openGraphNeedsReaderEnhancement(fields: fields, signals: signals, pageURL: trimmed),
+       let proxyFields = await fetchOpenGraphViaReaderProxy(url: trimmed, httpClient: httpClient),
        proxyFields.hasAnyValue
     {
         ogResolverLogger.info(
-            "OG resolved via reader proxy",
+            "OG enhanced via reader proxy",
             metadata: ["url": .string(trimmed)]
         )
-        return enrichOpenGraphFields(proxyFields, resolvedPageURL: trimmed)
+        fields = enrichOpenGraphFields(
+            mergeOpenGraphFields(primary: proxyFields, fallback: fields),
+            resolvedPageURL: trimmed
+        )
+    } else if fields.hasAnyValue {
+        ogResolverLogger.info(
+            "OG resolved from direct fetch",
+            metadata: ["url": .string(trimmed), "finalUrl": .string(resolvedURL)]
+        )
+    } else if htmlForSignals != nil {
+        ogResolverLogger.info(
+            "OG parse returned no usable fields",
+            metadata: ["url": .string(trimmed), "finalUrl": .string(resolvedURL)]
+        )
+    }
+
+    if fields.hasAnyValue {
+        return fields
     }
 
     ogResolverLogger.info(
