@@ -77,9 +77,11 @@ public func authenticateRequest(
     requireClientAPIKey override: Bool? = nil
 ) async throws -> AuthContext {
     let requireClientAPIKey = override ?? config.requireClientAPIKey
+    let requireGatewayClient =
+        requireClientAPIKey || config.oauthRequireKnownClient
     let clientID = try await store.resolveClientID(
         from: request.headers,
-        requireClientAPIKey: requireClientAPIKey
+        requireClientAPIKey: requireGatewayClient
     )
 
     guard let authorization = request.headers[.authorization]?
@@ -112,7 +114,7 @@ public func authenticateRequest(
         throw GatewayError(status: .unauthorized, message: "Access token expired", code: "token_expired")
     }
 
-    try assertKnownClient(config: config, payload: payload)
+    try assertKnownClient(config: config, resolvedClientID: clientID)
 
     let upstream = extractUpstreamDPOPHeader(from: request.headers)
     if let upstream {

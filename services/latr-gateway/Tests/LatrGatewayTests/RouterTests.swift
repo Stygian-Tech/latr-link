@@ -19,7 +19,6 @@ final class RouterTests: XCTestCase {
             appEnv: .test,
             plcURL: "https://plc.directory",
             oauthRequireKnownClient: false,
-            oauthAllowedClientIDs: [],
             clientRegistryURL: registryURL()
         )
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
@@ -58,7 +57,6 @@ final class RouterTests: XCTestCase {
             appEnv: .test,
             plcURL: "https://plc.directory",
             oauthRequireKnownClient: false,
-            oauthAllowedClientIDs: [],
             requireClientAPIKey: true,
             officialClientCredentials: ["latr-link-web": "dGVzdC1zZWNyZXQ="],
             clientRegistryURL: registryURL()
@@ -92,7 +90,6 @@ final class RouterTests: XCTestCase {
             appEnv: .test,
             plcURL: "https://plc.directory",
             oauthRequireKnownClient: false,
-            oauthAllowedClientIDs: [],
             clientRegistryURL: registryURL(),
             oauthPublicOrigin: "https://testing.latr.link"
         )

@@ -60,33 +60,14 @@ func decodeJWTPayload(_ token: String) throws -> JWTPayload {
     }
 }
 
-func assertKnownClient(config: GatewayConfig, payload: JWTPayload) throws {
+public func assertKnownClient(config: GatewayConfig, resolvedClientID: String?) throws {
     guard config.oauthRequireKnownClient else { return }
 
-    if config.oauthAllowedClientIDs.isEmpty {
+    guard resolvedClientID != nil else {
         throw GatewayError(
             status: .forbidden,
-            message: "Gateway client policy enabled but no allowlist configured",
-            code: "client_policy"
+            message: "Registered gateway client credentials are required",
+            code: "client_forbidden"
         )
     }
-
-    var candidates: [String] = []
-    if let clientID = payload.client_id { candidates.append(clientID) }
-    if let azp = payload.azp { candidates.append(azp) }
-    if candidates.contains(where: { config.oauthAllowedClientIDs.contains($0) }) {
-        return
-    }
-
-    if let aud = payload.aud?.values,
-       aud.contains(where: { config.oauthAllowedClientIDs.contains($0) })
-    {
-        return
-    }
-
-    throw GatewayError(
-        status: .forbidden,
-        message: "OAuth client is not authorized for this gateway",
-        code: "client_forbidden"
-    )
 }

@@ -7,8 +7,7 @@ final class FederatedSubjectClientTests: XCTestCase {
             port: 8080,
             appEnv: .test,
             plcURL: "https://plc.directory",
-            oauthRequireKnownClient: false,
-            oauthAllowedClientIDs: []
+            oauthRequireKnownClient: false
         )
         XCTAssertEqual(config.appViewBaseURLs, [FederatedSubjectClient.defaultAppViewBaseURL])
         XCTAssertEqual(config.identityBaseURL, FederatedSubjectClient.defaultIdentityBaseURL)

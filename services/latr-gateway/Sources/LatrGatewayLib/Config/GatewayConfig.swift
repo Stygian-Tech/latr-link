@@ -5,7 +5,6 @@ public struct GatewayConfig: Sendable {
     public let appEnv: AppEnvironment
     public let plcURL: String
     public let oauthRequireKnownClient: Bool
-    public let oauthAllowedClientIDs: Set<String>
     public let requireClientAPIKey: Bool
     public let officialClientCredentials: [String: String]
     public let clientRegistryURL: URL
@@ -28,7 +27,6 @@ public struct GatewayConfig: Sendable {
         appEnv: AppEnvironment,
         plcURL: String,
         oauthRequireKnownClient: Bool,
-        oauthAllowedClientIDs: Set<String>,
         requireClientAPIKey: Bool = false,
         officialClientCredentials: [String: String] = [:],
         clientRegistryURL: URL = GatewayConfig.defaultClientRegistryURL(),
@@ -44,7 +42,6 @@ public struct GatewayConfig: Sendable {
         self.appEnv = appEnv
         self.plcURL = plcURL
         self.oauthRequireKnownClient = oauthRequireKnownClient
-        self.oauthAllowedClientIDs = oauthAllowedClientIDs
         self.requireClientAPIKey = requireClientAPIKey
         self.officialClientCredentials = officialClientCredentials
         self.clientRegistryURL = clientRegistryURL
@@ -98,6 +95,12 @@ public struct GatewayConfig: Sendable {
         }
 
         let allowed = parseTokenSet(env["OAUTH_GATEWAY_ALLOWED_CLIENT_IDS"])
+        if !allowed.isEmpty {
+            fputs(
+                "warning: OAUTH_GATEWAY_ALLOWED_CLIENT_IDS is deprecated and ignored; register clients via the developer store instead\n",
+                stderr
+            )
+        }
 
         let requireClientAPIKey: Bool
         if let raw = env["LATR_GATEWAY_REQUIRE_CLIENT_API_KEY"] {
@@ -135,7 +138,6 @@ public struct GatewayConfig: Sendable {
             appEnv: appEnv,
             plcURL: plcURL,
             oauthRequireKnownClient: requireKnown,
-            oauthAllowedClientIDs: allowed,
             requireClientAPIKey: requireClientAPIKey,
             officialClientCredentials: officialClientCredentials,
             clientRegistryURL: clientRegistryURL,

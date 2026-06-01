@@ -120,8 +120,7 @@ Full template: [`services/latr-gateway/.env.example`](../../services/latr-gatewa
 | `PLC_URL` | No | `https://plc.directory` | PLC directory base URL |
 | `LATR_GATEWAY_APPVIEW_URLS` | No | `https://public.api.bsky.app` | Fallback AppView bases after DID-document discovery |
 | `LATR_GATEWAY_IDENTITY_URL` | No | `https://bsky.social` | Identity relay for handle → DID resolution |
-| `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` | No | `true` when `APP_ENV=prod` | Require JWT client allowlist |
-| `OAUTH_GATEWAY_ALLOWED_CLIENT_IDS` | When OAuth policy on | _(empty)_ | OAuth client metadata URLs |
+| `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` | No | `true` when `APP_ENV=prod` | Require registered gateway client id + API key from the developer store |
 | `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` | No | `true` when `APP_ENV=prod` | Require app credential headers |
 | `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS` | No | _(empty)_ | Internal legacy `client-id=base64` pairs |
 | `DATABASE_URL` | Yes on Fly | _(empty)_ | Supabase Postgres for developer clients, API keys, and usage (`migrations/001_developer_console.sql`) |
@@ -160,4 +159,4 @@ fly secrets set DATABASE_URL='postgresql://...' -a latr-link-dev-gateway
 bash services/latr-gateway/deploy.sh dev
 ```
 
-Also set OAuth allowlists via Fly secrets as needed.
+Also set `DATABASE_URL` and `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` via Fly secrets as needed. Register third-party apps in the developer console (`DATABASE_URL`); no static OAuth client allowlist is required.

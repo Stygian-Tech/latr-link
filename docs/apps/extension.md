@@ -21,7 +21,7 @@ curl -sS -X POST http://127.0.0.1:8080/v1/latr/clients/register \
   -d '{"clientId":"latr-extension","displayName":"L@tr.link Extension"}'
 ```
 
-3. **OAuth client metadata** — add the extension redirect URI to [`client-metadata.json`](../../apps/web/public/extension/client-metadata.json) `redirect_uris` and to gateway `OAUTH_GATEWAY_ALLOWED_CLIENT_IDS` in hosted environments.
+3. **OAuth client metadata** — add the extension redirect URI to [`client-metadata.json`](../../apps/web/public/extension/client-metadata.json) `redirect_uris`, then register the extension as a gateway client in the developer console and use its `X-Latr-Client-Id` + `X-Latr-API-Key` headers.
 
 ### Redirect URI
 
