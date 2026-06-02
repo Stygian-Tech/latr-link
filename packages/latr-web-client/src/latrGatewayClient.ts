@@ -2,9 +2,12 @@ import type { OAuthSession } from "@atproto/oauth-client-browser";
 import {
   createSaveUpstreamDpopProofPool,
   createUpstreamDpopProof,
+  createUpstreamDpopProofPool,
+  LATR_GATEWAY_SAVES_PATH,
   LATR_UPSTREAM_DPOP_HEADER,
   pdsXrpcMethodForGatewayRequest,
   primePdsDpopNonce,
+  type UpstreamDpopProofOptions,
 } from "latr-packages/gateway-client";
 
 import {
@@ -21,6 +24,22 @@ export type LatrGatewayFetchOptions = {
   /** Developer console management routes use OAuth only (no app API key). */
   skipClientCredential?: boolean;
 };
+
+/** Upstream proofs for GET /v1/latr/saves (legacy migration probes, list, and writes). */
+export async function createListSavesUpstreamDpopProofPool(
+  oauthSession: OAuthSession,
+  options: UpstreamDpopProofOptions = {}
+): Promise<string> {
+  return createUpstreamDpopProofPool(
+    oauthSession,
+    [
+      { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET", count: 8 },
+      { xrpcMethod: "com.atproto.repo.createRecord", httpMethod: "POST", count: 4 },
+      { xrpcMethod: "com.atproto.repo.deleteRecord", httpMethod: "POST", count: 4 },
+    ],
+    options
+  );
+}
 
 export async function latrGatewayFetch(
   oauthSession: OAuthSession,
@@ -45,10 +64,14 @@ export async function latrGatewayFetch(
   const tokenSet = await sessionWithTokenSet.getTokenSet("auto");
   const proofOptions = { accessToken: tokenSet.access_token };
 
-  if (method === "POST" && gatewayPath === "/v1/latr/saves") {
+  if (method === "POST" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
     await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createSaveUpstreamDpopProofPool(oauthSession, proofOptions);
+  } else if (method === "GET" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
+    await primePdsDpopNonce(oauthSession);
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
+      await createListSavesUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (upstream) {
     await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
