@@ -36,9 +36,18 @@ jobs:
         id: filter
         run: bash scripts/ci-detect-changes.sh
 
-  ci:
-    name: Test and build
+  ci-gateway:
+    name: Gateway test and build
     runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run gateway CI
+        run: bash scripts/ci-gateway.sh
+
+  ci-js:
+    name: Web and extension test and build
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -47,17 +56,18 @@ jobs:
           curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"
           echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
 
-      - name: Run CI script
-        run: bash scripts/ci.sh
+      - name: Run JS CI
+        run: bash scripts/ci-js.sh
         env:
           NEXT_PUBLIC_APP_ENV: test
 
   migrate-gateway-db:
     name: Migrate gateway database (Supabase)
-    needs: [changes, ci]
+    needs: [changes, ci-gateway, ci-js]
     if: |
       always() &&
-      needs.ci.result == 'success' &&
+      needs.ci-gateway.result == 'success' &&
+      needs.ci-js.result == 'success' &&
       needs.changes.result == 'success' &&
       (
         needs.changes.outputs.gateway_migrations == 'true' ||
@@ -84,10 +94,11 @@ jobs:
 
   deploy-gateway:
     name: Deploy Gateway (Fly.io)
-    needs: [changes, ci, migrate-gateway-db]
+    needs: [changes, ci-gateway, ci-js, migrate-gateway-db]
     if: |
       always() &&
-      needs.ci.result == 'success' &&
+      needs.ci-gateway.result == 'success' &&
+      needs.ci-js.result == 'success' &&
       needs.changes.result == 'success' &&
       needs.migrate-gateway-db.result == 'success' &&
       needs.changes.outputs.gateway == 'true' &&
