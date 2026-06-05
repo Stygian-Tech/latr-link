@@ -26,7 +26,7 @@ function SavedLinkThumbnailPlaceholder() {
     <div
       role="img"
       aria-label="No Preview Image"
-      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-zinc-300 bg-zinc-100 text-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/70 dark:text-zinc-500"
+      className="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-md border border-dashed border-zinc-300 bg-zinc-100 text-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/70 dark:text-zinc-500"
     >
       <Link2 className="h-6 w-6" aria-hidden strokeWidth={1.75} />
     </div>
@@ -178,13 +178,14 @@ function SavedRowItem({
       <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-3 pointer-events-none sm:flex-row sm:items-center sm:gap-4">
         <div className="shrink-0 self-start sm:self-center">
           {thumb ? (
-            <div className="inline-flex max-h-[4.75rem] max-w-[min(100%,11rem)] shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 p-px dark:border-zinc-700 dark:bg-zinc-900/65">
+            <div className="flex h-[4.5rem] min-w-[4.5rem] max-w-[min(100%,11rem)] shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 p-px dark:border-zinc-700 dark:bg-zinc-900/65">
               {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote OG image URLs */}
               <img
                 src={thumb}
                 alt=""
                 loading="lazy"
-                className="block max-h-[4.5rem] max-w-full h-auto w-auto object-contain"
+                decoding="async"
+                className="block max-h-full max-w-full h-auto w-auto object-contain"
               />
             </div>
           ) : (
@@ -202,6 +203,7 @@ function SavedRowItem({
                   width={16}
                   height={16}
                   loading="lazy"
+                  decoding="async"
                   className="mt-1 h-4 w-4 shrink-0"
                 />
               </>

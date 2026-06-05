@@ -10,6 +10,9 @@ type CacheEntry = {
 
 type CacheStore = Record<string, CacheEntry>;
 
+// In-memory layer so repeated reads during a session don't re-parse localStorage
+let memoryCache: CacheStore | null = null;
+
 export function previewCacheFingerprint(item: SavedItemRecord): string {
   return [
     item.previewTitle ?? "",
@@ -23,17 +26,20 @@ export function previewCacheFingerprint(item: SavedItemRecord): string {
 }
 
 function readStore(): CacheStore {
+  if (memoryCache !== null) return memoryCache;
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) as CacheStore;
+    memoryCache = raw ? (JSON.parse(raw) as CacheStore) : {};
+    return memoryCache;
   } catch {
-    return {};
+    memoryCache = {};
+    return memoryCache;
   }
 }
 
 function writeStore(store: CacheStore): void {
+  memoryCache = store;
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
