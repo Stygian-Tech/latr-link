@@ -2,6 +2,7 @@
 
 import { type MouseEvent, type ReactElement, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { parsedHttpHttpsUrl } from "@/components/EmbeddedPageDialog";
 import { useOpenEmbeddedReader } from "@/contexts/embeddedReader";
 import {
@@ -55,12 +56,6 @@ function savedAtShort(iso: string): string {
     return iso.slice(0, 19);
   }
 }
-
-const savedRowIconButtonClass =
-  "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-zinc-300 text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800";
-
-const savedRowDangerButtonClass =
-  "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-red-300 bg-red-50 text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400 dark:hover:bg-red-950/80";
 
 function filterRows(
   rows: SavedRow[] | undefined,
@@ -249,9 +244,10 @@ function SavedRowItem({
       </div>
       {canMutate ? (
         <div className="relative z-10 flex shrink-0 flex-row items-center gap-2 self-end pointer-events-auto sm:self-center">
-          <button
+          <Button
             type="button"
-            className={savedRowIconButtonClass}
+            variant="outline"
+            size="icon"
             disabled={busy}
             aria-label={isArchived ? "Unarchive" : "Archive"}
             title={isArchived ? "Unarchive" : "Archive"}
@@ -273,10 +269,11 @@ function SavedRowItem({
             ) : (
               <Archive className="h-4 w-4" aria-hidden strokeWidth={2} />
             )}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={savedRowDangerButtonClass}
+            variant="destructive"
+            size="icon"
             disabled={busy}
             aria-label="Remove From Library"
             title="Remove From Library"
@@ -297,7 +294,7 @@ function SavedRowItem({
             }}
           >
             <Trash2 className="h-4 w-4" aria-hidden strokeWidth={2} />
-          </button>
+          </Button>
         </div>
       ) : null}
     </li>

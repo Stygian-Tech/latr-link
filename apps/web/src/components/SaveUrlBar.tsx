@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { useInvalidateSavedLibrary } from "@/hooks/useSavedLibrary";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 import { showSaveOutcomeDebugLabels } from "@/lib/environmentBanner";
@@ -99,13 +100,9 @@ export function SaveUrlBar() {
             className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-600 dark:bg-zinc-900"
           />
         </div>
-        <button
-          type="submit"
-          disabled={busy || !paste.trim() || !repo}
-          className="h-9 shrink-0 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-        >
+        <Button type="submit" disabled={busy || !paste.trim() || !repo}>
           {busy ? "Saving…" : "Save"}
-        </button>
+        </Button>
       </form>
       {feedback &&
         (feedback.mode === "debug" ? (

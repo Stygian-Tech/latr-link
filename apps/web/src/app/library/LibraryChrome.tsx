@@ -11,6 +11,7 @@ import {
 
 import { Menu, X } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { EmbeddedReaderPortal } from "@/contexts/embeddedReader";
 import { useAuth } from "@/hooks/useAuth";
@@ -75,14 +76,16 @@ function LibrarySidebarBody({
               Beta
             </span>
           </div>
-          <button
+          <Button
             type="button"
-            className="md:hidden inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            variant="ghost"
+            size="icon"
+            className="md:hidden text-zinc-600 dark:text-zinc-400"
             aria-label="Close Menu"
             onClick={onMobileClose}
           >
             <X className="h-5 w-5" aria-hidden strokeWidth={2} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -98,7 +101,7 @@ function LibrarySidebarBody({
               key={item.href}
               href={item.href}
               onClick={onNavLinkNavigate}
-              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
                   ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
                   : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/50"
@@ -133,13 +136,14 @@ function LibrarySidebarBody({
         )}
 
         <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => void signOut()}
-            className="w-full rounded-md px-3 py-2 text-left text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            className="w-full justify-start px-3"
           >
             Sign Out
-          </button>
+          </Button>
         </div>
       </div>
     </>
@@ -237,16 +241,18 @@ export function LibraryChrome({ children }: { children: ReactNode }) {
         <header
           className="md:hidden sticky top-[var(--env-banner-offset)] z-30 flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 bg-zinc-50/95 px-3 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95"
         >
-          <button
+          <Button
             type="button"
-            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            variant="ghost"
+            size="icon"
+            className="text-zinc-700 dark:text-zinc-200"
             aria-expanded={mobileNavOpen}
             aria-controls={LIBRARY_NAV_ID}
             aria-label="Open Menu"
             onClick={() => setMobileNavOpen(true)}
           >
             <Menu className="h-5 w-5" aria-hidden strokeWidth={2} />
-          </button>
+          </Button>
           <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             Library
           </span>

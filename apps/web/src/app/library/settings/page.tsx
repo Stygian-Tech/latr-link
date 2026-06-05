@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 
@@ -67,14 +68,14 @@ export default function SettingsPage() {
             Download a JSON Snapshot of Your `link.latr.saved.item` Records (Raw
             Repo Payloads). Resolved Previews Are Not Included.
           </p>
-          <button
+          <Button
             type="button"
             disabled={!repo}
             onClick={() => void exportJson()}
-            className="mt-3 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+            className="mt-3"
           >
             Download JSON
-          </button>
+          </Button>
           {message && (
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
               {message}
@@ -89,8 +90,9 @@ export default function SettingsPage() {
             Remove Persisted React Query Data From This Browser (Saved List
             Cache). Your PDS Records Are Unchanged.
           </p>
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               try {
                 localStorage.removeItem("latr.link.react-query.v1");
@@ -99,10 +101,10 @@ export default function SettingsPage() {
                 setMessage("Could Not Clear Storage.");
               }
             }}
-            className="mt-3 rounded-md border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-600"
+            className="mt-3"
           >
             Clear Browser Cache
-          </button>
+          </Button>
         </section>
       </div>
     </>

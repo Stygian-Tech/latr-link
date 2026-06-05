@@ -3,6 +3,7 @@
 import { FormEvent, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
 const callbackErrorMessage =
@@ -89,13 +90,14 @@ export default function LoginPage() {
             <p className="text-sm text-red-600 dark:text-red-400">{displayError}</p>
           )}
 
-          <button
+          <Button
             type="submit"
+            size="lg"
             disabled={isPending || !handle.trim()}
-            className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:pointer-events-none disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            className="w-full"
           >
             {isPending ? "Signing in…" : "Continue with ATProto"}
-          </button>
+          </Button>
         </form>
       </div>
       <p className="text-center text-xs text-zinc-500">
