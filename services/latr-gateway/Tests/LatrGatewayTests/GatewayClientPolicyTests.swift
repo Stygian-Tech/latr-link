@@ -29,26 +29,11 @@ struct GatewayClientPolicyTests {
         )
         #expect(resolved == "third-party-app")
 
-        let config = GatewayConfig(
-            port: 8080,
-            appEnv: .test,
-            plcURL: "https://plc.directory",
-            oauthRequireKnownClient: true,
-            requireClientAPIKey: false
-        )
         try assertKnownClient(requireRegisteredClient: true, resolvedClientID: resolved)
     }
 
     @Test("OAuth policy rejects missing developer store credentials")
     func rejectsMissingCredentials() {
-        let config = GatewayConfig(
-            port: 8080,
-            appEnv: .test,
-            plcURL: "https://plc.directory",
-            oauthRequireKnownClient: true,
-            requireClientAPIKey: false
-        )
-
         #expect(throws: GatewayError.self) {
             try assertKnownClient(requireRegisteredClient: true, resolvedClientID: nil)
         }
@@ -56,13 +41,6 @@ struct GatewayClientPolicyTests {
 
     @Test("OAuth policy is disabled when require known client is off")
     func skipsWhenPolicyDisabled() throws {
-        let config = GatewayConfig(
-            port: 8080,
-            appEnv: .test,
-            plcURL: "https://plc.directory",
-            oauthRequireKnownClient: false,
-            requireClientAPIKey: false
-        )
         try assertKnownClient(requireRegisteredClient: false, resolvedClientID: nil)
     }
 
