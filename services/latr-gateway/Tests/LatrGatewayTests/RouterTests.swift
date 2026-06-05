@@ -84,6 +84,30 @@ final class RouterTests: XCTestCase {
         try await httpClient.shutdown()
     }
 
+    func testDeveloperClientsSkipClientAPIKeyWhenOAuthPolicyEnabled() async throws {
+        let config = GatewayConfig(
+            port: 8080,
+            appEnv: .test,
+            plcURL: "https://plc.directory",
+            oauthRequireKnownClient: true,
+            requireClientAPIKey: true,
+            officialClientCredentials: ["latr-link-web": "dGVzdC1zZWNyZXQ="],
+            clientRegistryURL: registryURL()
+        )
+        let (app, httpClient) = makeApp(config: config)
+
+        try await app.test(.router) { client in
+            try await client.execute(uri: "/v1/latr/developer/clients", method: .get) { response in
+                XCTAssertEqual(
+                    response.status,
+                    .unauthorized,
+                    "Developer routes use OAuth only; missing session must be 401, not 403 from client API key policy"
+                )
+            }
+        }
+        try await httpClient.shutdown()
+    }
+
     func testOAuthWebClientMetadataUsesRedirectOrigin() async throws {
         let config = GatewayConfig(
             port: 8080,

@@ -70,18 +70,32 @@ private func assertDPOPStructure(_ proof: String) throws {
     }
 }
 
+/// Whether this request must present registered gateway client credentials.
+/// Developer management routes pass `requireClientAPIKey: false` and must not inherit
+/// `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` (OAuth + DPoP only per product docs).
+public func resolvesRegisteredClientRequirement(
+    requireClientAPIKey override: Bool?,
+    config: GatewayConfig
+) -> Bool {
+    if let override {
+        return override
+    }
+    return config.requireClientAPIKey || config.oauthRequireKnownClient
+}
+
 public func authenticateRequest(
     _ request: Request,
     config: GatewayConfig,
     store: any DeveloperStore,
     requireClientAPIKey override: Bool? = nil
 ) async throws -> AuthContext {
-    let requireClientAPIKey = override ?? config.requireClientAPIKey
-    let requireGatewayClient =
-        requireClientAPIKey || config.oauthRequireKnownClient
+    let requireRegisteredClient = resolvesRegisteredClientRequirement(
+        requireClientAPIKey: override,
+        config: config
+    )
     let clientID = try await store.resolveClientID(
         from: request.headers,
-        requireClientAPIKey: requireGatewayClient
+        requireClientAPIKey: requireRegisteredClient
     )
 
     guard let authorization = request.headers[.authorization]?
@@ -114,7 +128,10 @@ public func authenticateRequest(
         throw GatewayError(status: .unauthorized, message: "Access token expired", code: "token_expired")
     }
 
-    try assertKnownClient(config: config, resolvedClientID: clientID)
+    try assertKnownClient(
+        requireRegisteredClient: requireRegisteredClient,
+        resolvedClientID: clientID
+    )
 
     let upstream = extractUpstreamDPOPHeader(from: request.headers)
     if let upstream {

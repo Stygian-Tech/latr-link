@@ -36,7 +36,7 @@ struct GatewayClientPolicyTests {
             oauthRequireKnownClient: true,
             requireClientAPIKey: false
         )
-        try assertKnownClient(config: config, resolvedClientID: resolved)
+        try assertKnownClient(requireRegisteredClient: true, resolvedClientID: resolved)
     }
 
     @Test("OAuth policy rejects missing developer store credentials")
@@ -50,7 +50,7 @@ struct GatewayClientPolicyTests {
         )
 
         #expect(throws: GatewayError.self) {
-            try assertKnownClient(config: config, resolvedClientID: nil)
+            try assertKnownClient(requireRegisteredClient: true, resolvedClientID: nil)
         }
     }
 
@@ -63,6 +63,23 @@ struct GatewayClientPolicyTests {
             oauthRequireKnownClient: false,
             requireClientAPIKey: false
         )
-        try assertKnownClient(config: config, resolvedClientID: nil)
+        try assertKnownClient(requireRegisteredClient: false, resolvedClientID: nil)
+    }
+
+    @Test("Developer routes skip registered client policy when override is false")
+    func developerOverrideSkipsRegisteredClientPolicy() {
+        let config = GatewayConfig(
+            port: 8080,
+            appEnv: .test,
+            plcURL: "https://plc.directory",
+            oauthRequireKnownClient: true,
+            requireClientAPIKey: true
+        )
+        #expect(
+            resolvesRegisteredClientRequirement(requireClientAPIKey: false, config: config) == false
+        )
+        #expect(
+            resolvesRegisteredClientRequirement(requireClientAPIKey: nil, config: config) == true
+        )
     }
 }

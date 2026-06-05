@@ -60,8 +60,11 @@ func decodeJWTPayload(_ token: String) throws -> JWTPayload {
     }
 }
 
-public func assertKnownClient(config: GatewayConfig, resolvedClientID: String?) throws {
-    guard config.oauthRequireKnownClient else { return }
+public func assertKnownClient(
+    requireRegisteredClient: Bool,
+    resolvedClientID: String?
+) throws {
+    guard requireRegisteredClient else { return }
 
     guard resolvedClientID != nil else {
         throw GatewayError(
