@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useState, useSyncExternalStore } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import iconSrc from "@/app/icon.png";
 
 const callbackErrorMessage =
   "Sign-In Callback Failed. Try an External Browser (Chrome/Safari) if Preview Tools Block WebSockets or Storage.";
@@ -59,6 +61,16 @@ export default function LoginPage() {
     <div className="flex min-h-app flex-1 flex-col items-center justify-center gap-3 bg-zinc-50 p-4 dark:bg-zinc-950">
       <div className="w-full max-w-sm space-y-6 rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="text-center">
+          <div className="mb-4 flex justify-center">
+            <Image
+              src={iconSrc}
+              alt=""
+              width={56}
+              height={56}
+              className="rounded-2xl"
+              priority
+            />
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">L@tr.link</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             Read Later — Stored on Your PDS, Not Our Servers.

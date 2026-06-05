@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +11,7 @@ import {
 } from "react";
 
 import { Menu, X } from "lucide-react";
+import iconSrc from "@/app/icon.png";
 
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -68,11 +70,18 @@ function LibrarySidebarBody({
     <>
       <div className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
         <div className="flex min-w-0 items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <Image
+              src={iconSrc}
+              alt=""
+              width={24}
+              height={24}
+              className="shrink-0 rounded-md"
+            />
             <span className="truncate text-lg font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
               L@tr.link
             </span>
-            <span className="inline-flex w-fit items-center rounded-full border border-zinc-200 px-1.5 py-0.5 text-[10px] font-medium leading-snug text-zinc-500 dark:border-zinc-600 dark:text-zinc-400">
+            <span className="inline-flex shrink-0 items-center rounded-full border border-zinc-200 px-1.5 py-0.5 text-[10px] font-medium leading-snug text-zinc-500 dark:border-zinc-600 dark:text-zinc-400">
               Beta
             </span>
           </div>
