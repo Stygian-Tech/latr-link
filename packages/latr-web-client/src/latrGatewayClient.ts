@@ -1,14 +1,14 @@
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 import {
   createUpstreamDpopProof,
-  createUpstreamDpopProofPool,
   LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
   LATR_GATEWAY_SAVES_PATH,
   LATR_UPSTREAM_DPOP_HEADER,
   pdsXrpcMethodForGatewayRequest,
-  primePdsDpopNonce,
   type UpstreamDpopProofOptions,
 } from "latr-packages/gateway-client";
+
+import { createChainedUpstreamDpopProofPool } from "./upstreamDpopPool";
 
 import {
   assertLatrGatewayClientCredential,
@@ -30,7 +30,7 @@ export async function createListSavesUpstreamDpopProofPool(
   oauthSession: OAuthSession,
   options: UpstreamDpopProofOptions = {}
 ): Promise<string> {
-  return createUpstreamDpopProofPool(
+  return createChainedUpstreamDpopProofPool(
     oauthSession,
     [{ xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET", count: 8 }],
     options
@@ -42,7 +42,7 @@ export async function createMigrateLexiconsUpstreamDpopProofPool(
   oauthSession: OAuthSession,
   options: UpstreamDpopProofOptions = {}
 ): Promise<string> {
-  return createUpstreamDpopProofPool(
+  return createChainedUpstreamDpopProofPool(
     oauthSession,
     [
       { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET", count: 8 },
@@ -58,7 +58,7 @@ export async function createSaveUpstreamDpopProofPool(
   oauthSession: OAuthSession,
   options: UpstreamDpopProofOptions = {}
 ): Promise<string> {
-  return createUpstreamDpopProofPool(
+  return createChainedUpstreamDpopProofPool(
     oauthSession,
     [
       { xrpcMethod: "com.atproto.repo.createRecord", httpMethod: "POST", count: 4 },
@@ -92,19 +92,15 @@ export async function latrGatewayFetch(
   const proofOptions = { accessToken: tokenSet.access_token };
 
   if (method === "POST" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
-    await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createSaveUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (method === "POST" && gatewayPath === LATR_GATEWAY_MIGRATE_LEXICONS_PATH) {
-    await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createMigrateLexiconsUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (method === "GET" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
-    await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createListSavesUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (upstream) {
-    await primePdsDpopNonce(oauthSession);
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
       oauthSession,
       upstream.xrpcMethod,

@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 
 import { configureLatrGateway } from "./latrGatewayConfig";
+import {
+  clearLexiconMigrationCacheForTests,
+  markLexiconMigrationComplete,
+} from "./lexiconMigrationCache";
 import { LatrRepo } from "./latrRepo";
 
 beforeEach(() => {
@@ -13,6 +17,7 @@ beforeEach(() => {
     clientId: "",
     apiKey: "",
   });
+  clearLexiconMigrationCacheForTests();
 });
 
 function mockOAuthSession(
@@ -99,6 +104,28 @@ describe("LatrRepo Gateway Facade", () => {
           call.startsWith("GET") &&
           call.includes("127.0.0.1:8080/v1/latr/saves")
       )
+    ).toBe(true);
+  });
+
+  test("listSavedItems skips migrate when lexicon migration already completed", async () => {
+    markLexiconMigrationComplete("did:plc:viewer");
+    const calls: string[] = [];
+    const oauth = mockOAuthSession(async (url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      return new Response(
+        JSON.stringify({ records: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    });
+
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+    await repo.listSavedItems();
+
+    expect(
+      calls.some((call) => call.includes("/v1/latr/migrate-lexicons"))
+    ).toBe(false);
+    expect(
+      calls.some((call) => call.includes("/v1/latr/saves"))
     ).toBe(true);
   });
 

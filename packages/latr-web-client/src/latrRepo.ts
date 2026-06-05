@@ -8,6 +8,10 @@ import {
   type LatrGatewaySavedItemsResponse,
 } from "latr-packages/gateway-client";
 
+import {
+  isLexiconMigrationComplete,
+  markLexiconMigrationComplete,
+} from "./lexiconMigrationCache";
 import { latrGatewayJson } from "./latrGatewayClient";
 import type { RepoRecord, SavedItemRecord } from "./latrRecords";
 
@@ -49,19 +53,28 @@ export class LatrRepo {
 
   /** One-time legacy `com.latr.*` → `link.latr.*` migration (retries until complete). */
   private async migrateLegacyLexiconsIfNeeded(): Promise<void> {
+    if (isLexiconMigrationComplete(this.did)) return;
+
     const maxAttempts = 8;
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const summary = await latrGatewayJson<LatrGatewayLexiconMigrationResponse>(
-        this.oauthSession,
-        LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
-        { method: "POST" }
-      );
-      const changed =
-        summary.externalCopied > 0 ||
-        summary.itemsCopied > 0 ||
-        summary.externalDeleted > 0 ||
-        summary.itemsDeleted > 0;
-      if (!changed) return;
+    try {
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const summary = await latrGatewayJson<LatrGatewayLexiconMigrationResponse>(
+          this.oauthSession,
+          LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
+          { method: "POST" }
+        );
+        const changed =
+          summary.externalCopied > 0 ||
+          summary.itemsCopied > 0 ||
+          summary.externalDeleted > 0 ||
+          summary.itemsDeleted > 0;
+        if (!changed) {
+          markLexiconMigrationComplete(this.did);
+          return;
+        }
+      }
+    } catch {
+      // Best-effort: still list saves if migration fails (stale proofs, offline, etc.).
     }
   }
 
