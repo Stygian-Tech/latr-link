@@ -1,8 +1,10 @@
-# Deploy from services/latr-gateway (LatrKit via SwiftPM from GitHub):
-#   bash services/latr-gateway/deploy.sh dev
+# fly.toml app configuration file generated for latr-link-prod-gateway on 2026-06-24T14:58:10Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = 'latr-link-dev-gateway'
-primary_region = 'ams'
+app = 'latr-link-prod-gateway'
+primary_region = 'ord'
 
 [build]
   dockerfile = 'Dockerfile'
@@ -11,13 +13,10 @@ primary_region = 'ams'
   wait_timeout = '10m0s'
 
 [env]
-  PORT = '8080'
   APP_ENV = 'dev'
-  OAUTH_PUBLIC_ORIGIN = 'https://testing.latr.link'
   OAUTH_LATRKIT_PUBLIC_ORIGIN = 'https://testing.latrkit.dev'
-  # OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT = 'true'
-  # LATR_GATEWAY_REQUIRE_CLIENT_API_KEY = 'true'
-  # LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS = 'latr-link-web=REPLACE_BASE64,the-social-wire-web=REPLACE_BASE64'
+  OAUTH_PUBLIC_ORIGIN = 'https://testing.latr.link'
+  PORT = '8080'
 
 [http_service]
   internal_port = 8080
@@ -37,3 +36,4 @@ primary_region = 'ams'
   memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 256
