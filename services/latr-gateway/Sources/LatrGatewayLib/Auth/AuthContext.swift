@@ -1,6 +1,7 @@
 import Foundation
 import Hummingbird
 import HTTPTypes
+import AsyncHTTPClient
 
 public struct AuthContext: Sendable {
     public let did: String
@@ -87,6 +88,7 @@ public func authenticateRequest(
     _ request: Request,
     config: GatewayConfig,
     store: any DeveloperStore,
+    httpClient: HTTPClient? = nil,
     requireClientAPIKey override: Bool? = nil
 ) async throws -> AuthContext {
     let requireRegisteredClient = resolvesRegisteredClientRequirement(
@@ -116,9 +118,24 @@ public func authenticateRequest(
     guard let dpop = extractDPOPHeader(from: request.headers) else {
         throw GatewayError(status: .unauthorized, message: "Missing DPoP proof header", code: "missing_dpop")
     }
-    try assertDPOPStructure(dpop)
+    let dpopJWK = try verifyGatewayDPoP(proof: dpop, accessToken: accessToken, request: request)
 
-    let payload = try decodeJWTPayload(accessToken)
+    let payload: JWTPayload
+    if let httpClient {
+        payload = try await OAuthTokenVerifier(httpClient: httpClient)
+            .verify(accessToken: accessToken, dpopJWK: dpopJWK)
+            .payload
+    } else {
+        payload = try decodeJWTPayload(accessToken)
+        if let jkt = payload.cnf?.jkt {
+            guard try jkt == jwkThumbprint(dpopJWK) else {
+                throw GatewayError(status: .unauthorized, message: "Token DPoP key mismatch", code: "invalid_token")
+            }
+        } else {
+            throw GatewayError(status: .unauthorized, message: "Token missing DPoP confirmation", code: "invalid_token")
+        }
+    }
+
     guard let did = payload.sub?.trimmingCharacters(in: .whitespacesAndNewlines), did.hasPrefix("did:") else {
         throw GatewayError(status: .unauthorized, message: "Access token sub must be a DID", code: "invalid_sub")
     }

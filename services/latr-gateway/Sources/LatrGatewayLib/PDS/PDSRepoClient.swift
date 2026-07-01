@@ -77,12 +77,12 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         let requestURL: String
         let dpopProof: String
         let usedUpstreamProof: Bool
-        if let consumed = upstreamPool.consume(forXrpcMethod: method, httpMethod: "POST") {
+        let base = try await pdsBase()
+        if let consumed = upstreamPool.consume(forXrpcMethod: method, httpMethod: "POST", pdsBase: base) {
             requestURL = consumed.url
             dpopProof = consumed.proof
             usedUpstreamProof = true
         } else {
-            let base = try await pdsBase()
             requestURL = "\(base)/xrpc/\(method)"
             dpopProof = auth.dpopProof
             usedUpstreamProof = false
@@ -151,17 +151,16 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
     private func xrpcGet(method: String, query: [String: String], useAuth: Bool) async throws -> [String: Any] {
         let xrpcBaseURL: String
         let dpopProof: String?
+        let base = try await pdsBase()
         if useAuth {
-            if let consumed = upstreamPool.consume(forXrpcMethod: method, httpMethod: "GET") {
+            if let consumed = upstreamPool.consume(forXrpcMethod: method, httpMethod: "GET", pdsBase: base) {
                 xrpcBaseURL = consumed.url
                 dpopProof = consumed.proof
             } else {
-                let base = try await pdsBase()
                 xrpcBaseURL = "\(base)/xrpc/\(method)"
                 dpopProof = auth.dpopProof
             }
         } else {
-            let base = try await pdsBase()
             xrpcBaseURL = "\(base)/xrpc/\(method)"
             dpopProof = nil
         }
@@ -348,4 +347,3 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         )
     }
 }
-

@@ -2,10 +2,16 @@ import Foundation
 
 struct JWTPayload: Decodable {
     let sub: String?
+    let iss: String?
     let exp: Int?
     let client_id: String?
     let azp: String?
     let aud: Audience?
+    let cnf: Confirmation?
+
+    struct Confirmation: Decodable {
+        let jkt: String?
+    }
 
     enum Audience: Decodable {
         case single(String)
@@ -31,17 +37,11 @@ struct JWTPayload: Decodable {
 
 func decodeJWTPayload(_ token: String) throws -> JWTPayload {
     let parts = token.split(separator: ".", omittingEmptySubsequences: false)
-    guard parts.count >= 2 else {
+    guard parts.count == 3 else {
         throw GatewayError(status: .unauthorized, message: "Malformed access token", code: "invalid_token")
     }
 
-    var payloadB64 = String(parts[1])
-        .replacingOccurrences(of: "-", with: "+")
-        .replacingOccurrences(of: "_", with: "/")
-    let padding = (4 - payloadB64.count % 4) % 4
-    payloadB64.append(String(repeating: "=", count: padding))
-
-    guard let data = Data(base64Encoded: payloadB64) else {
+    guard let data = base64URLDecode(String(parts[1])) else {
         throw GatewayError(
             status: .unauthorized,
             message: "Malformed access token payload",

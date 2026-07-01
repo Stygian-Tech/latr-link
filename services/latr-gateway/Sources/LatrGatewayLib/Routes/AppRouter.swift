@@ -260,7 +260,8 @@ private func handleProtected(
         let auth = try await authenticateRequest(
             request,
             config: services.config,
-            store: services.developerStore
+            store: services.developerStore,
+            httpClient: services.httpClient
         )
         if let clientID = auth.clientID {
             try await services.developerStore.assertWithinDailyLimit(clientID: clientID)

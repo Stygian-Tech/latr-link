@@ -15,10 +15,11 @@ final class UpstreamProofPool: @unchecked Sendable {
         }
     }
 
-    func consume(forXrpcMethod method: String, httpMethod: String) -> (proof: String, url: String)? {
+    func consume(forXrpcMethod method: String, httpMethod: String, pdsBase: String) -> (proof: String, url: String)? {
         lock.lock()
         defer { lock.unlock() }
 
+        let normalizedPDSBase = pdsBase.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         for (index, proof) in proofs.enumerated() {
             guard let htu = decodeJWTClaimString(proof, claim: "htu"),
                   let htm = decodeJWTClaimString(proof, claim: "htm"),
@@ -28,6 +29,7 @@ final class UpstreamProofPool: @unchecked Sendable {
             }
 
             let normalized = htu.split(separator: "?").first.map(String.init) ?? htu
+            guard normalized.hasPrefix("\(normalizedPDSBase)/xrpc/") else { continue }
             guard normalized.hasSuffix("/xrpc/\(method)") else { continue }
 
             proofs.remove(at: index)
@@ -39,16 +41,7 @@ final class UpstreamProofPool: @unchecked Sendable {
 }
 
 private func decodeJWTClaimString(_ jwt: String, claim: String) -> String? {
-    let parts = jwt.split(separator: ".", omittingEmptySubsequences: false)
-    guard parts.count >= 2 else { return nil }
-
-    var payloadB64 = String(parts[1])
-        .replacingOccurrences(of: "-", with: "+")
-        .replacingOccurrences(of: "_", with: "/")
-    let padding = (4 - payloadB64.count % 4) % 4
-    payloadB64.append(String(repeating: "=", count: padding))
-
-    guard let data = Data(base64Encoded: payloadB64),
+    guard let data = base64URLDecode(String(jwt.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first ?? "")),
           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
           let value = json[claim] as? String
     else {
