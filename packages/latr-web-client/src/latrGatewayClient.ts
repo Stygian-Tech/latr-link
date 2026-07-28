@@ -37,6 +37,11 @@ type SessionWithTokenSet = OAuthSession & {
   getTokenSet(refresh: boolean | "auto"): Promise<TokenSet>;
 };
 
+const PDS_SESSION_ATTESTATION_PATHS = new Set([
+  "/v1/latr/discover/at-uri",
+  "/v1/latr/og-preview",
+]);
+
 function stripQueryAndFragment(url: string): string {
   const fragmentIndex = url.indexOf("#");
   const queryIndex = url.indexOf("?");
@@ -178,6 +183,7 @@ export async function latrGatewayFetch(
   const clientHeaders = latrGatewayClientHeaders(config);
 
   const upstream = pdsXrpcMethodForGatewayRequest(method, gatewayPath);
+  const gatewayPathOnly = stripQueryAndFragment(gatewayPath);
   const upstreamHeaders: Record<string, string> = {};
   const sessionWithTokenSet = oauthSession as SessionWithTokenSet;
   const tokenSet = await sessionWithTokenSet.getTokenSet("auto");
@@ -190,7 +196,18 @@ export async function latrGatewayFetch(
   );
   const hopUserAuthHeaders = headersForGatewayHop(url, userAuthHeaders);
 
-  if (method === "POST" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
+  if (
+    method === "GET" &&
+    PDS_SESSION_ATTESTATION_PATHS.has(gatewayPathOnly)
+  ) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
+      await createUpstreamDpopProof(
+        oauthSession,
+        "com.atproto.server.getSession",
+        "GET",
+        proofOptions
+      );
+  } else if (method === "POST" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createSaveUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (method === "POST" && gatewayPath === LATR_GATEWAY_MIGRATE_LEXICONS_PATH) {

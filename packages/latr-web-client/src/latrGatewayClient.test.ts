@@ -170,12 +170,14 @@ describe("latrGatewayFetch upstream proofs", () => {
   test("sends explicit gateway Authorization and DPoP headers", async () => {
     let authorization = "";
     let dpop = "";
+    let upstreamDpop = "";
     const claimsSeen: Record<string, string | number>[] = [];
 
     globalThis.fetch = (async (_url, init) => {
       const headers = new Headers(init?.headers);
       authorization = headers.get("Authorization") ?? "";
       dpop = headers.get("DPoP") ?? "";
+      upstreamDpop = headers.get(LATR_UPSTREAM_DPOP_HEADER) ?? "";
       return new Response(JSON.stringify({ records: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -197,9 +199,53 @@ describe("latrGatewayFetch upstream proofs", () => {
 
     expect(authorization).toBe("DPoP test-access-token");
     expect(dpop).toBe("proof-1");
+    expect(upstreamDpop).toBe("proof-2");
     expect(claimsSeen[0]).toMatchObject({
       htm: "GET",
       htu: "http://127.0.0.1:8080/v1/latr/og-preview",
+    });
+    expect(claimsSeen[1]).toMatchObject({
+      htm: "GET",
+      htu: "https://pds.example.test/xrpc/com.atproto.server.getSession",
+      ath: expect.any(String),
+      nonce: "fresh-pds-nonce",
+    });
+  });
+
+  test("GET /v1/latr/discover/at-uri sends a PDS session attestation proof", async () => {
+    let upstreamDpop = "";
+    const claimsSeen: Record<string, string | number>[] = [];
+
+    globalThis.fetch = (async (_url, init) => {
+      upstreamDpop =
+        new Headers(init?.headers).get(LATR_UPSTREAM_DPOP_HEADER) ?? "";
+      return new Response(JSON.stringify({ matches: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const oauth = mockOAuthSession(
+      async () =>
+        new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+          status: 400,
+          headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+        }),
+      (claims) => claimsSeen.push(claims)
+    );
+
+    await latrGatewayFetch(
+      oauth,
+      "/v1/latr/discover/at-uri?uri=at%3A%2F%2Fdid%3Aplc%3Atest%2Fapp.bsky.feed.post%2Fabc",
+      { method: "GET" }
+    );
+
+    expect(upstreamDpop).toBe("proof-2");
+    expect(claimsSeen[1]).toMatchObject({
+      htm: "GET",
+      htu: "https://pds.example.test/xrpc/com.atproto.server.getSession",
+      ath: expect.any(String),
+      nonce: "fresh-pds-nonce",
     });
   });
 
