@@ -40,6 +40,12 @@ Save, list, archive, and unsave run through the L@tr gateway. The web app no lon
 
 ## OAuth scopes
 
-Repository writes require explicit `repo:` scopes for both collections, aligned with `apps/web/public/client-metadata.json`. Users must re-auth after scope changes.
+Repository writes use action-limited `repo:` scopes aligned across the shared web client, hosted metadata, and Swift gateway metadata:
+
+- `link.latr.saved.external`: create and update wrapper metadata.
+- `link.latr.saved.item`: create, update, and delete saved queue entries.
+- Legacy `com.latr.saved.*`: delete only, after the one-time copy into current collections.
+
+Public repository reads require no additional permission. L@tr.link does not request profile, post, blob, message, email, or account-management access. Users must re-auth after scope changes.
 
 See [latr-gateway.md](./latr-gateway.md) for route contracts, deployment, and auth constraints.

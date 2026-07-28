@@ -3,12 +3,19 @@ import Foundation
 import LatrKit
 import NIOCore
 
+typealias PDSSessionRequestExecutor = @Sendable (
+    _ url: String,
+    _ authorization: String,
+    _ dpopProof: String
+) async throws -> (statusCode: Int, body: Data)
+
 public struct PDSRepositoryClient: RepositoryClient, Sendable {
     private let auth: AuthContext
     private let plcURL: String
     private let httpClient: HTTPClient
     private let upstreamPool: UpstreamProofPool
     private let fetchData: @Sendable (URL) async throws -> Data
+    private let executeSessionRequest: PDSSessionRequestExecutor
 
     public init(
         auth: AuthContext,
@@ -16,10 +23,37 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         httpClient: HTTPClient,
         fetchData: (@Sendable (URL) async throws -> Data)? = nil
     ) {
+        self.init(
+            auth: auth,
+            plcURL: plcURL,
+            httpClient: httpClient,
+            fetchData: fetchData,
+            executeSessionRequest: { url, authorization, dpopProof in
+                var request = HTTPClientRequest(url: url)
+                request.method = .GET
+                request.headers.add(name: "Accept", value: "application/json")
+                request.headers.add(name: "Authorization", value: authorization)
+                request.headers.add(name: "DPoP", value: dpopProof)
+
+                let response = try await httpClient.execute(request, timeout: .seconds(30))
+                let responseBody = try await response.body.collect(upTo: 1_048_576)
+                return (Int(response.status.code), Data(buffer: responseBody))
+            }
+        )
+    }
+
+    init(
+        auth: AuthContext,
+        plcURL: String,
+        httpClient: HTTPClient,
+        fetchData: (@Sendable (URL) async throws -> Data)? = nil,
+        executeSessionRequest: @escaping PDSSessionRequestExecutor
+    ) {
         self.auth = auth
         self.plcURL = plcURL
         self.httpClient = httpClient
         self.upstreamPool = UpstreamProofPool(rawHeader: auth.upstreamDpopProof)
+        self.executeSessionRequest = executeSessionRequest
         self.fetchData = fetchData ?? { url in
             var request = HTTPClientRequest(url: url.absoluteString)
             request.headers.add(name: "Accept", value: "application/json")
@@ -42,6 +76,48 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         }
         cachedPDSBase.value = base
         return base
+    }
+
+    func attestOAuthSession() async throws {
+        let base = try await pdsBase()
+        guard let consumed = upstreamPool.consume(
+            forXrpcMethod: "com.atproto.server.getSession",
+            httpMethod: "GET",
+            pdsBase: base
+        ) else {
+            throw GatewayError(
+                status: .unauthorized,
+                message: "Missing valid upstream DPoP proof for PDS session attestation",
+                code: "missing_upstream_dpop"
+            )
+        }
+
+        let response = try await executeSessionRequest(
+            consumed.url,
+            auth.authorizationHeader,
+            consumed.proof
+        )
+        let json = response.body.isEmpty
+            ? [:]
+            : (try? JSONSerialization.jsonObject(with: response.body) as? [String: Any]) ?? [:]
+
+        guard (200 ... 299).contains(response.statusCode) else {
+            let pdsError = json["error"] as? String
+            let suffix = pdsError.map { ": \($0)" } ?? ""
+            throw GatewayError(
+                status: .unauthorized,
+                message: "PDS rejected OAuth session attestation\(suffix)",
+                code: "invalid_upstream_dpop"
+            )
+        }
+
+        guard let sessionDID = json["did"] as? String, sessionDID == auth.did else {
+            throw GatewayError(
+                status: .unauthorized,
+                message: "PDS session DID did not match access-token subject",
+                code: "pds_session_did_mismatch"
+            )
+        }
     }
 
     private func isRecordNotFound(statusCode: Int, json: [String: Any]) -> Bool {

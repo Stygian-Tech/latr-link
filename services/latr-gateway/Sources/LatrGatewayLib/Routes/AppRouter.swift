@@ -272,7 +272,9 @@ private func handleProtected(
             store: services.developerStore,
             httpClient: services.httpClient
         )
-        try requireLocallyVerifiedTokenIfNeeded(auth: auth, path: request.uri.path)
+        try await attestPDSOAuthSessionIfNeeded(auth: auth, path: request.uri.path) {
+            try await services.repositoryClient(for: auth).attestOAuthSession()
+        }
         if let clientID = auth.clientID {
             try await services.developerStore.assertWithinDailyLimit(clientID: clientID)
         }
@@ -289,14 +291,15 @@ private func handleProtected(
     }
 }
 
-private func requireLocallyVerifiedTokenIfNeeded(auth: AuthContext, path: String) throws {
-    guard !auth.accessTokenSignatureVerified else { return }
+func attestPDSOAuthSessionIfNeeded(
+    auth: AuthContext,
+    path: String,
+    attest: @Sendable () async throws -> Void
+) async throws {
+    guard !auth.accessTokenSignatureVerified, isStrictEnrichmentRoute(path) else { return }
+    try await attest()
+}
 
-    if path.contains("/og-preview") || path.contains("/discover/at-uri") {
-        throw GatewayError(
-            status: .unauthorized,
-            message: "Access token signature could not be verified for this route",
-            code: "invalid_token"
-        )
-    }
+private func isStrictEnrichmentRoute(_ path: String) -> Bool {
+    path.contains("/og-preview") || path.contains("/discover/at-uri")
 }

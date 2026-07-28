@@ -8,42 +8,44 @@ Save the active tab to your L@tr read-later library through the same Swift gatew
 |------|------|
 | [`apps/extension`](../../apps/extension) | Chromium, Firefox, and Safari Web Extension (WXT) |
 | [`packages/latr-web-client`](../../packages/latr-web-client) | Shared save resolver, gateway client, and `LatrRepo` |
-| [`apps/web/public/extension/client-metadata.json`](../../apps/web/public/extension/client-metadata.json) | Hosted OAuth client metadata |
+| `GET /oauth/extension-client-metadata.json` on the gateway | Public hosted-test OAuth client metadata |
 
 ## Prerequisites
 
-1. **Gateway** — local: `cd services/latr-gateway && swift run LatrGateway` (`http://127.0.0.1:8080`).
-2. **Gateway client** — register `latr-extension` (or your chosen id):
+1. **Gateway** — hosted testing uses `https://api.testing.latr.link`.
+2. **Gateway client** — register `latr-link-extension-testing` in [latrkit.dev](https://latrkit.dev) and issue an API key. The extension sends the split `X-Latr-Client-Id` and `X-Latr-API-Key` headers.
+
+For a local gateway, the equivalent registration request is:
 
 ```bash
 curl -sS -X POST http://127.0.0.1:8080/v1/latr/clients/register \
   -H "Content-Type: application/json" \
-  -d '{"clientId":"latr-extension","displayName":"L@tr.link Extension"}'
+  -d '{"clientId":"latr-link-extension-testing","displayName":"L@tr.link Extension Testing"}'
 ```
 
-3. **OAuth client metadata** — add the extension redirect URI to [`client-metadata.json`](../../apps/web/public/extension/client-metadata.json) `redirect_uris`, then register the extension as a gateway client in the developer console and use its `X-Latr-Client-Id` + `X-Latr-API-Key` headers.
+3. **OAuth client metadata** — the gateway serves environment-specific metadata. For hosted testing, verify `https://api.testing.latr.link/oauth/extension-client-metadata.json` lists `https://testing.latr.link/extension/callback`.
 
 ### Redirect URI
 
-After loading the unpacked extension once, read the redirect URI:
-
-- **Chromium:** `chrome.identity.getRedirectURL('callback.html')` → `https://<extension-id>.chromiumapp.org/callback.html`
-- **Firefox / Safari:** `browser.runtime.getURL('/callback.html')` → `moz-extension://…/callback.html` or Safari equivalent
-
-Append that exact URI to `redirect_uris` in hosted metadata before users can sign in.
+ATProto redirects to the hosted HTTPS callback. The background listener validates the exact configured origin/path and OAuth parameters, then replaces that tab with the extension-owned `callback.html`. OAuth state and sessions therefore remain in the extension origin in both browsers.
 
 ## Local development
 
 ```bash
 cp apps/extension/.env.example apps/extension/.env.local
-# Set VITE_LATR_GATEWAY_CLIENT_CREDENTIAL (base64; match gateway official env or registration response)
+# Set VITE_LATR_GATEWAY_API_KEY to the issued testing key.
 
 bun install
 bun --cwd apps/extension run dev          # Chromium (default)
 bun --cwd apps/extension run dev:firefox
 ```
 
-Load the unpacked build from `apps/extension/.output/chrome-mv3` (path shown by WXT) in your browser’s extension manager.
+Load the unpacked build shown by WXT:
+
+- Chrome: `apps/extension/.output/chrome-mv3` from `chrome://extensions` with Developer mode enabled.
+- Firefox: load `apps/extension/.output/firefox-mv2/manifest.json` temporarily from `about:debugging#/runtime/this-firefox`.
+
+Firefox uses the stable add-on ID `latr-link@stygian.tech`, requires Firefox 140+, and declares required transmission of authentication information and browsing activity. The latter covers URLs explicitly saved to the user’s L@tr.link library.
 
 ## Builds
 
@@ -68,8 +70,10 @@ See [`apps/extension/.env.example`](../../apps/extension/.env.example).
 |----------|-------------|
 | `VITE_LATR_GATEWAY_URL` | Gateway base URL |
 | `VITE_LATR_APP_ENV` | `local`, `dev`, or `prod` |
-| `VITE_LATR_GATEWAY_CLIENT_CREDENTIAL` | Base64 official client credential |
-| `VITE_ATPROTO_CLIENT_ID` | OAuth metadata URL (default `https://latr.link/extension/client-metadata.json`) |
+| `VITE_LATR_GATEWAY_CLIENT_ID` | Registered gateway client ID |
+| `VITE_LATR_GATEWAY_API_KEY` | Issued gateway API key; do not commit it |
+| `VITE_ATPROTO_CLIENT_ID` | Public OAuth metadata URL |
+| `VITE_ATPROTO_REDIRECT_URI` | Hosted HTTPS callback listed by the metadata document |
 | `VITE_LATR_WEB_URL` | Web app for “Open library” |
 
 ## Smoke test
@@ -79,6 +83,7 @@ See [`apps/extension/.env.example`](../../apps/extension/.env.example).
 3. Confirm the item appears at `/library` on the web app (same account).
 4. Save a `bsky.app` post URL → should save as AT subject when resolvable.
 5. Sign out from the popup.
+6. Repeat saves through the context menu and `Ctrl+Shift+L` / `Command+Shift+L`; these queue the URL and auto-save through the popup.
 
 ## CI
 

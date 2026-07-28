@@ -3,8 +3,10 @@ import { BrowserOAuthClient, type OAuthSession } from "@atproto/oauth-client-bro
 import { AT_PROTO_OAUTH_SCOPES } from "latr-web-client/atprotoOAuthScopes";
 import { BSKY_APPVIEW_PUBLIC } from "latr-web-client/resolveSaveInput";
 
-import { extensionOAuthClientId } from "./config";
-import { resolveExtensionRedirectUri } from "./browser";
+import {
+  extensionOAuthClientId,
+  extensionOAuthRedirectUri,
+} from "./config";
 
 let clientPromise: Promise<BrowserOAuthClient> | null = null;
 
@@ -55,10 +57,12 @@ export async function getExtensionOAuthClient(): Promise<BrowserOAuthClient> {
   return clientPromise;
 }
 
-export async function signInWithHandle(handle: string): Promise<void> {
+export async function createExtensionAuthorizationUrl(
+  handle: string
+): Promise<string> {
   const client = await getExtensionOAuthClient();
-  const redirectUri = resolveExtensionRedirectUri();
-  await client.signInRedirect(handle, {
+  const redirectUri = extensionOAuthRedirectUri();
+  const url = await client.authorize(handle, {
     scope: AT_PROTO_OAUTH_SCOPES,
     redirect_uri: redirectUri as Parameters<
       BrowserOAuthClient["signInRedirect"]
@@ -66,6 +70,7 @@ export async function signInWithHandle(handle: string): Promise<void> {
       ? R
       : never,
   });
+  return url.href;
 }
 
 export function readOAuthCallbackParams(): URLSearchParams | null {
@@ -87,7 +92,7 @@ export async function handleExtensionOAuthCallback(): Promise<OAuthSession> {
 
   clientPromise = null;
   const client = await getExtensionOAuthClient();
-  const redirectUri = resolveExtensionRedirectUri();
+  const redirectUri = extensionOAuthRedirectUri();
   const { session } = await client.initCallback(
     params,
     redirectUri as Parameters<BrowserOAuthClient["initCallback"]>[1]

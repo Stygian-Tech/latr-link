@@ -10,7 +10,7 @@ import { LatrRepo } from "./latrRepo";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
-beforeEach(() => {
+function resetGatewayConfig() {
   configureLatrGateway({
     appEnv: "local",
     gatewayUrl: "http://127.0.0.1:8080",
@@ -19,11 +19,16 @@ beforeEach(() => {
     clientId: "",
     apiKey: "",
   });
+}
+
+beforeEach(() => {
+  resetGatewayConfig();
   clearLexiconMigrationCacheForTests();
 });
 
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
+  resetGatewayConfig();
 });
 
 function mockOAuthSession(

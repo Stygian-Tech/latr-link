@@ -18,15 +18,20 @@ export default defineConfig({
         128: "/icon/128.png",
       },
       permissions: ["activeTab", "storage", "contextMenus", "tabs"],
-      host_permissions: [
-        "https://latr.link/*",
-        "https://testing.latr.link/*",
-        "https://api.testing.latr.link/*",
-        "https://latr-link-dev-gateway.fly.dev/*",
-        "https://latr-link-prod-gateway.fly.dev/*",
-        "http://127.0.0.1:8080/*",
-        "https://public.api.bsky.app/*",
-      ],
+      host_permissions: ["https://*/*", "http://127.0.0.1:8080/*"],
+      ...(browser === "firefox"
+        ? {
+            browser_specific_settings: {
+              gecko: {
+                id: "latr-link@stygian.tech",
+                strict_min_version: "140.0",
+                data_collection_permissions: {
+                  required: ["authenticationInfo", "browsingActivity"],
+                },
+              },
+            },
+          }
+        : {}),
       ...(browser === "safari"
         ? {}
         : {

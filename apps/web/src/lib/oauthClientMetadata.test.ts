@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { AT_PROTO_OAUTH_SCOPES } from "@/lib/atprotoOAuthScopes";
 import {
@@ -20,6 +22,31 @@ describe("Buildweboauthclientmetadata", () => {
       "https://preview.example.vercel.app/callback",
     ]);
     expect(metadata.scope).toBe(AT_PROTO_OAUTH_SCOPES);
+    expect(metadata.logo_uri).toBe(
+      "https://preview.example.vercel.app/icon.png"
+    );
+  });
+});
+
+describe("static OAuth client metadata", () => {
+  test("keeps web and extension documents on the shared minimal scopes", () => {
+    const web = JSON.parse(
+      readFileSync(
+        resolve(import.meta.dir, "../../public/client-metadata.json"),
+        "utf8"
+      )
+    ) as { scope: string; logo_uri: string };
+    const extension = JSON.parse(
+      readFileSync(
+        resolve(import.meta.dir, "../../public/extension/client-metadata.json"),
+        "utf8"
+      )
+    ) as { scope: string; logo_uri: string };
+
+    expect(web.scope).toBe(AT_PROTO_OAUTH_SCOPES);
+    expect(extension.scope).toBe(AT_PROTO_OAUTH_SCOPES);
+    expect(web.logo_uri).toBe("https://latr.link/icon.png");
+    expect(extension.logo_uri).toBe("https://latr.link/icon.png");
   });
 });
 

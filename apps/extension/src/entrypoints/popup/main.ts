@@ -1,11 +1,13 @@
 import {
+  createExtensionAuthorizationUrl,
   getExtensionSession,
-  signInWithHandle,
   signOutExtension,
 } from "../../lib/auth";
 import { getActiveTabUrl } from "../../lib/browser";
 import { extensionWebAppUrl } from "../../lib/config";
 import { saveTabUrl } from "../../lib/save";
+import { takePendingSave } from "../../lib/pendingSave";
+import type { OAuthSession } from "@atproto/oauth-client-browser";
 
 const signedOut = document.getElementById("signed-out")!;
 const signedIn = document.getElementById("signed-in")!;
@@ -17,6 +19,7 @@ const tabUrlEl = document.getElementById("tab-url")!;
 const saveStatus = document.getElementById("save-status")!;
 const authError = document.getElementById("auth-error")!;
 const openLibrary = document.getElementById("open-library") as HTMLAnchorElement;
+let selectedUrl: string | null = null;
 
 openLibrary.href = `${extensionWebAppUrl()}/library`;
 
@@ -44,10 +47,28 @@ function setSaveStatus(message: string): void {
   saveStatus.textContent = message;
 }
 
-async function refreshTabPreview(): Promise<string | null> {
-  const url = await getActiveTabUrl();
+async function refreshTabPreview(preferredUrl?: string): Promise<string | null> {
+  const url = preferredUrl ?? selectedUrl ?? (await getActiveTabUrl());
+  selectedUrl = url;
   tabUrlEl.textContent = url ?? "No Active Tab URL.";
   return url;
+}
+
+async function performSave(url: string, session: OAuthSession): Promise<void> {
+  saveBtn.disabled = true;
+  setSaveStatus("Saving…");
+  try {
+    const result = await saveTabUrl(url, session);
+    if (result.ok) {
+      setSaveStatus(
+        result.kind === "subject" ? "Saved AT Proto Record." : "Saved Link."
+      );
+    } else {
+      setSaveStatus(result.message);
+    }
+  } finally {
+    saveBtn.disabled = false;
+  }
 }
 
 async function bootstrap(): Promise<void> {
@@ -57,7 +78,9 @@ async function bootstrap(): Promise<void> {
     return;
   }
   showSignedIn();
-  await refreshTabPreview();
+  const pending = await takePendingSave();
+  const url = await refreshTabPreview(pending?.url);
+  if (pending && url) await performSave(url, session);
 }
 
 signInBtn.addEventListener("click", () => {
@@ -70,7 +93,9 @@ signInBtn.addEventListener("click", () => {
     }
     signInBtn.disabled = true;
     try {
-      await signInWithHandle(handle);
+      const authorizationUrl = await createExtensionAuthorizationUrl(handle);
+      await browser.tabs.create({ url: authorizationUrl });
+      window.close();
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "Could Not Start Sign-In."
@@ -101,16 +126,7 @@ saveBtn.addEventListener("click", () => {
       return;
     }
     saveBtn.disabled = true;
-    setSaveStatus("Saving…");
-    const result = await saveTabUrl(url, session);
-    saveBtn.disabled = false;
-    if (result.ok) {
-      setSaveStatus(
-        result.kind === "subject" ? "Saved AT Proto Record." : "Saved Link."
-      );
-    } else {
-      setSaveStatus(result.message);
-    }
+    await performSave(url, session);
   })();
 });
 

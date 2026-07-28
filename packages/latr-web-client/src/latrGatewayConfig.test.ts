@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import {
   assertLatrGatewayClientCredential,
@@ -15,7 +15,7 @@ import {
   resolveLatrGatewayConfig,
 } from "./latrGatewayConfig";
 
-afterEach(() => {
+function resetGatewayConfig() {
   configureLatrGateway({
     appEnv: "local",
     clientCredential: "",
@@ -24,6 +24,14 @@ afterEach(() => {
     testingHostname: "",
     gatewayUrl: "",
   });
+}
+
+beforeEach(() => {
+  resetGatewayConfig();
+});
+
+afterEach(() => {
+  resetGatewayConfig();
   if (typeof window !== "undefined") {
     delete window.__LATR_GATEWAY_BOOTSTRAP__;
   }

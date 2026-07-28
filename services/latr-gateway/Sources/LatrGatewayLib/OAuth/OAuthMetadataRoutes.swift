@@ -13,9 +13,48 @@ enum OAuthMetadataRoutes {
         router.get("oauth/client-metadata.json") { request, _ in
             try webMetadataResponse(request: request, oauthRedirectOrigin: oauthRedirectOrigin)
         }
+        router.get("oauth/extension-client-metadata.json") { request, _ in
+            try extensionMetadataResponse(request: request, oauthRedirectOrigin: oauthRedirectOrigin)
+        }
         router.get("oauth/latrkit-client-metadata.json") { request, _ in
             try latrkitMetadataResponse(request: request, oauthRedirectOrigin: oauthLatrkitRedirectOrigin)
         }
+    }
+
+    private static func extensionMetadataResponse(
+        request: Request,
+        oauthRedirectOrigin: String?
+    ) throws -> Response {
+        guard let metadataOrigin = OAuthPublicOrigin.resolve(request: request, configuredOrigin: nil) else {
+            throw GatewayError(
+                status: .internalServerError,
+                message: "Cannot resolve public origin for OAuth metadata",
+                code: "oauth_metadata_origin"
+            )
+        }
+
+        let redirectOrigin: String = {
+            guard let raw = oauthRedirectOrigin?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !raw.isEmpty
+            else { return metadataOrigin }
+            return raw
+        }()
+
+        let data: Data
+        do {
+            data = try ExtensionOAuthClientMetadata.buildJSON(
+                publicOrigin: metadataOrigin,
+                redirectOrigin: redirectOrigin
+            )
+        } catch {
+            throw GatewayError(
+                status: .internalServerError,
+                message: "Invalid public origin for extension OAuth metadata JSON",
+                code: "oauth_metadata_invalid"
+            )
+        }
+
+        return try jsonDataResponse(data)
     }
 
     private static func webMetadataResponse(

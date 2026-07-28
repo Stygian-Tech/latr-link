@@ -136,4 +136,33 @@ final class RouterTests: XCTestCase {
         }
         try await httpClient.shutdown()
     }
+
+    func testOAuthExtensionClientMetadataUsesHostedCallback() async throws {
+        let config = GatewayConfig(
+            port: 8080,
+            appEnv: .test,
+            plcURL: "https://plc.directory",
+            oauthRequireKnownClient: false,
+            clientRegistryURL: registryURL(),
+            oauthPublicOrigin: "https://testing.latr.link"
+        )
+        let (app, httpClient) = makeApp(config: config)
+
+        try await app.test(.router) { client in
+            try await client.execute(uri: "/oauth/extension-client-metadata.json", method: .get) { response in
+                XCTAssertEqual(response.status, .ok, String(buffer: response.body))
+                let data = Data(buffer: response.body)
+                let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+                XCTAssertEqual(
+                    object["redirect_uris"] as? [String],
+                    ["https://testing.latr.link/extension/callback"]
+                )
+                XCTAssertEqual(
+                    object["client_id"] as? String,
+                    "http://localhost/oauth/extension-client-metadata.json"
+                )
+            }
+        }
+        try await httpClient.shutdown()
+    }
 }

@@ -53,5 +53,6 @@ export function buildWebOAuthClientMetadata(origin: string) {
     dpop_bound_access_tokens: true,
     client_name: "L@tr.link",
     client_uri: base,
+    logo_uri: `${base}/icon.png`,
   } as const;
 }

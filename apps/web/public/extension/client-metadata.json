@@ -1,14 +1,15 @@
 {
   "client_id": "https://latr.link/extension/client-metadata.json",
-  "application_type": "native",
+  "application_type": "web",
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
-  "redirect_uris": [],
-  "scope": "atproto repo:link.latr.saved.external?action=create&action=update&action=delete repo:link.latr.saved.item?action=create&action=update&action=delete repo:com.latr.saved.external?action=create&action=update&action=delete repo:com.latr.saved.item?action=create&action=update&action=delete",
+  "redirect_uris": ["https://latr.link/extension/callback"],
+  "scope": "atproto repo:link.latr.saved.external?action=create&action=update repo:link.latr.saved.item?action=create&action=update&action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete",
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true,
   "client_name": "L@tr.link Extension",
   "client_uri": "https://latr.link",
+  "logo_uri": "https://latr.link/icon.png",
   "software_id": "latr-extension",
   "software_version": "0.1.0"
 }

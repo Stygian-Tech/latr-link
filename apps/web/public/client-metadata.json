@@ -4,9 +4,10 @@
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "redirect_uris": ["https://latr.link/callback"],
-  "scope": "atproto repo:link.latr.saved.external?action=create&action=update&action=delete repo:link.latr.saved.item?action=create&action=update&action=delete repo:com.latr.saved.external?action=create&action=update&action=delete repo:com.latr.saved.item?action=create&action=update&action=delete",
+  "scope": "atproto repo:link.latr.saved.external?action=create&action=update repo:link.latr.saved.item?action=create&action=update&action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete",
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true,
   "client_name": "L@tr.link",
-  "client_uri": "https://latr.link"
+  "client_uri": "https://latr.link",
+  "logo_uri": "https://latr.link/icon.png"
 }

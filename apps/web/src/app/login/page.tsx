@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { ArrowRight, BookOpen, ShieldCheck } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 
 import { BrandLockup } from "@/components/BrandLockup";
 import { Button } from "@/components/ui/button";
@@ -89,12 +89,6 @@ export default function LoginPage() {
                 Articles, Posts, and Records in One Queue
               </span>
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-4">
-              <ShieldCheck className="size-5 text-primary" aria-hidden strokeWidth={1.9} />
-              <span className="text-sm font-medium text-foreground">
-                OAuth Sign-In with Protocol-Scoped Access
-              </span>
-            </div>
           </div>
         </div>
       </section>
@@ -160,6 +154,29 @@ export default function LoginPage() {
                 <ArrowRight className="size-4" aria-hidden strokeWidth={2} />
               </Button>
             </form>
+
+            {!demoMode ? (
+              <details className="mt-5 border-t border-border pt-4 text-sm">
+                <summary className="cursor-pointer font-medium text-foreground">
+                  What L@tr.link can access
+                </summary>
+                <div className="mt-3 space-y-2 leading-5 text-muted-foreground">
+                  <p>
+                    L@tr.link can identify your account and create or update
+                    link metadata in your public repository.
+                  </p>
+                  <p>
+                    It can create, update, and delete only your L@tr saved-item
+                    records. It can also delete obsolete L@tr records after a
+                    one-time migration.
+                  </p>
+                  <p>
+                    It cannot post for you, edit your profile, read messages or
+                    email, upload media, or manage your account.
+                  </p>
+                </div>
+              </details>
+            ) : null}
           </div>
           <p className="mt-4 text-center text-xs text-muted-foreground">
             New here?{" "}
