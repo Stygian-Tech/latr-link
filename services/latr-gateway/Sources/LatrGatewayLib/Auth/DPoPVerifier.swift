@@ -146,16 +146,20 @@ private func inferredRequestScheme(forAuthority authority: String) -> String {
 }
 
 private func forwardedGatewayRequestURLCandidates(_ request: Request) -> [String] {
-    guard let forwardedHost = firstHeader(request, names: ["X-Forwarded-Host"]),
-          !forwardedHost.isEmpty
+    let forwardedHost = firstHeader(request, names: ["X-Forwarded-Host"])
+    let forwardedProto = firstHeader(request, names: ["X-Forwarded-Proto"])
+    guard forwardedHost != nil || forwardedProto != nil,
+          let authority = forwardedHost ?? request.head.authority,
+          !authority.isEmpty
     else {
         return []
     }
-    let forwardedProto = firstHeader(request, names: ["X-Forwarded-Proto"]) ?? "https"
+    let scheme =
+        forwardedProto ?? request.head.scheme ?? inferredRequestScheme(forAuthority: authority)
     let path = request.uri.description
     return [
-        "\(forwardedProto)://\(forwardedHost)\(path)",
-        "\(forwardedProto)://\(forwardedHost)/api/latr-gateway\(path)",
+        "\(scheme)://\(authority)\(path)",
+        "\(scheme)://\(authority)/api/latr-gateway\(path)",
     ]
 }
 
