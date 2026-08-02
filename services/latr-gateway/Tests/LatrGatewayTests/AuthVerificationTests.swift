@@ -141,6 +141,32 @@ final class AuthVerificationTests: XCTestCase {
         )
     }
 
+    func testDPoPAcceptsForwardedProtoWithRequestAuthority() throws {
+        let key = P256.Signing.PrivateKey()
+        let jwk = jwk(for: key.publicKey)
+        let token = try signedAccessToken(signingKey: key, dpopJWK: jwk)
+        let proof = try signedDPoP(
+            signingKey: key,
+            jwk: jwk,
+            htm: "GET",
+            htu: "https://api.testing.latr.link/v1/latr/saves",
+            accessToken: token
+        )
+
+        XCTAssertNoThrow(
+            try verifyGatewayDPoP(
+                proof: proof,
+                accessToken: token,
+                request: request(
+                    path: "/v1/latr/saves",
+                    scheme: "http",
+                    authority: "api.testing.latr.link",
+                    headers: [HTTPField.Name("X-Forwarded-Proto")!: "https"]
+                )
+            )
+        )
+    }
+
     func testDPoPAcceptsProofURLWithoutQueryString() throws {
         let key = P256.Signing.PrivateKey()
         let jwk = jwk(for: key.publicKey)
