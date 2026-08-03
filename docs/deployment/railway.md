@@ -84,7 +84,10 @@ has certificate coverage for nested subdomains.
 
 ## Production cutover (requires explicit approval)
 
-Production stays on Fly/Vercel until Development passes the full test plan.
+Production stays on the frozen Fly/Vercel deployments until Development passes
+the full test plan. The legacy Vercel projects are disconnected from GitHub, so
+pushes deploy only to Railway; they remain available solely as rollback targets
+until the approved production cutover and rollback window are complete.
 At the approved window:
 
 1. Snapshot and count the source tables; verify the dump checksum.
