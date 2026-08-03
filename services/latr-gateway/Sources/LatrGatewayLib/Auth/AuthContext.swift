@@ -102,7 +102,8 @@ public func authenticateRequest(
     config: GatewayConfig,
     store: any DeveloperStore,
     httpClient: HTTPClient? = nil,
-    requireClientAPIKey override: Bool? = nil
+    requireClientAPIKey override: Bool? = nil,
+    upstreamDpopProof upstreamOverride: String? = nil
 ) async throws -> AuthContext {
     let requireRegisteredClient = resolvesRegisteredClientRequirement(
         requireClientAPIKey: override,
@@ -163,7 +164,8 @@ public func authenticateRequest(
         resolvedClientID: clientID
     )
 
-    let upstream = extractUpstreamDPOPHeader(from: request.headers)
+    let upstream = upstreamOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
+        ?? extractUpstreamDPOPHeader(from: request.headers)
     if let upstream {
         for proof in upstream.split(separator: ",") {
             let trimmed = proof.trimmingCharacters(in: .whitespacesAndNewlines)

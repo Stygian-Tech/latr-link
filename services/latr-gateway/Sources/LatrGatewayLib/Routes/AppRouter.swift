@@ -53,7 +53,28 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     }
 
     latr.post("migrate-lexicons") { request, _ in
-        await handleProtected(request: request, services: services) { auth in
+        var bodyProof: String?
+        if extractUpstreamDPOPHeader(from: request.headers) == nil {
+            do {
+                let body = try await decodeJSONBody(request, as: MigrateLexiconsBody.self)
+                let proof = body.upstreamDpopProof.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !proof.isEmpty else {
+                    throw GatewayError(
+                        status: .badRequest,
+                        message: "Missing upstream DPoP proof pool",
+                        code: "missing_upstream_dpop"
+                    )
+                }
+                bodyProof = proof
+            } catch {
+                return errorResponse(error)
+            }
+        }
+        return await handleProtected(
+            request: request,
+            services: services,
+            upstreamDpopProof: bodyProof
+        ) { auth in
             let library = services.savedLibrary(for: auth)
             let summary = try await library.migrateLegacyLexiconsIfNeeded()
             return try jsonResponse(LexiconMigrationResponse(summary: summary))
@@ -263,6 +284,7 @@ private func openGraphPreviewHasContent(_ preview: OpenGraphPreview) -> Bool {
 private func handleProtected(
     request: Request,
     services: GatewayServices,
+    upstreamDpopProof: String? = nil,
     handler: (AuthContext) async throws -> Response
 ) async -> Response {
     do {
@@ -270,7 +292,8 @@ private func handleProtected(
             request,
             config: services.config,
             store: services.developerStore,
-            httpClient: services.httpClient
+            httpClient: services.httpClient,
+            upstreamDpopProof: upstreamDpopProof
         )
         try await attestPDSOAuthSessionIfNeeded(auth: auth, path: request.uri.path) {
             try await services.repositoryClient(for: auth).attestOAuthSession()

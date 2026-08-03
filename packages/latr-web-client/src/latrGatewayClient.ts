@@ -185,6 +185,7 @@ export async function latrGatewayFetch(
   const upstream = pdsXrpcMethodForGatewayRequest(method, gatewayPath);
   const gatewayPathOnly = stripQueryAndFragment(gatewayPath);
   const upstreamHeaders: Record<string, string> = {};
+  let requestBody = init?.body;
   const sessionWithTokenSet = oauthSession as SessionWithTokenSet;
   const tokenSet = await sessionWithTokenSet.getTokenSet("auto");
   const proofOptions = { accessToken: tokenSet.access_token };
@@ -211,8 +212,17 @@ export async function latrGatewayFetch(
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createSaveUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (method === "POST" && gatewayPath === LATR_GATEWAY_MIGRATE_LEXICONS_PATH) {
-    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
-      await createMigrateLexiconsUpstreamDpopProofPool(oauthSession, proofOptions);
+    // This proof pool contains enough JWTs for the legacy copy/delete pass and
+    // can exceed reverse-proxy header limits. The gateway accepts it in the
+    // request body for this endpoint while retaining header support for older
+    // clients.
+    requestBody = JSON.stringify({
+      upstreamDpopProof: await createMigrateLexiconsUpstreamDpopProofPool(
+        oauthSession,
+        proofOptions
+      ),
+    });
+    upstreamHeaders["Content-Type"] = "application/json";
   } else if (method === "GET" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createListSavesUpstreamDpopProofPool(oauthSession, proofOptions);
@@ -227,6 +237,7 @@ export async function latrGatewayFetch(
 
   return fetch(url, {
     ...init,
+    body: requestBody,
     headers: {
       Accept: "application/json",
       ...clientHeaders,
