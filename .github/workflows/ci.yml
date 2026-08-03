@@ -1,17 +1,15 @@
 name: CI
 
+# Railway deploys linked Git revisions. GitHub Actions verifies source changes
+# and never connects to hosted databases or deploys infrastructure.
 on:
   push:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
-  workflow_dispatch:
-    inputs:
-      deploy_gateway:
-        description: Deploy Latr-Gateway to Fly After CI Checks
-        required: true
-        type: boolean
-        default: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -21,101 +19,37 @@ permissions:
   contents: read
 
 jobs:
-  changes:
-    name: Detect changed paths
-    runs-on: ubuntu-latest
-    outputs:
-      gateway: ${{ steps.filter.outputs.gateway }}
-      gateway_migrations: ${{ steps.filter.outputs.gateway_migrations }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed paths
-        id: filter
-        run: bash scripts/ci-detect-changes.sh
-
   ci-gateway:
     name: Gateway test and build
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v6
       - name: Run gateway CI
         run: bash scripts/ci-gateway.sh
 
   ci-js:
-    name: Web and extension test and build
+    name: Web, console, and extension test and build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Bun
-        run: |
-          curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"
-          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
-
-      - name: Run JS CI
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Run JavaScript CI
         run: bash scripts/ci-js.sh
         env:
           NEXT_PUBLIC_APP_ENV: test
 
-  migrate-gateway-db:
-    name: Migrate gateway database (Supabase)
-    needs: [changes, ci-gateway, ci-js]
-    if: |
-      always() &&
-      needs.ci-gateway.result == 'success' &&
-      needs.ci-js.result == 'success' &&
-      needs.changes.result == 'success' &&
-      (
-        needs.changes.outputs.gateway_migrations == 'true' ||
-        (
-          needs.changes.outputs.gateway == 'true' &&
-          (
-            (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')) ||
-            (github.event_name == 'workflow_dispatch' && inputs.deploy_gateway)
-          )
-        )
-      )
+  required:
+    name: CI — Required
+    needs: [ci-gateway, ci-js]
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Apply Developer Console Migration
+      - name: Verify required checks
         env:
-          GATEWAY_DATABASE_URL_DEV: ${{ secrets.GATEWAY_DATABASE_URL_DEV }}
-          GATEWAY_DATABASE_URL_PROD: ${{ secrets.GATEWAY_DATABASE_URL_PROD }}
-        run: bash scripts/run-gateway-migration.sh "${{ github.ref_name }}"
-
-  deploy-gateway:
-    name: Deploy Gateway (Fly.io)
-    needs: [changes, ci-gateway, ci-js, migrate-gateway-db]
-    if: |
-      always() &&
-      needs.ci-gateway.result == 'success' &&
-      needs.ci-js.result == 'success' &&
-      needs.changes.result == 'success' &&
-      needs.migrate-gateway-db.result == 'success' &&
-      needs.changes.outputs.gateway == 'true' &&
-      (
-        (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')) ||
-        (github.event_name == 'workflow_dispatch' && inputs.deploy_gateway)
-      )
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@v1
-
-      - name: Deploy Gateway to Fly.io
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          FLY_ORG: ${{ secrets.FLY_ORG }}
-          FLY_GATEWAY_APP_DEV: ${{ secrets.FLY_GATEWAY_APP_DEV }}
-          FLY_GATEWAY_APP_PROD: ${{ secrets.FLY_GATEWAY_APP_PROD }}
-        run: bash scripts/fly-deploy-gateway.sh "${{ github.ref_name }}"
+          GATEWAY_RESULT: ${{ needs.ci-gateway.result }}
+          JS_RESULT: ${{ needs.ci-js.result }}
+        run: |
+          test "$GATEWAY_RESULT" = success
+          test "$JS_RESULT" = success

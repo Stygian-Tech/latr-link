@@ -14,6 +14,7 @@ Next.js (latr.link)  ── ATProto OAuth ──►  Your PDS
 latr-link/
   apps/
     web/           # Next.js web client (Bun)
+    latrkit-dev/   # LatrKit developer console (Bun)
   packages/
     latr-web-client/  # shared save/gateway client (Bun)
   services/
@@ -70,6 +71,9 @@ If the console shows `WebSocket connection to .../_next/webpack-hmr` failures, h
 ## Architecture
 
 See [docs/architecture/overview.md](docs/architecture/overview.md).
+
+Deployment and database cutover procedures live in
+[docs/deployment/railway.md](docs/deployment/railway.md).
 
 ## Lexicons
 

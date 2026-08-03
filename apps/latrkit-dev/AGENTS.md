@@ -29,14 +29,15 @@ Pin Bun **1.3.14** (`packageManager` in `package.json`).
 ## Learned User Preferences
 
 - OAuth architecture should match latr.link: browser tokens (PKCE + IndexedDB), with gateway-hosted client metadata when the SPA is deployment-protected — not cookie-based server sessions.
-- CI should run on the `dev` branch as well as `main`.
+- This app is part of the `latr-link` Bun/Turbo monorepo and deploys from the
+  matching Railway service; CI runs on `dev` and `main`.
 
 ## Learned Workspace Facts
 
 - Staging domain is `testing.latrkit.dev` (not legacy `testing.stygiantech.dev`).
-- Deployment-protected staging OAuth uses gateway metadata at `https://api.testing.latr.link/oauth/latrkit-client-metadata.json`; latr-gateway needs `OAUTH_LATRKIT_PUBLIC_ORIGIN=https://testing.latrkit.dev` (route lives in latr-link, not this repo).
+- Staging OAuth uses gateway metadata at `https://api.testing.latr.link/oauth/latrkit-client-metadata.json`; latr-gateway needs `OAUTH_LATRKIT_PUBLIC_ORIGIN=https://testing.latrkit.dev`.
 - Unprotected hosts (e.g. `latrkit.dev`) serve same-origin `/client-metadata.json`; gateway metadata `client_uri` must match the gateway origin — only `redirect_uris` point at the SPA.
 - Loopback OAuth activates only on `127.0.0.1`/`localhost` (or `NEXT_PUBLIC_ATPROTO_LOCAL=true`); `NEXT_PUBLIC_APP_ENV=local` does not force loopback on hosted deploys.
 - `testing.latrkit.dev` maps to the testing gateway (`api.testing.latr.link`) via hostname heuristics in `src/lib/gatewayConfig.ts`.
-- Next.js 16 uses Turbopack by default; `turbopack.root` in `next.config.ts` pins the project directory as workspace root.
+- Next.js 16 uses Turbopack by default and resolves the monorepo root lockfile.
 - Unset `NEXT_PUBLIC_ATPROTO_CLIENT_ID` on staging unless metadata is on the same origin you browse; origin mismatches cause Bluesky PAR 400s.

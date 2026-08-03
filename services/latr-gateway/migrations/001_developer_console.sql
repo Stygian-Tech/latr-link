@@ -1,4 +1,4 @@
--- LatrKit developer console schema (Supabase Postgres / DATABASE_URL)
+-- LatrKit developer console schema (Postgres / DATABASE_URL)
 
 CREATE TABLE IF NOT EXISTS developer_clients (
     client_id TEXT PRIMARY KEY,

@@ -50,13 +50,13 @@ describe("Latr Gateway Base URL", () => {
     expect(latrGatewayBaseUrl()).toBe(LOCAL_LATR_GATEWAY_URL);
   });
 
-  test("Uses Dev Fly Gateway for Dev App Env", () => {
+  test("Uses Dev Custom Gateway for Dev App Env", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "dev";
     delete process.env.NEXT_PUBLIC_LATR_GATEWAY_URL;
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_DEV_LATR_GATEWAY_URL);
   });
 
-  test("Uses Prod Fly Gateway for Prod App Env", () => {
+  test("Uses Prod Custom Gateway for Prod App Env", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "prod";
     delete process.env.NEXT_PUBLIC_LATR_GATEWAY_URL;
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_PROD_LATR_GATEWAY_URL);

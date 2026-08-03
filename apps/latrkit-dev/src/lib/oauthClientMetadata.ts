@@ -33,7 +33,7 @@ export function originUsesGatewayOAuthClientMetadata(origin: string): boolean {
 /**
  * Resolve hosted OAuth client_id in the browser.
  * Gateway client_id wins over `NEXT_PUBLIC_ATPROTO_CLIENT_ID` when the SPA host is
- * deployment-protected (e.g. testing.latrkit.dev behind Vercel auth).
+ * configured to publish metadata from the public gateway (testing.latrkit.dev).
  */
 export function resolveHostedOAuthClientId(origin: string): string {
   const fromOrigin = hostedOAuthClientIdForOrigin(origin);

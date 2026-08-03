@@ -18,8 +18,8 @@ Sign in with your ATProto account, register developer clients, issue `X-Latr-Cli
 bun install
 cp .env.example .env.local
 
-# Terminal 1 — latr-gateway (from latr-link monorepo)
-cd ../latr-link/services/latr-gateway && swift run LatrGateway
+# Terminal 1 — latr-gateway (from the monorepo root)
+cd services/latr-gateway && swift run LatrGateway
 
 # Terminal 2 — console
 bun run dev
@@ -36,8 +36,12 @@ See [`.env.example`](.env.example).
 | `NEXT_PUBLIC_LATR_GATEWAY_URL` | LatrKit gateway base URL |
 | `NEXT_PUBLIC_ATPROTO_CLIENT_ID` | Hosted OAuth metadata URL (production: `https://latrkit.dev/client-metadata.json`) |
 
-Gateway must allow your OAuth client metadata URL in `OAUTH_GATEWAY_ALLOWED_CLIENT_IDS` when `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT=true`.
+Developer management calls use OAuth + DPoP and do not put an application API
+key in browser code.
 
 ## Deploy
 
-Typical hosting: Vercel at `latrkit.dev`. Set `NEXT_PUBLIC_APP_ENV=prod` and point `NEXT_PUBLIC_LATR_GATEWAY_URL` at your production gateway (e.g. `https://latr-link-prod-gateway.fly.dev`).
+Railway builds this workspace from `/railway/latrkit-dev.json`. Development uses
+`testing.latrkit.dev` with `NEXT_PUBLIC_APP_ENV=dev` and
+`NEXT_PUBLIC_LATR_GATEWAY_URL=https://api.testing.latr.link`; Production uses
+`latrkit.dev`, `NEXT_PUBLIC_APP_ENV=prod`, and `https://api.latr.link`.

@@ -3,8 +3,8 @@
  * {@link ../components/EnvironmentBanner.tsx}.
  *
  * `NEXT_PUBLIC_APP_ENV` / `APP_ENV`: **`prod`** | **`local`** | **`dev`** | **`test`**
- * (see `.env.example`). When unset: `next dev` → **`local`**; Vercel production → **`prod`**;
- * other hosted builds (preview) → **`dev`**.
+ * (see `.env.example`). Railway sets this explicitly. When unset: `next dev` →
+ * **`local`**; legacy Vercel production → **`prod`**; other hosted builds → **`dev`**.
  */
 import type { LatrAppEnv } from "@/lib/gatewayConfig";
 

@@ -241,7 +241,7 @@ export function assertLatrGatewayClientCredential(
     [
       "Hosted L@tr Gateway Requires Client Credentials.",
       "Set LATR_GATEWAY_CLIENT_ID + LATR_GATEWAY_API_KEY (Split Headers) or LATR_GATEWAY_CLIENT_CREDENTIAL (Legacy Official Header).",
-      "On Vercel, Enable Them for Preview as Well as Production When Using testing.latr.link, Then Redeploy.",
+      "Configure Them on the Active Hosted Web Service for This Environment, Then Redeploy.",
       `Diagnostic: bootstrapClientId=${bootstrapClientId}, bootstrapApiKey=${bootstrapApiKey}, bootstrapCredential=${bootstrapCredential}, configSync=${hasRegisteredLatrGatewayConfigSync()}.`,
     ].join(" ")
   );
