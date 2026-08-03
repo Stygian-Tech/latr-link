@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen } from "lucide-react";
 
 import { BrandLockup } from "@/components/BrandLockup";
+import { LoginHandleTypeahead } from "@/components/LoginHandleTypeahead";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -123,19 +124,26 @@ export default function LoginPage() {
                 <label htmlFor="handle" className="text-sm font-medium">
                   Handle
                 </label>
-                <Input
-                  id="handle"
-                  type="text"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder={demoMode ? "reader.latr.local" : "you.bsky.social"}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoComplete="username"
-                  spellCheck={false}
-                  required={!demoMode}
-                  disabled={isPending}
-                />
+                {demoMode ? (
+                  <Input
+                    id="handle"
+                    type="text"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value)}
+                    placeholder="reader.latr.local"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoComplete="username"
+                    spellCheck={false}
+                    disabled={isPending}
+                  />
+                ) : (
+                  <LoginHandleTypeahead
+                    value={handle}
+                    onValueChange={setHandle}
+                    disabled={isPending}
+                  />
+                )}
               </div>
 
               {displayError ? (
