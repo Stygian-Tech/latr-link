@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import Script from "next/script";
-import { Analytics } from "@vercel/analytics/react";
 
 import { EnvironmentBanner } from "@/components/shared/EnvironmentBanner";
 import {
@@ -94,7 +93,6 @@ export default function RootLayout({
           <EnvironmentBanner appEnv={appEnv} />
           {children}
         </Providers>
-        <Analytics />
       </body>
     </html>
   );

@@ -15,7 +15,6 @@ const originalEnv = {
   APP_ENV: process.env.APP_ENV,
   NEXT_PUBLIC_LATR_GATEWAY_URL: process.env.NEXT_PUBLIC_LATR_GATEWAY_URL,
   NODE_ENV: process.env.NODE_ENV,
-  VERCEL_ENV: process.env.VERCEL_ENV,
 };
 
 function restoreEnv(): void {
