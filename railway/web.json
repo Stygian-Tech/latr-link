@@ -15,7 +15,7 @@
   "deploy": {
     "startCommand": "bun --cwd apps/web start",
     "healthcheckPath": "/",
-    "healthcheckTimeout": 300,
+    "healthcheckTimeout": 360,
     "restartPolicyType": "ALWAYS"
   }
 }
