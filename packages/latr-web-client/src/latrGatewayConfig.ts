@@ -15,9 +15,9 @@ export const THE_SOCIAL_WIRE_WEB_CLIENT_ID = "the-social-wire-web";
 export const LOCAL_LATR_GATEWAY_URL = "http://127.0.0.1:8080";
 export const DEFAULT_TESTING_LATR_GATEWAY_URL = "https://api.testing.latr.link";
 export const DEFAULT_DEV_LATR_GATEWAY_URL =
-  "https://latr-link-dev-gateway.fly.dev";
+  "https://api.testing.latr.link";
 export const DEFAULT_PROD_LATR_GATEWAY_URL =
-  "https://latr-link-prod-gateway.fly.dev";
+  "https://api.latr.link";
 
 export type LatrAppEnv = "local" | "dev" | "prod" | "test";
 
@@ -241,7 +241,7 @@ export function assertLatrGatewayClientCredential(
     [
       "Hosted L@tr Gateway Requires Client Credentials.",
       "Set LATR_GATEWAY_CLIENT_ID + LATR_GATEWAY_API_KEY (Split Headers) or LATR_GATEWAY_CLIENT_CREDENTIAL (Legacy Official Header).",
-      "On Vercel, Enable Them for Preview as Well as Production When Using testing.latr.link, Then Redeploy.",
+      "Configure Them on the Active Hosted Web Service for This Environment, Then Redeploy.",
       `Diagnostic: bootstrapClientId=${bootstrapClientId}, bootstrapApiKey=${bootstrapApiKey}, bootstrapCredential=${bootstrapCredential}, configSync=${hasRegisteredLatrGatewayConfigSync()}.`,
     ].join(" ")
   );

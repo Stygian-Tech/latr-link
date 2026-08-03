@@ -115,9 +115,9 @@ describe("Resolvehostedoauthclientid", () => {
 describe("Gatewayweboauthclientmetadataurl", () => {
   test("Builds the Gateway Discoverable Client_id URL", () => {
     expect(
-      gatewayWebOAuthClientMetadataUrl("https://latr-link-dev-gateway.fly.dev")
+      gatewayWebOAuthClientMetadataUrl("https://api.testing.latr.link")
     ).toBe(
-      "https://latr-link-dev-gateway.fly.dev/oauth/client-metadata.json"
+      "https://api.testing.latr.link/oauth/client-metadata.json"
     );
   });
 });

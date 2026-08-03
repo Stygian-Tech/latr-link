@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 
 type UserAvatarProps = {
   src?: string | null;
@@ -15,7 +16,9 @@ export function UserAvatar({
   size = 40,
   className = "",
 }: UserAvatarProps) {
-  if (src) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (src && failedSrc !== src) {
     return (
       <Image
         src={src}
@@ -25,6 +28,7 @@ export function UserAvatar({
         unoptimized
         className={`rounded-full object-cover ${className}`}
         referrerPolicy="no-referrer"
+        onError={() => setFailedSrc(src)}
       />
     );
   }

@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "latr-web-client": "workspace:*",
     "@atproto/api": "^0.19.17",
     "@atproto/oauth-client-browser": "^0.3.42",
     "@atproto/oauth-types": "^0.6.3",
@@ -19,9 +18,9 @@
     "@tanstack/query-sync-storage-persister": "^5.100.10",
     "@tanstack/react-query": "^5.100.10",
     "@tanstack/react-query-persist-client": "^5.100.10",
-    "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "latr-web-client": "workspace:*",
     "lucide-react": "^0.514.0",
     "next": "16.2.6",
     "react": "19.2.4",

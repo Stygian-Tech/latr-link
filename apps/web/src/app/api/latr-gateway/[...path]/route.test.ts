@@ -6,6 +6,7 @@ const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_ENV = {
   APP_ENV: process.env.APP_ENV,
   NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
+  LATR_GATEWAY_INTERNAL_URL: process.env.LATR_GATEWAY_INTERNAL_URL,
   NEXT_PUBLIC_LATR_GATEWAY_URL: process.env.NEXT_PUBLIC_LATR_GATEWAY_URL,
   LATR_GATEWAY_CLIENT_ID: process.env.LATR_GATEWAY_CLIENT_ID,
   LATR_GATEWAY_API_KEY: process.env.LATR_GATEWAY_API_KEY,
@@ -28,6 +29,43 @@ afterEach(() => {
 });
 
 describe("/api/latr-gateway proxy", () => {
+  test("Prefers The Railway Private Gateway URL On The Server", async () => {
+    process.env.LATR_GATEWAY_CLIENT_ID = "latr-link-web";
+    process.env.LATR_GATEWAY_API_KEY = "lk_server";
+    process.env.LATR_GATEWAY_INTERNAL_URL =
+      "http://gateway.railway.internal:8080/";
+    process.env.NEXT_PUBLIC_LATR_GATEWAY_URL =
+      "https://api.testing.latr.link";
+
+    let target = "";
+    globalThis.fetch = (async (url: Parameters<typeof fetch>[0]) => {
+      target = String(url);
+      return new Response(JSON.stringify({ records: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    const req = new Request(
+      "https://testing.latr.link/api/latr-gateway/v1/latr/saves?limit=10",
+      {
+        headers: {
+          Authorization: "DPoP access",
+          DPoP: "gateway-proof",
+          "X-Forwarded-Host": "testing.latr.link",
+          "X-Forwarded-Proto": "https",
+        },
+      }
+    );
+
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(target).toBe(
+      "http://gateway.railway.internal:8080/v1/latr/saves?limit=10"
+    );
+  });
+
   test("Injects Server Split Credentials And Preserves Browser DPoP Headers", async () => {
     process.env.LATR_GATEWAY_CLIENT_ID = "latr-link-web";
     process.env.LATR_GATEWAY_API_KEY = "lk_server";

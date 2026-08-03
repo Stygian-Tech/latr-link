@@ -5,7 +5,7 @@ import {
 } from "latr-web-client/latrGatewayConfig";
 
 const DEFAULT_CLIENT_METADATA_URL =
-  "https://latr-link-prod-gateway.fly.dev/oauth/extension-client-metadata.json";
+  "https://api.latr.link/oauth/extension-client-metadata.json";
 const DEFAULT_REDIRECT_URI = "https://latr.link/extension/callback";
 
 export type ExtensionEnv = {

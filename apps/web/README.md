@@ -1,36 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# L@tr.link web
 
-## Getting Started
-
-First, run the development server:
+Next.js web client for L@tr.link. Run it from the monorepo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun --cwd apps/web dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://127.0.0.1:3000` for loopback ATProto OAuth. Environment variables
+and local OAuth behavior are documented in [`.env.example`](.env.example).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Railway
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Railway builds this workspace from `/railway/web.json`.
 
-## Learn More
+| Environment | Origin | `NEXT_PUBLIC_APP_ENV` | Gateway |
+| --- | --- | --- | --- |
+| Development | `https://testing.latr.link` | `dev` | `https://api.testing.latr.link` |
+| Production | `https://latr.link` | `prod` | `https://api.latr.link` |
 
-To learn more about Next.js, take a look at the following resources:
+The browser uses the same-origin `/api/latr-gateway/*` proxy. On Railway, set
+`LATR_GATEWAY_INTERNAL_URL=http://${{Gateway.RAILWAY_PRIVATE_DOMAIN}}:8080` so
+the proxy-to-gateway hop stays private. Set `LATR_GATEWAY_CLIENT_ID` and
+`LATR_GATEWAY_API_KEY` as server-only variables; never expose them through
+`NEXT_PUBLIC_*`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [the Railway runbook](../../docs/deployment/railway.md) for migrations,
+DNS, verification, and production cutover.

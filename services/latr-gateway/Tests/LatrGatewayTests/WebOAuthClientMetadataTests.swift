@@ -16,13 +16,13 @@ final class WebOAuthClientMetadataTests: XCTestCase {
 
     func testBuildsGatewayMetadataWithSeparateRedirectOrigin() throws {
         let data = try WebOAuthClientMetadata.buildJSON(
-            publicOrigin: "https://latr-link-dev-gateway.fly.dev",
+            publicOrigin: "https://api.testing.latr.link",
             redirectOrigin: "https://testing.latr.link"
         )
         let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         XCTAssertEqual(
             obj?["client_id"] as? String,
-            "https://latr-link-dev-gateway.fly.dev/oauth/client-metadata.json"
+            "https://api.testing.latr.link/oauth/client-metadata.json"
         )
         XCTAssertEqual(
             obj?["redirect_uris"] as? [String],
@@ -31,7 +31,7 @@ final class WebOAuthClientMetadataTests: XCTestCase {
         XCTAssertEqual(obj?["scope"] as? String, ATProtoOAuthScopes.scope)
         XCTAssertEqual(
             obj?["client_uri"] as? String,
-            "https://latr-link-dev-gateway.fly.dev"
+            "https://api.testing.latr.link"
         )
         XCTAssertNil(obj?["logo_uri"])
     }
