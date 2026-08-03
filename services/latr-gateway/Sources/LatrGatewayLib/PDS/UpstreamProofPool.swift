@@ -20,6 +20,7 @@ final class UpstreamProofPool: @unchecked Sendable {
         defer { lock.unlock() }
 
         let normalizedPDSBase = pdsBase.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let expectedURL = "\(normalizedPDSBase)/xrpc/\(method)"
         for (index, proof) in proofs.enumerated() {
             guard let htu = decodeJWTClaimString(proof, claim: "htu"),
                   let htm = decodeJWTClaimString(proof, claim: "htm"),
@@ -29,11 +30,10 @@ final class UpstreamProofPool: @unchecked Sendable {
             }
 
             let normalized = htu.split(separator: "?").first.map(String.init) ?? htu
-            guard normalized.hasPrefix("\(normalizedPDSBase)/xrpc/") else { continue }
-            guard normalized.hasSuffix("/xrpc/\(method)") else { continue }
+            guard normalized == expectedURL else { continue }
 
             proofs.remove(at: index)
-            return (proof, normalized)
+            return (proof, expectedURL)
         }
 
         return nil

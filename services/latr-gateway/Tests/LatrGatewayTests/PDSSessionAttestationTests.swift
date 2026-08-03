@@ -126,6 +126,44 @@ final class PDSSessionAttestationTests: XCTestCase {
         XCTAssertEqual(count, 0)
     }
 
+    func testUnverifiedDeveloperTokenRequiresPDSAttestation() async throws {
+        let auth = authContext(signatureVerified: false, upstreamProof: "proof")
+        let counter = AttestationCounter()
+
+        try await attestDeveloperOAuthSessionIfNeeded(auth: auth) {
+            await counter.increment()
+        }
+
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
+    }
+
+    func testLocallyVerifiedDeveloperTokenBypassesPDSAttestation() async throws {
+        let auth = authContext(signatureVerified: true, upstreamProof: nil)
+        let counter = AttestationCounter()
+
+        try await attestDeveloperOAuthSessionIfNeeded(auth: auth) {
+            await counter.increment()
+        }
+
+        let count = await counter.value
+        XCTAssertEqual(count, 0)
+    }
+
+    func testDeveloperAttestationFailureIsPropagated() async throws {
+        let auth = authContext(signatureVerified: false, upstreamProof: "proof")
+
+        await assertGatewayError(code: "invalid_upstream_dpop") {
+            try await attestDeveloperOAuthSessionIfNeeded(auth: auth) {
+                throw GatewayError(
+                    status: .unauthorized,
+                    message: "PDS rejected OAuth session attestation",
+                    code: "invalid_upstream_dpop"
+                )
+            }
+        }
+    }
+
     private func makeClient(
         proof: String?,
         recorder: SessionRequestRecorder

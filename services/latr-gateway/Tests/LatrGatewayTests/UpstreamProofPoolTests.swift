@@ -1,4 +1,5 @@
 @testable import LatrGatewayLib
+import Foundation
 import XCTest
 
 final class UpstreamProofPoolTests: XCTestCase {
@@ -58,5 +59,31 @@ final class UpstreamProofPoolTests: XCTestCase {
                 pdsBase: "https://pds.example"
             )
         )
+    }
+
+    func testRejectsMatchingMethodHiddenBehindAnExtraPDSPath() throws {
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "htu": "https://pds.example/xrpc/unexpected/xrpc/com.atproto.server.getSession",
+            "htm": "GET",
+        ])
+        let proof = "header.\(payload.base64URLEncodedString()).signature"
+        let pool = UpstreamProofPool(rawHeader: proof)
+
+        XCTAssertNil(
+            pool.consume(
+                forXrpcMethod: "com.atproto.server.getSession",
+                httpMethod: "GET",
+                pdsBase: "https://pds.example"
+            )
+        )
+    }
+}
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 }
