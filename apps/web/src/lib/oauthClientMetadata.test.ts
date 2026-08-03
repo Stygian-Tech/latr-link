@@ -13,17 +13,17 @@ import {
 describe("Buildweboauthclientmetadata", () => {
   test("Uses the Request Origin for Client_id and Redirect_uris", () => {
     const metadata = buildWebOAuthClientMetadata(
-      "https://preview.example.vercel.app"
+      "https://preview.example.up.railway.app"
     );
     expect(metadata.client_id).toBe(
-      "https://preview.example.vercel.app/client-metadata.json"
+      "https://preview.example.up.railway.app/client-metadata.json"
     );
     expect(metadata.redirect_uris).toEqual([
-      "https://preview.example.vercel.app/callback",
+      "https://preview.example.up.railway.app/callback",
     ]);
     expect(metadata.scope).toBe(AT_PROTO_OAUTH_SCOPES);
     expect(metadata.logo_uri).toBe(
-      "https://preview.example.vercel.app/icon.png"
+      "https://preview.example.up.railway.app/icon.png"
     );
   });
 });
@@ -53,8 +53,8 @@ describe("static OAuth client metadata", () => {
 describe("Hostedoauthclientidfororigin", () => {
   test("Uses Same-origin Metadata for Unmapped Preview Hosts", () => {
     expect(
-      hostedOAuthClientIdForOrigin("https://preview.example.vercel.app")
-    ).toBe("https://preview.example.vercel.app/client-metadata.json");
+      hostedOAuthClientIdForOrigin("https://preview.example.up.railway.app")
+    ).toBe("https://preview.example.up.railway.app/client-metadata.json");
   });
 
   test("Uses Testing API Gateway Metadata for Testing.latr.link", () => {
@@ -67,8 +67,8 @@ describe("Hostedoauthclientidfororigin", () => {
 describe("Resolvehostedoauthclientid", () => {
   test("Uses Same-origin Metadata on Preview Hosts instead of Prod Default", () => {
     expect(
-      resolveHostedOAuthClientId("https://testing-latr-link.vercel.app")
-    ).toBe("https://testing-latr-link.vercel.app/client-metadata.json");
+      resolveHostedOAuthClientId("https://testing-latr-link.up.railway.app")
+    ).toBe("https://testing-latr-link.up.railway.app/client-metadata.json");
   });
 
   test("Uses Gateway Metadata for Deployment-protected Testing Host", () => {
@@ -83,7 +83,7 @@ describe("Resolvehostedoauthclientid", () => {
       "https://custom.example/client-metadata.json";
     try {
       expect(
-        resolveHostedOAuthClientId("https://preview.example.vercel.app")
+        resolveHostedOAuthClientId("https://preview.example.up.railway.app")
       ).toBe("https://custom.example/client-metadata.json");
     } finally {
       if (prevClientId === undefined) {
@@ -100,8 +100,8 @@ describe("Resolvehostedoauthclientid", () => {
       "https://latr.link/client-metadata.json";
     try {
       expect(
-        resolveHostedOAuthClientId("https://preview.example.vercel.app")
-      ).toBe("https://preview.example.vercel.app/client-metadata.json");
+        resolveHostedOAuthClientId("https://preview.example.up.railway.app")
+      ).toBe("https://preview.example.up.railway.app/client-metadata.json");
     } finally {
       if (prevClientId === undefined) {
         delete process.env.NEXT_PUBLIC_ATPROTO_CLIENT_ID;
