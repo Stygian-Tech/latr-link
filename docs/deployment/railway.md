@@ -78,17 +78,30 @@ For each environment:
 
 Register Railway custom domains first. Add Railway's `_railway-verify` TXT
 records while the existing CNAME/A records still serve the old provider. Wait
-for ownership and TLS to become active, then update only the traffic records.
+for ownership verification, then update only the traffic records. Railway may
+not begin certificate issuance until its CNAME is serving; monitor HTTPS during
+that short window and restore the captured records if issuance fails.
 For nested `api.testing.latr.link`, use DNS-only mode unless the Cloudflare zone
 has certificate coverage for nested subdomains.
 
-## Production cutover (requires explicit approval)
+## Production cutover and rollback
 
-Production stays on the frozen Fly/Vercel deployments until Development passes
-the full test plan. The legacy Vercel projects are disconnected from GitHub, so
-pushes deploy only to Railway; they remain available solely as rollback targets
-until the approved production cutover and rollback window are complete.
-At the approved window:
+Production moved to Railway on August 3, 2026 after Development passed the full
+test plan. `latr.link`, `api.latr.link`, and `latrkit.dev` now route to the
+Railway `production` environment from `main`. The legacy Vercel projects are
+disconnected from GitHub and the Fly Gateway is stopped with autostart disabled;
+both providers and the source Supabase database remain intact as rollback
+targets through the rollback window.
+
+The final frozen database export had SHA-256
+`f7842195bbb2ab821475b3befff794b95b01e95ac5e1c2913e054a561f7fec5c`.
+The restore preserved 2 developer clients, 3 API keys, and 121 daily usage rows
+with no orphaned records. Cutover added one Railway-only Web API key, so the
+post-cutover key count is 4. The raw key exists only in Railway; the database
+stores its SHA-256 hash. Exact pre-cutover Cloudflare zone exports are retained
+in the operator recovery directory for DNS rollback.
+
+The production procedure is:
 
 1. Snapshot and count the source tables; verify the dump checksum.
 2. Stop the old Fly Gateway to freeze client/key/usage writes.
