@@ -70,6 +70,9 @@ function forwardedProto(req: Request): string {
 }
 
 function serverGatewayBaseUrl(req: Request): string {
+  const internal = process.env.LATR_GATEWAY_INTERNAL_URL?.trim();
+  if (internal) return internal.replace(/\/$/, "");
+
   const configured = process.env.NEXT_PUBLIC_LATR_GATEWAY_URL?.trim();
   if (configured) return configured.replace(/\/$/, "");
 
