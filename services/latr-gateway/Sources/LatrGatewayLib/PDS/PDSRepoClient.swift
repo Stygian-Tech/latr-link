@@ -3,19 +3,30 @@ import Foundation
 import LatrKit
 import NIOCore
 
-typealias PDSSessionRequestExecutor = @Sendable (
-    _ url: String,
-    _ authorization: String,
-    _ dpopProof: String
+enum PDSRequestMethod: Equatable, Sendable {
+    case get
+    case post
+}
+
+struct PDSRequestExecution: Sendable {
+    let method: PDSRequestMethod
+    let url: String
+    let authorization: String?
+    let dpopProof: String?
+    let body: Data?
+    let maxResponseBytes: Int
+}
+
+typealias PDSRequestExecutor = @Sendable (
+    _ request: PDSRequestExecution
 ) async throws -> (statusCode: Int, body: Data)
 
 public struct PDSRepositoryClient: RepositoryClient, Sendable {
     private let auth: AuthContext
     private let plcURL: String
-    private let httpClient: HTTPClient
     private let upstreamPool: UpstreamProofPool
     private let fetchData: @Sendable (URL) async throws -> Data
-    private let executeSessionRequest: PDSSessionRequestExecutor
+    private let executeRequest: PDSRequestExecutor
 
     public init(
         auth: AuthContext,
@@ -28,15 +39,28 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             plcURL: plcURL,
             httpClient: httpClient,
             fetchData: fetchData,
-            executeSessionRequest: { url, authorization, dpopProof in
-                var request = HTTPClientRequest(url: url)
-                request.method = .GET
+            executeRequest: { execution in
+                var request = HTTPClientRequest(url: execution.url)
+                switch execution.method {
+                case .get:
+                    request.method = .GET
+                case .post:
+                    request.method = .POST
+                }
                 request.headers.add(name: "Accept", value: "application/json")
-                request.headers.add(name: "Authorization", value: authorization)
-                request.headers.add(name: "DPoP", value: dpopProof)
+                if let authorization = execution.authorization {
+                    request.headers.add(name: "Authorization", value: authorization)
+                }
+                if let dpopProof = execution.dpopProof {
+                    request.headers.add(name: "DPoP", value: dpopProof)
+                }
+                if let body = execution.body {
+                    request.headers.add(name: "Content-Type", value: "application/json")
+                    request.body = .bytes(body)
+                }
 
                 let response = try await httpClient.execute(request, timeout: .seconds(30))
-                let responseBody = try await response.body.collect(upTo: 1_048_576)
+                let responseBody = try await response.body.collect(upTo: execution.maxResponseBytes)
                 return (Int(response.status.code), Data(buffer: responseBody))
             }
         )
@@ -47,13 +71,12 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         plcURL: String,
         httpClient: HTTPClient,
         fetchData: (@Sendable (URL) async throws -> Data)? = nil,
-        executeSessionRequest: @escaping PDSSessionRequestExecutor
+        executeRequest: @escaping PDSRequestExecutor
     ) {
         self.auth = auth
         self.plcURL = plcURL
-        self.httpClient = httpClient
         self.upstreamPool = UpstreamProofPool(rawHeader: auth.upstreamDpopProof)
-        self.executeSessionRequest = executeSessionRequest
+        self.executeRequest = executeRequest
         self.fetchData = fetchData ?? { url in
             var request = HTTPClientRequest(url: url.absoluteString)
             request.headers.add(name: "Accept", value: "application/json")
@@ -92,10 +115,15 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             )
         }
 
-        let response = try await executeSessionRequest(
-            consumed.url,
-            auth.authorizationHeader,
-            consumed.proof
+        let response = try await executeRequest(
+            PDSRequestExecution(
+                method: .get,
+                url: consumed.url,
+                authorization: auth.authorizationHeader,
+                dpopProof: consumed.proof,
+                body: nil,
+                maxResponseBytes: 1_048_576
+            )
         )
         let json = response.body.isEmpty
             ? [:]
@@ -159,6 +187,13 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             dpopProof = consumed.proof
             usedUpstreamProof = true
         } else {
+            guard auth.accessTokenSignatureVerified else {
+                throw GatewayError(
+                    status: .unauthorized,
+                    message: "Missing valid upstream DPoP proof for PDS \(method)",
+                    code: "missing_upstream_dpop"
+                )
+            }
             requestURL = "\(base)/xrpc/\(method)"
             dpopProof = auth.dpopProof
             usedUpstreamProof = false
@@ -169,28 +204,28 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         }
 
         let bodyData = try JSONSerialization.data(withJSONObject: body)
-        var request = HTTPClientRequest(url: requestURL)
-        request.method = .POST
-        request.headers.add(name: "Accept", value: "application/json")
-        request.headers.add(name: "Content-Type", value: "application/json")
-        request.headers.add(name: "Authorization", value: auth.authorizationHeader)
-        request.headers.add(name: "DPoP", value: dpopProof)
-        request.body = .bytes(bodyData)
-
-        let response = try await httpClient.execute(request, timeout: .seconds(30))
-        let responseBody = try await response.body.collect(upTo: 2_097_152)
-        let jsonObject = responseBody.readableBytes > 0
-            ? (try? JSONSerialization.jsonObject(with: Data(buffer: responseBody)) as? [String: Any]) ?? [:]
+        let response = try await executeRequest(
+            PDSRequestExecution(
+                method: .post,
+                url: requestURL,
+                authorization: auth.authorizationHeader,
+                dpopProof: dpopProof,
+                body: bodyData,
+                maxResponseBytes: 2_097_152
+            )
+        )
+        let jsonObject = !response.body.isEmpty
+            ? (try? JSONSerialization.jsonObject(with: response.body) as? [String: Any]) ?? [:]
             : [:]
 
-        guard (200 ... 299).contains(response.status.code) else {
-            switch response.status.code {
+        guard (200 ... 299).contains(response.statusCode) else {
+            switch response.statusCode {
             case 401:
                 throw GatewayError(
                     status: .unauthorized,
                     message: pdsFailureMessage(
                         method: method,
-                        statusCode: Int(response.status.code),
+                        statusCode: response.statusCode,
                         json: jsonObject,
                         usedUpstreamProof: usedUpstreamProof
                     ),
@@ -201,7 +236,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
                     status: .forbidden,
                     message: pdsFailureMessage(
                         method: method,
-                        statusCode: Int(response.status.code),
+                        statusCode: response.statusCode,
                         json: jsonObject,
                         usedUpstreamProof: usedUpstreamProof
                     ),
@@ -212,7 +247,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
                     status: .badGateway,
                     message: pdsFailureMessage(
                         method: method,
-                        statusCode: Int(response.status.code),
+                        statusCode: response.statusCode,
                         json: jsonObject,
                         usedUpstreamProof: usedUpstreamProof
                     ),
@@ -233,6 +268,13 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
                 xrpcBaseURL = consumed.url
                 dpopProof = consumed.proof
             } else {
+                guard auth.accessTokenSignatureVerified else {
+                    throw GatewayError(
+                        status: .unauthorized,
+                        message: "Missing valid upstream DPoP proof for PDS \(method)",
+                        code: "missing_upstream_dpop"
+                    )
+                }
                 xrpcBaseURL = "\(base)/xrpc/\(method)"
                 dpopProof = auth.dpopProof
             }
@@ -247,28 +289,29 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             throw GatewayError(status: .badGateway, message: "Invalid PDS URL", code: "pds_error")
         }
 
-        var request = HTTPClientRequest(url: url.absoluteString)
-        request.headers.add(name: "Accept", value: "application/json")
-        if useAuth, let dpopProof {
-            request.headers.add(name: "Authorization", value: auth.authorizationHeader)
-            request.headers.add(name: "DPoP", value: dpopProof)
-        }
+        let response = try await executeRequest(
+            PDSRequestExecution(
+                method: .get,
+                url: url.absoluteString,
+                authorization: useAuth ? auth.authorizationHeader : nil,
+                dpopProof: dpopProof,
+                body: nil,
+                maxResponseBytes: 2_097_152
+            )
+        )
+        if response.statusCode == 404 { return [:] }
 
-        let response = try await httpClient.execute(request, timeout: .seconds(30))
-        if response.status == .notFound { return [:] }
-
-        let responseBody = try await response.body.collect(upTo: 2_097_152)
-        let jsonObject = responseBody.readableBytes > 0
-            ? (try? JSONSerialization.jsonObject(with: Data(buffer: responseBody)) as? [String: Any]) ?? [:]
+        let jsonObject = !response.body.isEmpty
+            ? (try? JSONSerialization.jsonObject(with: response.body) as? [String: Any]) ?? [:]
             : [:]
 
-        guard (200 ... 299).contains(response.status.code) else {
+        guard (200 ... 299).contains(response.statusCode) else {
             if method == "com.atproto.repo.getRecord",
-               isRecordNotFound(statusCode: Int(response.status.code), json: jsonObject)
+               isRecordNotFound(statusCode: response.statusCode, json: jsonObject)
             {
                 return [:]
             }
-            switch response.status.code {
+            switch response.statusCode {
             case 401:
                 throw GatewayError(
                     status: .unauthorized,
@@ -284,7 +327,7 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             default:
                 throw GatewayError(
                     status: .badGateway,
-                    message: "PDS \(method) failed (\(response.status.code))",
+                    message: "PDS \(method) failed (\(response.statusCode))",
                     code: "pds_error"
                 )
             }

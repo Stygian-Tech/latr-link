@@ -192,6 +192,34 @@ final class AuthVerificationTests: XCTestCase {
         )
     }
 
+    func testOAuthVerifierAcceptsES256AccessTokens() async throws {
+        let signingKey = P256.Signing.PrivateKey()
+        let signingJWK = jwk(for: signingKey.publicKey)
+        let dpopKey = P256.Signing.PrivateKey()
+        let dpopJWK = jwk(for: dpopKey.publicKey)
+        let token = try signedAccessToken(signingKey: signingKey, dpopJWK: dpopJWK)
+        let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
+        let verifier = OAuthTokenVerifier(
+            httpClient: httpClient,
+            fetchData: { url in
+                if url.absoluteString == "https://auth.example/.well-known/oauth-authorization-server" {
+                    return Data(#"{"issuer":"https://auth.example","jwks_uri":"https://auth.example/jwks.json"}"#.utf8)
+                }
+                if url.absoluteString == "https://auth.example/jwks.json" {
+                    let jwks = #"{"keys":[{"kty":"EC","kid":"test-key","alg":"ES256","crv":"P-256","x":"\#(signingJWK.x)","y":"\#(signingJWK.y)"}]}"#
+                    return Data(jwks.utf8)
+                }
+                throw GatewayError(status: .unauthorized, message: "unexpected url", code: "test")
+            }
+        )
+
+        let verified = try await verifier.verify(accessToken: token, dpopJWK: dpopJWK)
+
+        XCTAssertEqual(verified.payload.sub, "did:plc:test")
+        XCTAssertTrue(verified.signatureVerified)
+        try await httpClient.shutdown()
+    }
+
     func testOAuthVerifierRejectsTamperedAccessTokenSignature() async throws {
         let key = P256.Signing.PrivateKey()
         let jwk = jwk(for: key.publicKey)
@@ -279,6 +307,74 @@ final class AuthVerificationTests: XCTestCase {
         try await httpClient.shutdown()
     }
 
+    func testOAuthVerifierAcceptsHS256AsPDSAuthorityTokenWhenIssuerJWKSIsEmpty() async throws {
+        let dpopKey = P256.Signing.PrivateKey()
+        let dpopJWK = jwk(for: dpopKey.publicKey)
+        let token = try syntheticAccessToken(
+            alg: "HS256",
+            dpopThumbprint: jwkThumbprint(dpopJWK)
+        )
+        let (verifier, httpClient) = oauthVerifier(jwks: #"{"keys":[]}"#)
+
+        let verified = try await verifier.verify(accessToken: token, dpopJWK: dpopJWK)
+
+        XCTAssertEqual(verified.payload.sub, "did:plc:test")
+        XCTAssertFalse(verified.signatureVerified)
+        try await httpClient.shutdown()
+    }
+
+    func testOAuthVerifierRejectsHS256WithoutDPoPConfirmation() async throws {
+        let dpopKey = P256.Signing.PrivateKey()
+        let dpopJWK = jwk(for: dpopKey.publicKey)
+        let token = try syntheticAccessToken(alg: "HS256", dpopThumbprint: nil)
+        let (verifier, httpClient) = oauthVerifier(jwks: #"{"keys":[]}"#)
+
+        do {
+            _ = try await verifier.verify(accessToken: token, dpopJWK: dpopJWK)
+            XCTFail("HS256 token without cnf.jkt should fail verification")
+        } catch let error as GatewayError {
+            XCTAssertEqual(error.code, "invalid_token")
+            XCTAssertEqual(error.message, "Token missing DPoP confirmation")
+        }
+        try await httpClient.shutdown()
+    }
+
+    func testOAuthVerifierRejectsHS256WithMismatchedDPoPConfirmation() async throws {
+        let dpopKey = P256.Signing.PrivateKey()
+        let dpopJWK = jwk(for: dpopKey.publicKey)
+        let token = try syntheticAccessToken(alg: "HS256", dpopThumbprint: "wrong-thumbprint")
+        let (verifier, httpClient) = oauthVerifier(jwks: #"{"keys":[]}"#)
+
+        do {
+            _ = try await verifier.verify(accessToken: token, dpopJWK: dpopJWK)
+            XCTFail("HS256 token with mismatched cnf.jkt should fail verification")
+        } catch let error as GatewayError {
+            XCTAssertEqual(error.code, "invalid_token")
+            XCTAssertEqual(error.message, "Token DPoP key mismatch")
+        }
+        try await httpClient.shutdown()
+    }
+
+    func testOAuthVerifierRejectsHS256WhenIssuerJWKSIsNotEmpty() async throws {
+        let dpopKey = P256.Signing.PrivateKey()
+        let dpopJWK = jwk(for: dpopKey.publicKey)
+        let token = try syntheticAccessToken(
+            alg: "HS256",
+            dpopThumbprint: jwkThumbprint(dpopJWK)
+        )
+        let jwks = #"{"keys":[{"kty":"EC","kid":"public-key","alg":"ES256","crv":"P-256"}]}"#
+        let (verifier, httpClient) = oauthVerifier(jwks: jwks)
+
+        do {
+            _ = try await verifier.verify(accessToken: token, dpopJWK: dpopJWK)
+            XCTFail("HS256 token should not bypass a populated JWKS")
+        } catch let error as GatewayError {
+            XCTAssertEqual(error.code, "invalid_token")
+            XCTAssertEqual(error.message, "Token signing key not found")
+        }
+        try await httpClient.shutdown()
+    }
+
     func testOAuthVerifierRejectsTamperedES256KAccessTokens() async throws {
         let signingKey = try P256K.Signing.PrivateKey(
             dataRepresentation: Data(hex: "5f6d5afecc677d66fb3d41eee7a8ad8195659ceff588edaf416a9a17daf38fdd"),
@@ -349,7 +445,6 @@ final class AuthVerificationTests: XCTestCase {
     func testOAuthVerifierReportsUnsupportedAccessTokenAlgorithms() async throws {
         let key = P256.Signing.PrivateKey()
         let jwk = jwk(for: key.publicKey)
-        let token = try unsupportedAccessToken(alg: "EdDSA", dpopJWK: jwk)
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let verifier = OAuthTokenVerifier(
             httpClient: httpClient,
@@ -364,11 +459,14 @@ final class AuthVerificationTests: XCTestCase {
             }
         )
 
-        do {
-            _ = try await verifier.verify(accessToken: token, dpopJWK: jwk)
-            XCTFail("unsupported token algorithm should fail verification")
-        } catch let error as GatewayError {
-            XCTAssertEqual(error.code, "unsupported_token_alg")
+        for algorithm in ["none", "EdDSA", "RS256"] {
+            let token = try unsupportedAccessToken(alg: algorithm, dpopJWK: jwk)
+            do {
+                _ = try await verifier.verify(accessToken: token, dpopJWK: jwk)
+                XCTFail("\(algorithm) token algorithm should fail verification")
+            } catch let error as GatewayError {
+                XCTAssertEqual(error.code, "unsupported_token_alg")
+            }
         }
         try await httpClient.shutdown()
     }
@@ -429,6 +527,41 @@ final class AuthVerificationTests: XCTestCase {
         let jkt = try jwkThumbprint(dpopJWK)
         let payload = #"{"sub":"did:plc:test","iss":"https://auth.example","exp":4102444800,"cnf":{"jkt":"\#(jkt)"}}"#
         return "\(base64URLEncode(Data(header.utf8))).\(base64URLEncode(Data(payload.utf8))).sig"
+    }
+
+    private func syntheticAccessToken(alg: String, dpopThumbprint: String?) throws -> String {
+        let header = try JSONSerialization.data(withJSONObject: [
+            "alg": alg,
+            "kid": "test-key",
+            "typ": "at+jwt",
+        ])
+        var payload: [String: Any] = [
+            "sub": "did:plc:test",
+            "iss": "https://auth.example",
+            "exp": 4_102_444_800,
+        ]
+        if let dpopThumbprint {
+            payload["cnf"] = ["jkt": dpopThumbprint]
+        }
+        let payloadData = try JSONSerialization.data(withJSONObject: payload)
+        return "\(base64URLEncode(header)).\(base64URLEncode(payloadData)).signature"
+    }
+
+    private func oauthVerifier(jwks: String) -> (OAuthTokenVerifier, HTTPClient) {
+        let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
+        let verifier = OAuthTokenVerifier(
+            httpClient: httpClient,
+            fetchData: { url in
+                if url.absoluteString == "https://auth.example/.well-known/oauth-authorization-server" {
+                    return Data(#"{"issuer":"https://auth.example","jwks_uri":"https://auth.example/jwks.json"}"#.utf8)
+                }
+                if url.absoluteString == "https://auth.example/jwks.json" {
+                    return Data(jwks.utf8)
+                }
+                throw GatewayError(status: .unauthorized, message: "unexpected url", code: "test")
+            }
+        )
+        return (verifier, httpClient)
     }
 
     private func signedDPoP(

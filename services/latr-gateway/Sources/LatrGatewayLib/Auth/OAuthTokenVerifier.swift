@@ -28,6 +28,11 @@ private struct OAuthJWK: Decodable {
     let e: String?
 }
 
+private enum OAuthTokenVerificationMode {
+    case publicKey(expectedKeyType: String)
+    case pdsAuthority
+}
+
 struct VerifiedOAuthToken: Sendable {
     let payload: JWTPayload
     let signatureVerified: Bool
@@ -60,7 +65,7 @@ public struct OAuthTokenVerifier: Sendable {
         if let metadataIssuer = metadata.issuer, metadataIssuer != issuer {
             throw GatewayError(status: .unauthorized, message: "Token issuer metadata mismatch", code: "invalid_token")
         }
-        guard let expectedKeyType = keyType(for: header.alg) else {
+        guard let verificationMode = verificationMode(for: header.alg) else {
             throw GatewayError(
                 status: .unauthorized,
                 message: "Unsupported token signing algorithm: \(header.alg)",
@@ -68,6 +73,22 @@ public struct OAuthTokenVerifier: Sendable {
             )
         }
         let jwks = try await fetchJWKSet(jwksURI: metadata.jwks_uri)
+
+        let expectedKeyType: String
+        switch verificationMode {
+        case .pdsAuthority:
+            guard jwks.keys.isEmpty else {
+                throw GatewayError(
+                    status: .unauthorized,
+                    message: "Token signing key not found",
+                    code: "invalid_token"
+                )
+            }
+            try verifyDPoPConfirmation(payload: payload, dpopJWK: dpopJWK)
+            return VerifiedOAuthToken(payload: payload, signatureVerified: false)
+        case let .publicKey(keyType):
+            expectedKeyType = keyType
+        }
         guard let key = jwks.keys.first(where: { jwk in
             guard jwk.kty == expectedKeyType else { return false }
             guard jwk.alg == nil || jwk.alg == header.alg else { return false }
@@ -175,9 +196,10 @@ public struct OAuthTokenVerifier: Sendable {
         }
     }
 
-    private func keyType(for alg: String) -> String? {
+    private func verificationMode(for alg: String) -> OAuthTokenVerificationMode? {
         switch alg {
-        case "ES256", "ES256K": "EC"
+        case "ES256", "ES256K": .publicKey(expectedKeyType: "EC")
+        case "HS256": .pdsAuthority
         default: nil
         }
     }

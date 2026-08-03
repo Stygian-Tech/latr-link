@@ -183,11 +183,13 @@ final class PDSSessionAttestationTests: XCTestCase {
                     ]],
                 ])
             },
-            executeSessionRequest: { url, authorization, dpopProof in
+            executeRequest: { request in
+                XCTAssertEqual(request.method, .get)
+                XCTAssertNil(request.body)
                 await recorder.execute(
-                    url: url,
-                    authorization: authorization,
-                    dpopProof: dpopProof
+                    url: request.url,
+                    authorization: request.authorization ?? "",
+                    dpopProof: request.dpopProof ?? ""
                 )
             }
         )
