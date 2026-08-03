@@ -60,7 +60,9 @@ All `/v1/latr/*` save/list routes also require:
 
 - `Authorization: DPoP <access-token-jwt>` (or `Bearer`)
 - `DPoP: <dpop-proof-jwt>` bound to the gateway request
-- Optional `X-ATProto-Upstream-DPoP: <dpop-proof-jwt>` — PDS-bound proof for write-through
+- Optional `X-ATProto-Upstream-DPoP: <dpop-proof-jwt[, ...]>` — one PDS-bound proof per write-through call
+
+`POST /v1/latr/migrate-lexicons` needs a larger proof pool for its copy/delete pass. Current clients send that pool as JSON (`{ "upstreamDpopProof": "<jwt,...>" }`) to stay below reverse-proxy header limits. The gateway still accepts the header form for older clients.
 
 ### Auth probe
 
