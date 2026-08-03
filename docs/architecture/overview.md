@@ -3,6 +3,7 @@
 ## Components
 
 - **Web (`apps/web`)** — Next.js App Router, ATProto OAuth in the browser, thin client to the L@tr gateway for save/list/state workflows.
+- **LatrKit Developer Console (`apps/latrkit-dev`)** — Next.js portal for developer clients, API keys, and usage.
 - **Gateway (`services/latr-gateway`)** — Swift/Hummingbird HTTP service: OAuth/DPoP gate, PDS write-through, server-side Open Graph fetch, Standard.site AT URI discovery.
 - **`Stygian-Tech/latr-kit`** (GitHub) — Swift **`LatrKit`** library (`SavedLibrary`, `RepositoryClient`, `URLNormalizer`, …). SwiftPM git dependency from `services/latr-gateway`.
 - **`Stygian-Tech/latr-packages`** (GitHub) — TS contracts (`gateway-client`, `record-keys`, lexicons). Root git dependency; not duplicated under `packages/`.
@@ -11,10 +12,12 @@
 ```mermaid
 flowchart LR
   Browser[L@tr_web]
+  Console[LatrKit_console]
   Gateway[L@tr_gateway]
   PDS[User_PDS]
   AppView[Bluesky_AppView]
   Browser -->|"OAuth_DPoP"| Gateway
+  Console -->|"OAuth_DPoP"| Gateway
   Gateway -->|"com.atproto.repo.*"| PDS
   Browser -->|"public_reads"| AppView
   Browser -->|"read_only_getRecord"| PDS
@@ -49,3 +52,5 @@ Repository writes use action-limited `repo:` scopes aligned across the shared we
 Public repository reads require no additional permission. L@tr.link does not request profile, post, blob, message, email, or account-management access. Users must re-auth after scope changes.
 
 See [latr-gateway.md](./latr-gateway.md) for route contracts, deployment, and auth constraints.
+Railway topology, migrations, and cutover safeguards are documented in
+[../deployment/railway.md](../deployment/railway.md).

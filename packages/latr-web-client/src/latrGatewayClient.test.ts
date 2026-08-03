@@ -104,11 +104,14 @@ describe("latrGatewayFetch upstream proofs", () => {
 
   test("POST /v1/latr/migrate-lexicons sends migration upstream proofs", async () => {
     let upstreamHeader = "";
+    let contentType = "";
+    let requestBody = "";
 
     globalThis.fetch = (async (_url, init) => {
-      upstreamHeader = String(
-        new Headers(init?.headers).get(LATR_UPSTREAM_DPOP_HEADER) ?? ""
-      );
+      const headers = new Headers(init?.headers);
+      upstreamHeader = String(headers.get(LATR_UPSTREAM_DPOP_HEADER) ?? "");
+      contentType = String(headers.get("Content-Type") ?? "");
+      requestBody = String(init?.body ?? "");
       return new Response(
         JSON.stringify({
           ok: true,
@@ -135,7 +138,10 @@ describe("latrGatewayFetch upstream proofs", () => {
       method: "POST",
     });
 
-    expect(upstreamHeader.split(",")).toHaveLength(32);
+    expect(upstreamHeader).toBe("");
+    expect(contentType).toBe("application/json");
+    const body = JSON.parse(requestBody) as { upstreamDpopProof: string };
+    expect(body.upstreamDpopProof.split(",")).toHaveLength(32);
   });
 
   test("POST /v1/latr/saves sends save upstream proofs", async () => {

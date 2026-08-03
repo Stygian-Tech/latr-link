@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import Script from "next/script";
-import { Analytics } from "@vercel/analytics/react";
 
 import { EnvironmentBanner } from "@/components/shared/EnvironmentBanner";
 import {
@@ -60,7 +59,7 @@ export const metadata: Metadata = {
   },
 };
 
-/** Runtime env for gateway credentials (Vercel sensitive vars are not available at static build). */
+/** Runtime env for gateway credentials; hosted sensitive vars are not available at static build. */
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({
@@ -94,7 +93,6 @@ export default function RootLayout({
           <EnvironmentBanner appEnv={appEnv} />
           {children}
         </Providers>
-        <Analytics />
       </body>
     </html>
   );

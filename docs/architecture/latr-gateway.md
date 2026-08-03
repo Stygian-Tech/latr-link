@@ -10,7 +10,8 @@ Server-side L@tr API (Swift/Hummingbird). Clients authenticate in two layers:
 | Environment | URL |
 |-------------|-----|
 | Local | `http://127.0.0.1:8080` (`NEXT_PUBLIC_LATR_GATEWAY_URL`) |
-| Fly dev | `https://latr-link-dev-gateway.fly.dev` (after deploy) |
+| Development | `https://api.testing.latr.link` |
+| Production | `https://api.latr.link` |
 
 ## Auth
 
@@ -59,7 +60,9 @@ All `/v1/latr/*` save/list routes also require:
 
 - `Authorization: DPoP <access-token-jwt>` (or `Bearer`)
 - `DPoP: <dpop-proof-jwt>` bound to the gateway request
-- Optional `X-ATProto-Upstream-DPoP: <dpop-proof-jwt>` — PDS-bound proof for write-through
+- Optional `X-ATProto-Upstream-DPoP: <dpop-proof-jwt[, ...]>` — one PDS-bound proof per write-through call
+
+`POST /v1/latr/migrate-lexicons` needs a larger proof pool for its copy/delete pass. Current clients send that pool as JSON (`{ "upstreamDpopProof": "<jwt,...>" }`) to stay below reverse-proxy header limits. The gateway still accepts the header form for older clients.
 
 ### Auth probe
 
@@ -124,11 +127,15 @@ Full template: [`services/latr-gateway/.env.example`](../../services/latr-gatewa
 | `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` | No | `true` when `APP_ENV=prod` | Require registered gateway client id + API key from the developer store |
 | `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` | No | `true` when `APP_ENV=prod` | Require app credential headers |
 | `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS` | No | _(empty)_ | Internal legacy `client-id=base64` pairs |
-| `DATABASE_URL` | Yes on Fly | _(empty)_ | Supabase Postgres for developer clients, API keys, and usage (`migrations/001_developer_console.sql`) |
+| `DATABASE_URL` | Yes on Railway | _(empty)_ | Private Railway Postgres URL for developer clients, API keys, and usage |
 | `LATR_GATEWAY_DEVELOPER_STORE_PATH` | No | `./data/developer-store.json` | JSON fallback when `DATABASE_URL` is unset (local dev) |
 | `LATR_GATEWAY_CLIENT_REGISTRY_PATH` | No | `./data/client-registry.json` | Legacy JSON registry (deprecated) |
 
 **L@tr web** — `LATR_GATEWAY_CLIENT_CREDENTIAL` or split `LATR_GATEWAY_CLIENT_ID` + `LATR_GATEWAY_API_KEY` are server-only secrets. Browser calls go to the same-origin Next.js proxy at `/api/latr-gateway/*`; the proxy forwards OAuth/DPoP headers and injects gateway client credentials server-side.
+
+On Railway, set `LATR_GATEWAY_INTERNAL_URL=http://${{Gateway.RAILWAY_PRIVATE_DOMAIN}}:8080`
+on Web. This changes only the server-to-server hop; browser-visible OAuth/DPoP
+identities continue to use the public custom domains.
 
 **The Social Wire** — `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_ID` + `NEXT_PUBLIC_LATR_GATEWAY_API_KEY` (preferred) or legacy `NEXT_PUBLIC_LATR_GATEWAY_CLIENT_CREDENTIAL`.
 
@@ -138,26 +145,22 @@ Full template: [`services/latr-gateway/.env.example`](../../services/latr-gatewa
 # Terminal 1 — gateway
 cd services/latr-gateway && swift run LatrGateway
 
-# Terminal 2 — latrkit.dev console (sibling repo)
-cd ../latrkit-dev && bun run dev
+# Terminal 2 — latrkit.dev console
+cd apps/latrkit-dev && bun run dev
 
 # Terminal 3 — L@tr.link web
 cd apps/web && bun run dev
 ```
 
-Apply Supabase schema when using `DATABASE_URL`:
+Apply the provider-neutral migration history when using `DATABASE_URL`:
 
 ```bash
-psql "$DATABASE_URL" -f services/latr-gateway/migrations/001_developer_console.sql
+bash scripts/apply-database-migrations.sh
 ```
 
-## Fly deployment (dev)
+## Railway deployment
 
-Set `DATABASE_URL` as a Fly secret (Supabase Postgres). CI applies `migrations/001_developer_console.sql` before each gateway deploy when gateway paths change on `dev`/`main` (GitHub secrets `GATEWAY_DATABASE_URL_DEV` / `GATEWAY_DATABASE_URL_PROD`, or `DATABASE_URL` fallback).
-
-```bash
-fly secrets set DATABASE_URL='postgresql://...' -a latr-link-dev-gateway
-bash services/latr-gateway/deploy.sh dev
-```
-
-Also set `DATABASE_URL` and `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` via Fly secrets as needed. Register third-party apps in the developer console (`DATABASE_URL`); no static OAuth client allowlist is required.
+Railway builds Gateway from `/railway/gateway.json`. Its pre-deploy command
+applies migrations through the private `DATABASE_URL` reference before starting
+the new release. GitHub Actions runs tests only and never mutates hosted data.
+See [the Railway runbook](../deployment/railway.md).

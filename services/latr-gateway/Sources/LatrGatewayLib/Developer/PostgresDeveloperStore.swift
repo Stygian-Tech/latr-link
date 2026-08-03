@@ -3,7 +3,7 @@ import HTTPTypes
 import Logging
 import PostgresNIO
 
-/// Postgres-backed developer store (Supabase). Apply `migrations/001_developer_console.sql` before use.
+/// Postgres-backed developer store. Apply the checked-in migration history before use.
 public actor PostgresDeveloperStore: DeveloperStore {
     private let pool: PostgresClient
     private let officialEnvCredentials: [String: String]

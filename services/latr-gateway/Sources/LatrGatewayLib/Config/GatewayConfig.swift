@@ -13,7 +13,7 @@ public struct GatewayConfig: Sendable {
     public let oauthPublicOrigin: String?
     /// SPA origin for LatrKit console redirect_uris on `/oauth/latrkit-client-metadata.json`.
     public let oauthLatrkitPublicOrigin: String?
-    /// Supabase/Postgres connection string (apply migrations separately).
+    /// Postgres connection string (apply migrations before starting the service).
     public let databaseURL: String?
     /// JSON persistence path for developer clients, keys, and usage counters.
     public let developerStoreURL: URL

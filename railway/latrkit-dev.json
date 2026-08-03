@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "bun run turbo run build --filter=latrkit-dev...",
+    "watchPatterns": [
+      "/apps/latrkit-dev/**",
+      "/package.json",
+      "/bun.lockb",
+      "/turbo.json",
+      "/railway/latrkit-dev.json"
+    ]
+  },
+  "deploy": {
+    "startCommand": "bun --cwd apps/latrkit-dev start",
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 300,
+    "restartPolicyType": "ALWAYS"
+  }
+}

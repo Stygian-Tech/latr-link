@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+html {
+  --env-banner-offset: 0px;
+}
+
+body {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    "Liberation Mono",
+    monospace;
+}
