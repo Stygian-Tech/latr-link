@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
@@ -18,26 +18,33 @@ import {
   setSavedRowState,
 } from "@/lib/demoLibrary";
 import { isLatrDemoDataEnabled } from "@/lib/demoMode";
+import {
+  flattenSavedLibraryPages,
+  patchSavedLibraryPages,
+  type SavedLibraryData,
+  type SavedLibraryPage,
+} from "@/lib/savedLibraryPages";
 import type { SavedRow } from "@/lib/savedLibraryTypes";
 
 export type { SavedRow } from "@/lib/savedLibraryTypes";
 
-async function buildLibrary(
-  repo: LatrRepo
-): Promise<SavedRow[]> {
-  const items = await repo.listSavedItems();
+export const SAVED_LIBRARY_PAGE_SIZE = 50;
+
+export async function buildLibraryPage(
+  repo: LatrRepo,
+  cursor: string | null
+): Promise<SavedLibraryPage> {
+  const page = await repo.listSavedItemsPage({
+    limit: SAVED_LIBRARY_PAGE_SIZE,
+    cursor: cursor ?? undefined,
+  });
   const rows: SavedRow[] = await Promise.all(
-    items.map(async (rec) => ({
+    page.records.map(async (rec) => ({
       rec,
       preview: await resolveSubjectPreviewForRow(repo, rec),
     }))
   );
-  rows.sort(
-    (a, b) =>
-      new Date(b.rec.value.savedAt).getTime() -
-      new Date(a.rec.value.savedAt).getTime()
-  );
-  return rows;
+  return { rows, cursor: page.cursor };
 }
 
 export function useSavedLibrary() {
@@ -45,12 +52,32 @@ export function useSavedLibrary() {
   const { session } = useAuth();
   const demoMode = isLatrDemoDataEnabled();
 
-  return useQuery({
-    queryKey: ["saved-library", session?.did],
-    queryFn: () => (demoMode ? createDemoSavedRows() : buildLibrary(repo!)),
+  const query = useInfiniteQuery({
+    queryKey: savedLibraryQueryKey(session?.did),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }): Promise<SavedLibraryPage> =>
+      demoMode
+        ? Promise.resolve({ rows: createDemoSavedRows(), cursor: null })
+        : buildLibraryPage(repo!, pageParam),
+    getNextPageParam: (lastPage) => lastPage.cursor ?? undefined,
     enabled: !!session && (demoMode || !!repo),
     refetchOnWindowFocus: "always",
   });
+
+  const data = useMemo(
+    () => flattenSavedLibraryPages(query.data),
+    [query.data]
+  );
+
+  return {
+    data,
+    isLoading: query.isLoading,
+    error: query.error,
+    hasNextPage: query.hasNextPage,
+    fetchNextPage: query.fetchNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
+    isFetchNextPageError: query.isFetchNextPageError,
+  };
 }
 
 export function useInvalidateSavedLibrary() {
@@ -58,7 +85,7 @@ export function useInvalidateSavedLibrary() {
   const { session } = useAuth();
   return () => {
     void queryClient.invalidateQueries({
-      queryKey: ["saved-library", session?.did],
+      queryKey: savedLibraryQueryKey(session?.did),
     });
   };
 }
@@ -76,10 +103,9 @@ export function useSavedLibraryMutations() {
 
   const patchRows = useCallback(
     (updater: (rows: SavedRow[]) => SavedRow[]) => {
-      queryClient.setQueryData<SavedRow[]>(queryKey, (rows) => {
-        if (!rows) return rows;
-        return updater(rows);
-      });
+      queryClient.setQueryData<SavedLibraryData>(queryKey, (data) =>
+        patchSavedLibraryPages(data, updater)
+      );
     },
     [queryClient, queryKey]
   );
@@ -88,7 +114,7 @@ export function useSavedLibraryMutations() {
     async (itemRkey: string, state: SavedItemState) => {
       if (!repo && !demoMode) throw new Error("Sign In to Update Saved Items");
 
-      const previous = queryClient.getQueryData<SavedRow[]>(queryKey);
+      const previous = queryClient.getQueryData<SavedLibraryData>(queryKey);
       patchRows((rows) =>
         setSavedRowState(
           rows,
@@ -117,7 +143,7 @@ export function useSavedLibraryMutations() {
     async (itemRkey: string) => {
       if (!repo && !demoMode) throw new Error("Sign In to Remove Saved Items");
 
-      const previous = queryClient.getQueryData<SavedRow[]>(queryKey);
+      const previous = queryClient.getQueryData<SavedLibraryData>(queryKey);
       patchRows((rows) => removeSavedRow(rows, itemRkey));
 
       if (demoMode) return;
@@ -125,7 +151,9 @@ export function useSavedLibraryMutations() {
 
       try {
         await repo.unsave(itemRkey);
-        const removed = previous?.find((row) => rkeyFromAtUri(row.rec.uri) === itemRkey);
+        const removed = flattenSavedLibraryPages(previous)?.find(
+          (row) => rkeyFromAtUri(row.rec.uri) === itemRkey
+        );
         if (removed) {
           removeCachedSubjectPreview(removed.rec.value.subjectUri);
         }

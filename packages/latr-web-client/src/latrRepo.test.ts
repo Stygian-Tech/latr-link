@@ -152,6 +152,113 @@ describe("LatrRepo Gateway Facade", () => {
     ).toBe(true);
   });
 
+  test("listSavedItemsPage sends limit and returns cursor", async () => {
+    markLexiconMigrationComplete("did:plc:viewer");
+    const calls: string[] = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      return new Response(
+        JSON.stringify({ records: [], cursor: "next-cursor" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => {
+      return new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      });
+    });
+
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+    const page = await repo.listSavedItemsPage({ limit: 50 });
+
+    expect(page.cursor).toBe("next-cursor");
+    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    expect(saves).toContain("?limit=50");
+    expect(saves).not.toContain("cursor=");
+  });
+
+  test("listSavedItemsPage propagates URL-encoded cursor and terminates on absence", async () => {
+    markLexiconMigrationComplete("did:plc:viewer");
+    const calls: string[] = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      return new Response(JSON.stringify({ records: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => {
+      return new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      });
+    });
+
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+    const page = await repo.listSavedItemsPage({
+      limit: 25,
+      cursor: "3jz/f+cij=",
+    });
+
+    expect(page.cursor).toBeNull();
+    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    expect(saves).toContain("limit=25");
+    expect(saves).toContain(`cursor=${encodeURIComponent("3jz/f+cij=")}`);
+  });
+
+  test("listSavedItems still requests the bare saves path", async () => {
+    markLexiconMigrationComplete("did:plc:viewer");
+    const calls: string[] = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      return new Response(JSON.stringify({ records: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => {
+      return new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      });
+    });
+
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+    await repo.listSavedItems();
+
+    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    expect(saves).toBeDefined();
+    expect(saves).not.toContain("?");
+  });
+
+  test("paged saves GET mints one upstream proof; bare GET keeps the pool", async () => {
+    markLexiconMigrationComplete("did:plc:viewer");
+    const proofHeaders: string[] = [];
+    globalThis.fetch = (async (_url, init) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      proofHeaders.push(headers["X-ATProto-Upstream-DPoP"] ?? "");
+      return new Response(JSON.stringify({ records: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => {
+      return new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      });
+    });
+
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+    await repo.listSavedItemsPage({ limit: 50 });
+    await repo.listSavedItems();
+
+    const [paged, bare] = proofHeaders;
+    expect(paged.split(",")).toHaveLength(1);
+    expect(bare.split(",")).toHaveLength(8);
+  });
+
   test("saveExternalUrl POSTs URL Body", async () => {
     let body = "";
     globalThis.fetch = (async (_url, init) => {
