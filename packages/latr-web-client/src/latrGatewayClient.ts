@@ -223,9 +223,21 @@ export async function latrGatewayFetch(
       ),
     });
     upstreamHeaders["Content-Type"] = "application/json";
-  } else if (method === "GET" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
-    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
-      await createListSavesUpstreamDpopProofPool(oauthSession, proofOptions);
+  } else if (method === "GET" && gatewayPathOnly === LATR_GATEWAY_SAVES_PATH) {
+    // Paged requests (`?limit=`) trigger a single upstream listRecords call;
+    // the bare path drains every page and needs the full proof pool.
+    const queryIndex = gatewayPath.indexOf("?");
+    const search = new URLSearchParams(
+      queryIndex === -1 ? "" : gatewayPath.slice(queryIndex + 1)
+    );
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = search.has("limit")
+      ? await createUpstreamDpopProof(
+          oauthSession,
+          "com.atproto.repo.listRecords",
+          "GET",
+          proofOptions
+        )
+      : await createListSavesUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (upstream) {
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
       oauthSession,

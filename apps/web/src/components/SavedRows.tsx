@@ -1,6 +1,13 @@
 "use client";
 
-import { type CSSProperties, type MouseEvent, type ReactElement, useState } from "react";
+import {
+  type CSSProperties,
+  type MouseEvent,
+  type ReactElement,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   Archive,
@@ -157,6 +164,46 @@ function LoadingRows() {
   );
 }
 
+function LoadingMoreRow() {
+  return (
+    <div className="mt-2 flex gap-3 rounded-lg border border-border bg-card p-2.5">
+      <Skeleton className="aspect-[1.08] w-24 shrink-0" />
+      <div className="flex flex-1 flex-col gap-2 py-1">
+        <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Fires `onLoadMore` when scrolled near the viewport (600px margin covers the
+ * inner scroll container — intersection accounts for ancestor clipping). Only
+ * mounted while another page exists and no fetch is in flight, so a short page
+ * that leaves it on-screen re-fires on remount without a new scroll event.
+ */
+function LoadMoreSentinel({ onLoadMore }: { onLoadMore: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (visible) onLoadMore();
+  }, [visible, onLoadMore]);
+
+  return <div ref={ref} aria-hidden className="h-px" />;
+}
+
 export function SavedRows({
   mode,
   filter = "all",
@@ -166,7 +213,15 @@ export function SavedRows({
   filter?: SavedRowsFilter;
   sort?: SavedRowsSort;
 }) {
-  const { data, isLoading, error } = useSavedLibrary();
+  const {
+    data,
+    isLoading,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+  } = useSavedLibrary();
   const mutations = useSavedLibraryMutations();
   const openEmbeddedReader = useOpenEmbeddedReader();
 
@@ -184,6 +239,10 @@ export function SavedRows({
         {error instanceof Error ? error.message : "Failed to Load"}
       </div>
     );
+  } else if (!rows.length && (hasNextPage || isFetchingNextPage)) {
+    // Later pages may still hold rows for this view (e.g. archived items) —
+    // keep the skeleton up and let the footer sentinel continue fetching.
+    main = <LoadingRows />;
   } else if (!rows.length) {
     main = (
       <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center">
@@ -225,7 +284,45 @@ export function SavedRows({
     );
   }
 
-  return main;
+  let footer: ReactElement | null = null;
+  if (!isLoading && !error) {
+    if (isFetchingNextPage) {
+      footer = rows.length ? <LoadingMoreRow /> : null;
+    } else if (isFetchNextPageError) {
+      footer = (
+        <div className="mt-2 flex items-center justify-between rounded-lg border border-destructive/25 bg-card p-3 text-sm text-destructive">
+          <span>Couldn’t Load More.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchNextPage()}
+          >
+            Retry
+          </Button>
+        </div>
+      );
+    } else if (hasNextPage) {
+      footer = (
+        <div className="mt-2 flex justify-center py-1">
+          <LoadMoreSentinel onLoadMore={fetchNextPage} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void fetchNextPage()}
+          >
+            Load More
+          </Button>
+        </div>
+      );
+    }
+  }
+
+  return (
+    <>
+      {main}
+      {footer}
+    </>
+  );
 }
 
 function activateSavedHref(

@@ -47,6 +47,17 @@ public func buildRouter(services: GatewayServices) -> Router<BasicRequestContext
     latr.get("saves") { request, _ in
         await handleProtected(request: request, services: services) { auth in
             let library = services.savedLibrary(for: auth)
+            let params = try SavesPageParams.parse(
+                limit: request.uri.queryParameters.get("limit"),
+                cursor: request.uri.queryParameters.get("cursor")
+            )
+            if let params {
+                let page = try await library.savedItems(
+                    limit: params.limit,
+                    startingAfter: params.cursor
+                )
+                return try jsonResponse(SavedItemsResponse(records: page.records, cursor: page.cursor))
+            }
             let items = try await library.savedItems()
             return try jsonResponse(SavedItemsResponse(records: items))
         }

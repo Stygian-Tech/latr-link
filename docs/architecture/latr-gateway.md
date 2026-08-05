@@ -74,7 +74,7 @@ All `/v1/latr/*` save/list routes also require:
 |--------|------|-------------|
 | GET | `/health` | Public health check |
 | POST | `/v1/latr/auth/probe` | Authenticated PDS connectivity check |
-| GET | `/v1/latr/saves` | List `link.latr.saved.item` records (auto-migrates legacy `com.latr.*` first) |
+| GET | `/v1/latr/saves` | List `link.latr.saved.item` records (auto-migrates legacy `com.latr.*` first). Optional `?limit=` (1–100, clamped) + `?cursor=` return one page as `{ records, cursor }`; `cursor` is omitted on the last page. Without `limit`, returns the full collection as `{ records }` (legacy) |
 | POST | `/v1/latr/migrate-lexicons` | Explicit one-time migration from `com.latr.saved.*` to `link.latr.saved.*` |
 | POST | `/v1/latr/saves` | Save URL or subject |
 | GET | `/v1/latr/saves/subject?subjectUri=` | Lookup saved item by subject |

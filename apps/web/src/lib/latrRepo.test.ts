@@ -140,6 +140,45 @@ describe("Latrrepo Gateway Facade", () => {
     });
   });
 
+  test("listSavedItemsPage sends limit and cursor and preserves returned cursor", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      if (String(url).includes("/v1/latr/migrate-lexicons")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            externalCopied: 0,
+            itemsCopied: 0,
+            externalDeleted: 0,
+            itemsDeleted: 0,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ records: [], cursor: "page-2" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => {
+      return new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      });
+    });
+
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+    const page = await repo.listSavedItemsPage({ limit: 50, cursor: "page-1" });
+
+    expect(page.cursor).toBe("page-2");
+    const saves = calls.find(
+      (call) => call.startsWith("GET") && call.includes("/v1/latr/saves")
+    );
+    expect(saves).toContain("limit=50");
+    expect(saves).toContain("cursor=page-1");
+  });
+
   test("setItemState PATCHes State Route", async () => {
     let path = "";
     globalThis.fetch = (async (url) => {
