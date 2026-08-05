@@ -70,25 +70,38 @@ For each environment:
 4. Compare all three source/destination row counts.
 5. Confirm every `developer_api_keys.client_id` resolves to a
    `developer_clients.client_id` and verify the migration ledger.
-6. Retain the source database and provider deployment as rollback until the
-   environment has passed OAuth, key issuance, save/list/archive/delete, and
-   restart-persistence checks.
+6. Retain the source export until the environment has passed OAuth, key
+   issuance, save/list/archive/delete, and restart-persistence checks.
 
 ## DNS sequence
 
 Register Railway custom domains first. Add Railway's `_railway-verify` TXT
 records while the existing CNAME/A records still serve the old provider. Wait
-for ownership and TLS to become active, then update only the traffic records.
+for ownership verification, then update only the traffic records. Railway may
+not begin certificate issuance until its CNAME is serving; monitor HTTPS during
+that short window and restore the captured records if issuance fails.
 For nested `api.testing.latr.link`, use DNS-only mode unless the Cloudflare zone
 has certificate coverage for nested subdomains.
 
-## Production cutover (requires explicit approval)
+## Production cutover and legacy-provider decommissioning
 
-Production stays on the frozen Fly/Vercel deployments until Development passes
-the full test plan. The legacy Vercel projects are disconnected from GitHub, so
-pushes deploy only to Railway; they remain available solely as rollback targets
-until the approved production cutover and rollback window are complete.
-At the approved window:
+Production moved to Railway on August 3, 2026 after Development passed the full
+test plan. `latr.link`, `api.latr.link`, and `latrkit.dev` now route to the
+Railway `production` environment from `main`. The legacy Vercel projects are
+deleted, both Fly Gateway apps are destroyed, and the Development and Production
+Supabase projects are deleted. Cloudflare remains authoritative for DNS and all
+application traffic terminates at Railway.
+
+The final frozen database export had SHA-256
+`f7842195bbb2ab821475b3befff794b95b01e95ac5e1c2913e054a561f7fec5c`.
+The restore preserved 2 developer clients, 3 API keys, and 121 daily usage rows
+with no orphaned records. Cutover added one Railway-only Web API key, so the
+post-cutover key count is 4. The raw key exists only in Railway; the database
+stores its SHA-256 hash. Exact pre-cutover Cloudflare zone exports and database
+exports remain in the operator recovery directory for audit and disaster
+recovery; the deleted providers are no longer rollback targets.
+
+The production procedure is:
 
 1. Snapshot and count the source tables; verify the dump checksum.
 2. Stop the old Fly Gateway to freeze client/key/usage writes.
@@ -101,6 +114,6 @@ At the approved window:
    after Railway ownership/TLS is active.
 7. Verify health, OAuth metadata, sign-in, list/save/archive/delete, API-key
    creation, and database persistence across a Gateway restart.
-8. Keep Fly, Vercel, the source database, and the final dump intact through the
-   rollback window. Roll back by restoring the old DNS records and restarting
-   Fly; do not delete source data during cutover.
+8. After explicit owner approval, verified backups, and successful production
+   validation, delete the Vercel projects/domain registrations, Fly apps, and
+   Supabase projects. Keep the exports even after provider teardown.

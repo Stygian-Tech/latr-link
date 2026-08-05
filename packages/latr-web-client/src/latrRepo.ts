@@ -25,6 +25,11 @@ export type OpenGraphPreviewFields = {
   author?: string;
 };
 
+export type SavedItemsPage = {
+  records: RepoRecord<SavedItemRecord>[];
+  cursor: string | null;
+};
+
 export type SaveUrlResponse = {
   ok: true;
   kind: "subject" | "url";
@@ -49,6 +54,26 @@ export class LatrRepo {
       LatrGatewaySavedItemsResponse<SavedItemRecord>
     >(this.oauthSession, LATR_GATEWAY_SAVES_PATH, { method: "GET" });
     return response.records ?? [];
+  }
+
+  /**
+   * Fetches one bounded page of saved items. Callers must keep paging while
+   * `cursor` is non-null; the gateway may return a short page that still has
+   * more pages remaining.
+   */
+  async listSavedItemsPage(options: {
+    limit: number;
+    cursor?: string;
+  }): Promise<SavedItemsPage> {
+    await this.migrateLegacyLexiconsIfNeeded();
+    const params = new URLSearchParams({ limit: String(options.limit) });
+    if (options.cursor) params.set("cursor", options.cursor);
+    const response = await latrGatewayJson<
+      LatrGatewaySavedItemsResponse<SavedItemRecord> & { cursor?: string | null }
+    >(this.oauthSession, `${LATR_GATEWAY_SAVES_PATH}?${params.toString()}`, {
+      method: "GET",
+    });
+    return { records: response.records ?? [], cursor: response.cursor ?? null };
   }
 
   /** One-time legacy `com.latr.*` → `link.latr.*` migration (retries until complete). */

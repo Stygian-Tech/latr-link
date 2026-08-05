@@ -12,7 +12,10 @@ import { createDemoSavedRowFromPaste } from "@/lib/demoLibrary";
 import { isLatrDemoDataEnabled } from "@/lib/demoMode";
 import { showSaveOutcomeDebugLabels } from "@/lib/environmentBanner";
 import { resolvePasteForSave } from "@/lib/resolveSaveInput";
-import type { SavedRow } from "@/lib/savedLibraryTypes";
+import {
+  prependSavedRow,
+  type SavedLibraryData,
+} from "@/lib/savedLibraryPages";
 
 /** Mirrors “AT record” dev chip tint in SavedRows.tsx */
 const savePathDebugChip =
@@ -50,9 +53,9 @@ export function SaveUrlBar() {
     try {
       if (demoMode) {
         const row = createDemoSavedRowFromPaste(paste);
-        queryClient.setQueryData<SavedRow[]>(
+        queryClient.setQueryData<SavedLibraryData>(
           ["saved-library", session?.did],
-          (rows) => [row, ...(rows ?? [])]
+          (data) => prependSavedRow(data, row)
         );
         setFeedback({ mode: "plain", text: "Saved to local demo data." });
         setPaste("");

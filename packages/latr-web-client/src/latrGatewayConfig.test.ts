@@ -57,7 +57,7 @@ describe("Latr Gateway Base URL", () => {
   test("Never uses Loopback Gateway on Non-loopback Hostnames", () => {
     configureLatrGateway({
       appEnv: "local",
-      testingHostname: "my-preview.vercel.app",
+      testingHostname: "my-preview.up.railway.app",
     });
     expect(latrGatewayBaseUrl()).toBe(DEFAULT_DEV_LATR_GATEWAY_URL);
   });

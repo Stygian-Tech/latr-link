@@ -11,7 +11,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { syncLatrGatewayFromBrowser } from "@/lib/latrGatewayUrl";
 
-const QUERY_PERSIST_KEY = "latr.link.react-query.v1";
+const QUERY_PERSIST_KEY = "latr.link.react-query.v2";
 const QUERY_PERSIST_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 
 function shouldDehydrateQuery(query: Query): boolean {
