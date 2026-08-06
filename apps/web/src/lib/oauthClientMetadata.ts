@@ -1,4 +1,5 @@
 import { AT_PROTO_OAUTH_SCOPES } from "@/lib/atprotoOAuthScopes";
+import { BRAND_ICON_PATH } from "@/lib/brandIcon";
 import { inferGatewayApiBase } from "@/lib/latrGatewayUrl";
 
 const PROD_CLIENT_METADATA_URL = "https://latr.link/client-metadata.json";
@@ -53,6 +54,6 @@ export function buildWebOAuthClientMetadata(origin: string) {
     dpop_bound_access_tokens: true,
     client_name: "L@tr.link",
     client_uri: base,
-    logo_uri: `${base}/icon.png`,
+    logo_uri: `${base}${BRAND_ICON_PATH}`,
   } as const;
 }
