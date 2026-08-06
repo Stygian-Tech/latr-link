@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import iconSrc from "@/app/icon.png";
 import { Badge } from "@/components/ui/badge";
+import { BRAND_ICON_PATH } from "@/lib/brandIcon";
 import { cn } from "@/lib/utils";
 
 export function BrandLockup({
@@ -21,7 +21,7 @@ export function BrandLockup({
   return (
     <Link href={href} className={cn("flex min-w-0 items-center gap-2", className)}>
       <Image
-        src={iconSrc}
+        src={BRAND_ICON_PATH}
         alt=""
         width={iconSize}
         height={iconSize}

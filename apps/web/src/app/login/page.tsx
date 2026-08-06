@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { isLatrDemoDataEnabled } from "@/lib/demoMode";
-import iconSrc from "@/app/icon.png";
+import { BRAND_ICON_PATH } from "@/lib/brandIcon";
 
 const callbackErrorMessage =
   "Sign-In Callback Failed. Try an External Browser (Chrome/Safari) if Preview Tools Block WebSockets or Storage.";
@@ -100,7 +100,7 @@ export default function LoginPage() {
             <div className="text-center">
               <div className="mb-4 flex justify-center">
                 <Image
-                  src={iconSrc}
+                  src={BRAND_ICON_PATH}
                   alt=""
                   width={56}
                   height={56}

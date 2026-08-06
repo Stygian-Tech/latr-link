@@ -11,10 +11,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import iconSrc from "@/app/icon.png";
 import { BrandLockup } from "@/components/BrandLockup";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { BRAND_ICON_PATH } from "@/lib/brandIcon";
 import { cn } from "@/lib/utils";
 
 type Feature = {
@@ -95,7 +95,13 @@ function ProductPreview() {
     <div className="w-full rounded-xl border border-border bg-card shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <Image src={iconSrc} alt="" width={28} height={28} className="rounded-md" />
+          <Image
+            src={BRAND_ICON_PATH}
+            alt=""
+            width={28}
+            height={28}
+            className="rounded-md"
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">
               L@tr.link
