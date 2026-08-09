@@ -28,9 +28,11 @@ export function BrandLockup({
         className="shrink-0 rounded-lg"
         priority
       />
+      {/* The wordmark is a fixed 9-character string, so it never truncates —
+          the mono preference renders it ~25% wider than sans. */}
       <span
         className={cn(
-          "truncate text-xl font-semibold leading-none text-white",
+          "shrink-0 whitespace-nowrap text-xl font-semibold leading-none text-white",
           textClassName
         )}
       >
