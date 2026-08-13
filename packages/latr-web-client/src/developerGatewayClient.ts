@@ -21,7 +21,7 @@ export async function listDeveloperClients(
 ): Promise<DeveloperClientSummary[]> {
   const body = await latrGatewayJson<ListDeveloperClientsResponse>(
     oauthSession,
-    latrXrpcPath(LATR_XRPC.listDeveloperClients),
+    latrXrpcPath(LATR_XRPC.listClients),
     undefined,
     managementOptions
   );
@@ -34,7 +34,7 @@ export async function createDeveloperClient(
 ): Promise<DeveloperClientSummary> {
   return latrGatewayJson<DeveloperClientSummary>(
     oauthSession,
-    latrXrpcPath(LATR_XRPC.createDeveloperClient),
+    latrXrpcPath(LATR_XRPC.createClient),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -50,7 +50,7 @@ export async function deleteDeveloperClient(
 ): Promise<void> {
   await latrGatewayFetch(
     oauthSession,
-    latrXrpcPath(LATR_XRPC.deleteDeveloperClient),
+    latrXrpcPath(LATR_XRPC.deleteClient),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -66,7 +66,7 @@ export async function listDeveloperApiKeys(
 ): Promise<DeveloperApiKeySummary[]> {
   const body = await latrGatewayJson<ListDeveloperApiKeysResponse>(
     oauthSession,
-    `${latrXrpcPath(LATR_XRPC.listDeveloperKeys)}?${new URLSearchParams({ clientId })}`,
+    `${latrXrpcPath(LATR_XRPC.listKeys)}?${new URLSearchParams({ clientId })}`,
     undefined,
     managementOptions
   );
@@ -80,7 +80,7 @@ export async function createDeveloperApiKey(
 ): Promise<CreateDeveloperApiKeyResponse> {
   return latrGatewayJson<CreateDeveloperApiKeyResponse>(
     oauthSession,
-    latrXrpcPath(LATR_XRPC.createDeveloperKey),
+    latrXrpcPath(LATR_XRPC.createKey),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,7 +97,7 @@ export async function revokeDeveloperApiKey(
 ): Promise<void> {
   await latrGatewayFetch(
     oauthSession,
-    latrXrpcPath(LATR_XRPC.revokeDeveloperKey),
+    latrXrpcPath(LATR_XRPC.revokeKey),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -112,7 +112,7 @@ export async function listDeveloperUsage(
 ): Promise<DeveloperUsageSummary[]> {
   const body = await latrGatewayJson<ListDeveloperUsageResponse>(
     oauthSession,
-    latrXrpcPath(LATR_XRPC.getDeveloperUsage),
+    latrXrpcPath(LATR_XRPC.getUsage),
     undefined,
     managementOptions
   );
