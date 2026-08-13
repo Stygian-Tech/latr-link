@@ -2,18 +2,17 @@ import type { OAuthSession } from "@atproto/oauth-client-browser";
 import { Agent } from "@atproto/api";
 import { AtUri } from "@atproto/syntax";
 import {
-  LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
-  LATR_GATEWAY_SAVES_PATH,
-  type LatrGatewayLexiconMigrationResponse,
-  type LatrGatewaySavedItemsResponse,
-} from "latr-packages/gateway-client";
-
-import {
   isLexiconMigrationComplete,
   markLexiconMigrationComplete,
 } from "./lexiconMigrationCache";
 import { latrGatewayJson } from "./latrGatewayClient";
 import type { RepoRecord, SavedItemRecord } from "./latrRecords";
+import {
+  LATR_XRPC,
+  latrXrpcPath,
+  type LatrLexiconMigrationResponse,
+  type LatrListItemsResponse,
+} from "./xrpcMethods";
 
 export type { RepoRecord } from "./latrRecords";
 
@@ -50,10 +49,22 @@ export class LatrRepo {
 
   async listSavedItems(): Promise<RepoRecord<SavedItemRecord>[]> {
     await this.migrateLegacyLexiconsIfNeeded();
-    const response = await latrGatewayJson<
-      LatrGatewaySavedItemsResponse<SavedItemRecord>
-    >(this.oauthSession, LATR_GATEWAY_SAVES_PATH, { method: "GET" });
-    return response.records ?? [];
+    const records: RepoRecord<SavedItemRecord>[] = [];
+    let cursor: string | undefined;
+    do {
+      const params = new URLSearchParams({ limit: "100" });
+      if (cursor) params.set("cursor", cursor);
+      const response = await latrGatewayJson<
+        LatrListItemsResponse<SavedItemRecord>
+      >(
+        this.oauthSession,
+        `${latrXrpcPath(LATR_XRPC.listItems)}?${params.toString()}`,
+        { method: "GET" }
+      );
+      records.push(...(response.records ?? []));
+      cursor = response.cursor;
+    } while (cursor);
+    return records;
   }
 
   /**
@@ -69,8 +80,8 @@ export class LatrRepo {
     const params = new URLSearchParams({ limit: String(options.limit) });
     if (options.cursor) params.set("cursor", options.cursor);
     const response = await latrGatewayJson<
-      LatrGatewaySavedItemsResponse<SavedItemRecord> & { cursor?: string | null }
-    >(this.oauthSession, `${LATR_GATEWAY_SAVES_PATH}?${params.toString()}`, {
+      LatrListItemsResponse<SavedItemRecord>
+    >(this.oauthSession, `${latrXrpcPath(LATR_XRPC.listItems)}?${params.toString()}`, {
       method: "GET",
     });
     return { records: response.records ?? [], cursor: response.cursor ?? null };
@@ -83,10 +94,14 @@ export class LatrRepo {
     const maxAttempts = 8;
     try {
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const summary = await latrGatewayJson<LatrGatewayLexiconMigrationResponse>(
+        const summary = await latrGatewayJson<LatrLexiconMigrationResponse>(
           this.oauthSession,
-          LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
-          { method: "POST" }
+          latrXrpcPath(LATR_XRPC.migrateLegacy),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          }
         );
         const changed =
           summary.externalCopied > 0 ||
@@ -108,11 +123,15 @@ export class LatrRepo {
   }
 
   async saveUrl(url: string): Promise<SaveUrlResponse> {
-    return latrGatewayJson<SaveUrlResponse>(this.oauthSession, "/v1/latr/saves", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "url", url }),
-    });
+    return latrGatewayJson<SaveUrlResponse>(
+      this.oauthSession,
+      latrXrpcPath(LATR_XRPC.saveUrl),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      }
+    );
   }
 
   async saveSubjectUri(
@@ -120,17 +139,20 @@ export class LatrRepo {
     options: { linkedWebUrl?: string } = {}
   ): Promise<SaveUrlResponse> {
     new AtUri(subjectUri);
-    return latrGatewayJson<SaveUrlResponse>(this.oauthSession, "/v1/latr/saves", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kind: "subject",
-        subjectUri,
-        ...(options.linkedWebUrl?.trim()
-          ? { linkedWebUrl: options.linkedWebUrl.trim() }
-          : {}),
-      }),
-    });
+    return latrGatewayJson<SaveUrlResponse>(
+      this.oauthSession,
+      latrXrpcPath(LATR_XRPC.saveSubject),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subjectUri,
+          ...(options.linkedWebUrl?.trim()
+            ? { linkedWebUrl: options.linkedWebUrl.trim() }
+            : {}),
+        }),
+      }
+    );
   }
 
   async setItemState(
@@ -139,11 +161,11 @@ export class LatrRepo {
   ): Promise<void> {
     await latrGatewayJson(
       this.oauthSession,
-      `/v1/latr/saves/${encodeURIComponent(itemRkey)}/state`,
+      latrXrpcPath(LATR_XRPC.setState),
       {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state }),
+        body: JSON.stringify({ itemRkey, state }),
       }
     );
   }
@@ -151,8 +173,12 @@ export class LatrRepo {
   async unsave(itemRkey: string): Promise<void> {
     await latrGatewayJson(
       this.oauthSession,
-      `/v1/latr/saves/${encodeURIComponent(itemRkey)}`,
-      { method: "DELETE" }
+      latrXrpcPath(LATR_XRPC.deleteItem),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemRkey }),
+      }
     );
   }
 
@@ -166,7 +192,7 @@ export class LatrRepo {
       const params = new URLSearchParams({ url: trimmed });
       return await latrGatewayJson<OpenGraphPreviewFields>(
         this.oauthSession,
-        `/v1/latr/og-preview?${params.toString()}`
+        `${latrXrpcPath(LATR_XRPC.getOpenGraph)}?${params.toString()}`
       );
     } catch {
       return null;

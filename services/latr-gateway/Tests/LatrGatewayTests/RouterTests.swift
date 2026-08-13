@@ -84,6 +84,88 @@ final class RouterTests: XCTestCase {
         try await httpClient.shutdown()
     }
 
+    func testXRPCQueryUsesStandardMissingAuthError() async throws {
+        let (app, httpClient) = makeApp()
+        try await app.test(.router) { client in
+            try await client.execute(
+                uri: "/xrpc/link.latr.saved.listItems?limit=100",
+                method: .get
+            ) { response in
+                XCTAssertEqual(response.status, .unauthorized)
+                XCTAssertEqual(response.headers[.contentType], "application/json; charset=utf-8")
+                XCTAssertEqual(response.headers[.cacheControl], "private, no-store")
+                XCTAssertEqual(response.headers[.wwwAuthenticate], "DPoP")
+                let object = try XCTUnwrap(
+                    JSONSerialization.jsonObject(with: Data(buffer: response.body)) as? [String: Any]
+                )
+                XCTAssertEqual(object["error"] as? String, "AuthRequired")
+            }
+        }
+        try await httpClient.shutdown()
+    }
+
+    func testUnknownXRPCMethodReturnsXrpcNotSupported() async throws {
+        let (app, httpClient) = makeApp()
+        try await app.test(.router) { client in
+            try await client.execute(uri: "/xrpc/link.latr.unknown.method", method: .get) { response in
+                XCTAssertEqual(response.status, .notFound)
+                let object = try XCTUnwrap(
+                    JSONSerialization.jsonObject(with: Data(buffer: response.body)) as? [String: Any]
+                )
+                XCTAssertEqual(object["error"] as? String, "XrpcNotSupported")
+            }
+        }
+        try await httpClient.shutdown()
+    }
+
+    func testKnownXRPCMethodRejectsWrongVerb() async throws {
+        let (app, httpClient) = makeApp()
+        do {
+            try await app.test(.router) { client in
+                try await client.execute(uri: "/xrpc/link.latr.saved.listItems", method: .post) { response in
+                    XCTAssertEqual(response.status, .methodNotAllowed)
+                    let object = try XCTUnwrap(
+                        JSONSerialization.jsonObject(with: Data(buffer: response.body)) as? [String: Any]
+                    )
+                    XCTAssertEqual(object["error"] as? String, "InvalidRequest")
+                }
+                try await client.execute(uri: "/xrpc/link.latr.saved.saveUrl", method: .get) { response in
+                    XCTAssertEqual(response.status, .methodNotAllowed)
+                }
+            }
+        } catch {
+            try await httpClient.shutdown()
+            throw error
+        }
+        try await httpClient.shutdown()
+    }
+
+    func testDeveloperXRPCSkipsApplicationKeyPolicy() async throws {
+        let config = GatewayConfig(
+            port: 8080,
+            appEnv: .test,
+            plcURL: "https://plc.directory",
+            oauthRequireKnownClient: true,
+            requireClientAPIKey: true,
+            officialClientCredentials: ["latr-link-web": "dGVzdC1zZWNyZXQ="],
+            clientRegistryURL: registryURL()
+        )
+        let (app, httpClient) = makeApp(config: config)
+        try await app.test(.router) { client in
+            try await client.execute(
+                uri: "/xrpc/link.latr.developer.listClients",
+                method: .get
+            ) { response in
+                XCTAssertEqual(response.status, .unauthorized)
+                let object = try XCTUnwrap(
+                    JSONSerialization.jsonObject(with: Data(buffer: response.body)) as? [String: Any]
+                )
+                XCTAssertEqual(object["error"] as? String, "AuthRequired")
+            }
+        }
+        try await httpClient.shutdown()
+    }
+
     func testDeveloperClientsSkipClientAPIKeyWhenOAuthPolicyEnabled() async throws {
         let config = GatewayConfig(
             port: 8080,

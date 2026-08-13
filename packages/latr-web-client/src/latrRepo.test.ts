@@ -68,7 +68,7 @@ describe("LatrRepo Gateway Facade", () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
-      if (String(url).includes("/v1/latr/migrate-lexicons")) {
+      if (String(url).includes("/xrpc/link.latr.saved.migrateLegacy")) {
         return new Response(
           JSON.stringify({
             ok: true,
@@ -112,14 +112,14 @@ describe("LatrRepo Gateway Facade", () => {
       calls.some(
         (call) =>
           call.startsWith("POST") &&
-          call.includes("127.0.0.1:8080/v1/latr/migrate-lexicons")
+          call.includes("127.0.0.1:8080/xrpc/link.latr.saved.migrateLegacy")
       )
     ).toBe(true);
     expect(
       calls.some(
         (call) =>
           call.startsWith("GET") &&
-          call.includes("127.0.0.1:8080/v1/latr/saves")
+          call.includes("127.0.0.1:8080/xrpc/link.latr.saved.listItems")
       )
     ).toBe(true);
   });
@@ -145,10 +145,10 @@ describe("LatrRepo Gateway Facade", () => {
     await repo.listSavedItems();
 
     expect(
-      calls.some((call) => call.includes("/v1/latr/migrate-lexicons"))
+      calls.some((call) => call.includes("/xrpc/link.latr.saved.migrateLegacy"))
     ).toBe(false);
     expect(
-      calls.some((call) => call.includes("/v1/latr/saves"))
+      calls.some((call) => call.includes("/xrpc/link.latr.saved.listItems"))
     ).toBe(true);
   });
 
@@ -173,7 +173,7 @@ describe("LatrRepo Gateway Facade", () => {
     const page = await repo.listSavedItemsPage({ limit: 50 });
 
     expect(page.cursor).toBe("next-cursor");
-    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    const saves = calls.find((call) => call.includes("/xrpc/link.latr.saved.listItems"));
     expect(saves).toContain("?limit=50");
     expect(saves).not.toContain("cursor=");
   });
@@ -202,12 +202,12 @@ describe("LatrRepo Gateway Facade", () => {
     });
 
     expect(page.cursor).toBeNull();
-    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    const saves = calls.find((call) => call.includes("/xrpc/link.latr.saved.listItems"));
     expect(saves).toContain("limit=25");
     expect(saves).toContain(`cursor=${encodeURIComponent("3jz/f+cij=")}`);
   });
 
-  test("listSavedItems still requests the bare saves path", async () => {
+  test("listSavedItems pages through the XRPC list method", async () => {
     markLexiconMigrationComplete("did:plc:viewer");
     const calls: string[] = [];
     globalThis.fetch = (async (url, init) => {
@@ -227,12 +227,12 @@ describe("LatrRepo Gateway Facade", () => {
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.listSavedItems();
 
-    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    const saves = calls.find((call) => call.includes("/xrpc/link.latr.saved.listItems"));
     expect(saves).toBeDefined();
-    expect(saves).not.toContain("?");
+    expect(saves).toContain("?limit=100");
   });
 
-  test("paged saves GET mints one upstream proof; bare GET keeps the pool", async () => {
+  test("each XRPC list page mints one upstream proof", async () => {
     markLexiconMigrationComplete("did:plc:viewer");
     const proofHeaders: string[] = [];
     globalThis.fetch = (async (_url, init) => {
@@ -252,11 +252,8 @@ describe("LatrRepo Gateway Facade", () => {
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.listSavedItemsPage({ limit: 50 });
-    await repo.listSavedItems();
-
-    const [paged, bare] = proofHeaders;
+    const [paged] = proofHeaders;
     expect(paged.split(",")).toHaveLength(1);
-    expect(bare.split(",")).toHaveLength(8);
   });
 
   test("saveExternalUrl POSTs URL Body", async () => {
@@ -284,7 +281,7 @@ describe("LatrRepo Gateway Facade", () => {
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.saveExternalUrl("https://example.com/x");
-    expect(body).toContain('"kind":"url"');
+    expect(body).not.toContain('"kind"');
     expect(body).toContain("example.com");
   });
 });

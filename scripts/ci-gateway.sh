@@ -7,5 +7,8 @@ cd "$ROOT"
 
 SWIFT_WARNING_FLAGS=(-Xswiftc -warnings-as-errors)
 
-swift test "${SWIFT_WARNING_FLAGS[@]}" --package-path services/latr-gateway
+# The suite mixes swift-testing (@Test) and XCTest (RouterTests, LatrXRPCMethodTests).
+# Swift 6.4's `swift test` runs only swift-testing unless XCTest is enabled explicitly,
+# which would silently skip the XRPC router coverage.
+swift test --enable-xctest --enable-swift-testing "${SWIFT_WARNING_FLAGS[@]}" --package-path services/latr-gateway
 swift build -c release "${SWIFT_WARNING_FLAGS[@]}" --package-path services/latr-gateway

@@ -219,6 +219,12 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             : [:]
 
         guard (200 ... 299).contains(response.statusCode) else {
+            if [400, 409].contains(response.statusCode),
+               let errorName = jsonObject["error"] as? String,
+               ["InvalidSwap", "InvalidSwapRecord", "RepoRecordConflict"].contains(errorName)
+            {
+                throw RepositoryClientError.conflict
+            }
             switch response.statusCode {
             case 401:
                 throw GatewayError(
@@ -449,18 +455,23 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         in repository: String,
         collection: LexiconCollection,
         withKey key: String,
-        value: some Encodable & Sendable
+        value: some Encodable & Sendable,
+        swapRecord: String? = nil
     ) async throws -> UpdateRecordResponse {
         let recordData = try JSONEncoder().encode(AnyEncodable(value))
         let recordObject = try JSONSerialization.jsonObject(with: recordData) as? [String: Any] ?? [:]
+        var body: [String: Any] = [
+            "repo": repository,
+            "collection": collection.identifier,
+            "rkey": key,
+            "record": recordObject,
+        ]
+        if let swapRecord {
+            body["swapRecord"] = swapRecord
+        }
         let json = try await xrpcPost(
             method: "com.atproto.repo.putRecord",
-            body: [
-                "repo": repository,
-                "collection": collection.identifier,
-                "rkey": key,
-                "record": recordObject,
-            ]
+            body: body
         )
         guard let uri = json["uri"] as? String else {
             throw GatewayError(status: .badGateway, message: "PDS putRecord missing uri", code: "pds_error")
@@ -471,15 +482,20 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
     public func deleteRecord(
         in repository: String,
         collection: LexiconCollection,
-        withKey key: String
+        withKey key: String,
+        swapRecord: String? = nil
     ) async throws {
+        var body: [String: Any] = [
+            "repo": repository,
+            "collection": collection.identifier,
+            "rkey": key,
+        ]
+        if let swapRecord {
+            body["swapRecord"] = swapRecord
+        }
         _ = try await xrpcPost(
             method: "com.atproto.repo.deleteRecord",
-            body: [
-                "repo": repository,
-                "collection": collection.identifier,
-                "rkey": key,
-            ]
+            body: body
         )
     }
 }

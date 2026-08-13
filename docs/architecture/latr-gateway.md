@@ -26,7 +26,7 @@ Third-party and [latrkit.dev](https://github.com/Stygian-Tech/latrkit-dev)-issue
 
 Keys are hashed at rest (SHA-256). Issue and rotate keys via **[latrkit.dev](https://github.com/Stygian-Tech/latrkit-dev)** or the developer management API (OAuth-protected).
 
-When `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY=true` (default in `APP_ENV=prod`), these headers (or legacy official header below) are required on every `/v1/latr/*` route except developer management routes.
+When `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY=true` (default in `APP_ENV=prod`), these headers (or the legacy official header below) are required on product `/xrpc/link.latr.*` methods. Developer-management XRPC methods use OAuth only.
 
 ### Legacy env credentials (migration)
 
@@ -44,19 +44,19 @@ Local development (`APP_ENV=local`) skips client credentials by default.
 
 Authenticated with the operator’s ATProto session only (no app API key):
 
-| Method | Path | Description |
+| Kind | XRPC method | Description |
 |--------|------|-------------|
-| GET | `/v1/latr/developer/clients` | List clients owned by signed-in DID |
-| POST | `/v1/latr/developer/clients` | Create developer client (`clientId` slug; optional `displayName`, any Unicode) |
-| DELETE | `/v1/latr/developer/clients/:clientId` | Delete developer client |
-| GET | `/v1/latr/developer/clients/:clientId/keys` | List API keys |
-| POST | `/v1/latr/developer/clients/:clientId/keys` | Create API key (shown once) |
-| DELETE | `/v1/latr/developer/clients/:clientId/keys/:keyId` | Revoke key |
-| GET | `/v1/latr/developer/usage` | Usage summary (preview limits) |
+| Query | `link.latr.developer.listClients` | List clients owned by signed-in DID |
+| Procedure | `link.latr.developer.createClient` | Create a developer client |
+| Procedure | `link.latr.developer.deleteClient` | Delete a developer client |
+| Query | `link.latr.developer.listKeys` | List API keys |
+| Procedure | `link.latr.developer.createKey` | Create an API key (shown once) |
+| Procedure | `link.latr.developer.revokeKey` | Revoke an API key |
+| Query | `link.latr.developer.getUsage` | Usage summary |
 
 ### User OAuth + DPoP
 
-All `/v1/latr/*` save/list routes also require:
+All product XRPC methods also require:
 
 - `Authorization: DPoP <access-token-jwt>` (or `Bearer`)
 - `DPoP: <dpop-proof-jwt>` bound to the gateway request
@@ -66,40 +66,46 @@ All `/v1/latr/*` save/list routes also require:
 
 ### Auth probe
 
-`POST /v1/latr/auth/probe` — lists one saved item via PDS to confirm write-through credentials. Response includes `clientId` when app credential auth is active.
+`GET /xrpc/link.latr.auth.probe` lists one saved item via the PDS to confirm write-through credentials. The response includes `clientId` when application-credential auth is active.
 
-## Routes
+## XRPC methods
 
-| Method | Path | Description |
+Queries use `GET /xrpc/<nsid>` with URL parameters. Procedures use `POST /xrpc/<nsid>` with `application/json` input. Successful methods return `200` JSON; errors use `{ "error", "message" }`.
+
+| Kind | NSID | Description |
 |--------|------|-------------|
-| GET | `/health` | Public health check |
-| POST | `/v1/latr/auth/probe` | Authenticated PDS connectivity check |
-| GET | `/v1/latr/saves` | List `link.latr.saved.item` records (auto-migrates legacy `com.latr.*` first). Optional `?limit=` (1–100, clamped) + `?cursor=` return one page as `{ records, cursor }`; `cursor` is omitted on the last page. Without `limit`, returns the full collection as `{ records }` (legacy) |
-| POST | `/v1/latr/migrate-lexicons` | Explicit one-time migration from `com.latr.saved.*` to `link.latr.saved.*` |
-| POST | `/v1/latr/saves` | Save URL or subject |
-| GET | `/v1/latr/saves/subject?subjectUri=` | Lookup saved item by subject |
-| PATCH | `/v1/latr/saves/:itemRkey/state` | Body: `{ state: "unread" \| "archived" }` |
-| DELETE | `/v1/latr/saves/:itemRkey` | Unsave (item edge only) |
-| GET | `/v1/latr/discover/at-uri?url=` | Debug: HEAD AT URI + Bluesky URL normalization |
-| GET | `/v1/latr/og-preview?url=` | Server OG fetch (SSRF guarded) |
+| Query | `link.latr.saved.listItems` | Paginated saved-item records (`limit` 1–100, optional `cursor`) |
+| Query | `link.latr.saved.getItem` | Lookup by `subjectUri` |
+| Procedure | `link.latr.saved.saveUrl` | Save `{ url }` |
+| Procedure | `link.latr.saved.saveSubject` | Save `{ subjectUri, linkedWebUrl? }` |
+| Procedure | `link.latr.saved.setState` | Set `{ itemRkey, state }` |
+| Procedure | `link.latr.saved.deleteItem` | Delete `{ itemRkey }` |
+| Procedure | `link.latr.saved.migrateLegacy` | Explicit legacy collection migration |
+| Query | `link.latr.discovery.resolveUrl` | Discover an AT URI from `url` |
+| Query | `link.latr.preview.getOpenGraph` | SSRF-guarded Open Graph fetch for `url` |
+| Query | `link.latr.auth.probe` | Authenticated PDS connectivity check |
+
+`GET /health` and OAuth client-metadata documents intentionally remain non-XRPC. The old `/v1/latr/*` routes are compatibility adapters during migration and are not the preferred public contract.
+
+The compatibility `GET /v1/latr/saves` route retains its legacy full-list behavior when `limit` is omitted. With `limit` (1–100) and optional `cursor`, it returns one page without performing migration. Legacy migration remains an explicit `POST /v1/latr/migrate-lexicons` operation.
 
 Developer management routes are listed above.
 
 Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). Open Graph metadata is stored on `link.latr.saved.external` / `link.latr.saved.item`.
 
-**Client read path:** list saved items via **`GET /v1/latr/saves`** (not direct PDS `listRecords`). L@tr.link and The Social Wire use the gateway for list, save, archive, and delete so app credentials and OAuth policy apply consistently.
+**Client read path:** list saved items via `link.latr.saved.listItems` (not direct PDS `listRecords`). Queries never run the legacy mutation; clients invoke `link.latr.saved.migrateLegacy` explicitly when needed.
 
 ## URL save pipeline
 
-Clients should call **`POST /v1/latr/saves { kind: "url", url }`** only. The gateway runs a single SSRF-safe fetch and:
+Clients should call **`POST /xrpc/link.latr.saved.saveUrl`** with `{ "url": "https://…" }`. The gateway runs a single SSRF-safe fetch and:
 
 1. **Native subject discovery** — Bluesky profile/post URLs normalize to `at://…/app.bsky.feed.post/…`; otherwise scan early `<head>` for any canonical `at://did/collection/rkey` in `<link href>` or `<meta content>` (Standard.site is one supported pattern, not the only one). Wrapper `link.latr.saved.external` URIs in HEAD are deprioritized.
 2. **Subject metadata** — For native subjects, resolve on-protocol preview fields: **PDS-first** `com.atproto.repo.getRecord` (from the repo DID document via PLC or `did:web`), **AppView enrichment** for Bluesky posts by trying AppView services discovered from the subject repo’s DID document (`#bsky_appview`, `#atproto_appview`, `BskyAppView`, `AtprotoAppView`), then `LATR_GATEWAY_APPVIEW_URLS`, then `https://public.api.bsky.app`, then raw PDS post text. Handle → DID uses `LATR_GATEWAY_IDENTITY_URL` (default `https://bsky.social`).
 3. **HEAD Open Graph gap-fill** — Parse OG from the HEAD slice only; subject-derived fields win, OG fills empty `preview*` slots.
 
-Direct **`POST /v1/latr/saves { kind: "subject", subjectUri, linkedWebUrl? }`** remains for rare `at://` paste.
+Direct **`POST /xrpc/link.latr.saved.saveSubject`** with `{ "subjectUri": "at://…", "linkedWebUrl": "https://…" }` remains for rare `at://` paste.
 
-**Save response** (201):
+**Save response** (`200`):
 
 ```json
 {
