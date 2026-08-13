@@ -27,6 +27,11 @@ public func todayUTC() -> String {
 }
 
 public func routeFamily(for path: String) -> String {
+    if let nsid = path.split(separator: "/").last,
+       let method = LatrXRPCMethod(rawValue: String(nsid))
+    {
+        return "xrpc:\(method.rawValue)"
+    }
     if path.contains("/saves") { return "saves" }
     if path.contains("/og-preview") { return "og-preview" }
     if path.contains("/discover") { return "discover" }

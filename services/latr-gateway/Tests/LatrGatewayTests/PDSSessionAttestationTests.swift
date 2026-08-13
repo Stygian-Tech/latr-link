@@ -116,7 +116,12 @@ final class PDSSessionAttestationTests: XCTestCase {
         let auth = authContext(signatureVerified: true, upstreamProof: nil)
         let counter = AttestationCounter()
 
-        for path in ["/v1/latr/og-preview", "/v1/latr/discover/at-uri"] {
+        for path in [
+            "/v1/latr/og-preview",
+            "/v1/latr/discover/at-uri",
+            "/xrpc/link.latr.preview.getOpenGraph",
+            "/xrpc/link.latr.discovery.resolveUrl",
+        ] {
             try await attestPDSOAuthSessionIfNeeded(auth: auth, path: path) {
                 await counter.increment()
             }

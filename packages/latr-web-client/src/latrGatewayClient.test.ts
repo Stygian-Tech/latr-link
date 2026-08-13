@@ -11,6 +11,7 @@ import {
   LATR_PROXY_USER_DPOP_HEADER,
   latrGatewayFetch,
 } from "./latrGatewayClient";
+import { LATR_XRPC, latrXrpcPath } from "./xrpcMethods";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
@@ -77,6 +78,54 @@ function mockOAuthSession(
 }
 
 describe("latrGatewayFetch upstream proofs", () => {
+  test("XRPC listItems sends list-only upstream proofs", async () => {
+    let upstreamHeader = "";
+    globalThis.fetch = (async (_url, init) => {
+      upstreamHeader = String(
+        new Headers(init?.headers).get(LATR_UPSTREAM_DPOP_HEADER) ?? ""
+      );
+      return new Response(JSON.stringify({ records: [] }), { status: 200 });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () =>
+      new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      })
+    );
+
+    await latrGatewayFetch(
+      oauth,
+      `${latrXrpcPath(LATR_XRPC.listItems)}?limit=100`,
+      { method: "GET" }
+    );
+
+    expect(upstreamHeader.split(",")).toHaveLength(1);
+  });
+
+  test("XRPC setState sends getRecord and putRecord proof pool", async () => {
+    let upstreamHeader = "";
+    globalThis.fetch = (async (_url, init) => {
+      upstreamHeader = String(
+        new Headers(init?.headers).get(LATR_UPSTREAM_DPOP_HEADER) ?? ""
+      );
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () =>
+      new Response(JSON.stringify({ error: "Use DPoP nonce" }), {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      })
+    );
+
+    await latrGatewayFetch(oauth, latrXrpcPath(LATR_XRPC.setState), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemRkey: "abc", state: "archived" }),
+    });
+
+    expect(upstreamHeader.split(",")).toHaveLength(4);
+  });
+
   test("GET /v1/latr/saves sends list-only upstream proofs", async () => {
     let upstreamHeader = "";
 

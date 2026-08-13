@@ -57,7 +57,9 @@ describe("Latrrepo Gateway Facade", () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
-      if (String(url).includes("/v1/latr/migrate-lexicons")) {
+      if (
+        String(url).includes("/xrpc/link.latr.saved.migrateLegacy")
+      ) {
         return new Response(
           JSON.stringify({
             ok: true,
@@ -101,14 +103,16 @@ describe("Latrrepo Gateway Facade", () => {
       calls.some(
         (call) =>
           call.startsWith("POST") &&
-          call.includes("127.0.0.1:8080/v1/latr/migrate-lexicons")
+          call.includes(
+            "127.0.0.1:8080/xrpc/link.latr.saved.migrateLegacy"
+          )
       )
     ).toBe(true);
     expect(
       calls.some(
         (call) =>
           call.startsWith("GET") &&
-          call.includes("127.0.0.1:8080/v1/latr/saves")
+          call.includes("127.0.0.1:8080/xrpc/link.latr.saved.listItems")
       )
     ).toBe(true);
   });
@@ -135,7 +139,6 @@ describe("Latrrepo Gateway Facade", () => {
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.saveExternalUrl("https://example.com/a");
     expect(JSON.parse(body)).toEqual({
-      kind: "url",
       url: "https://example.com/a",
     });
   });
@@ -173,16 +176,22 @@ describe("Latrrepo Gateway Facade", () => {
 
     expect(page.cursor).toBe("page-2");
     const saves = calls.find(
-      (call) => call.startsWith("GET") && call.includes("/v1/latr/saves")
+      (call) =>
+        call.startsWith("GET") &&
+        call.includes("/xrpc/link.latr.saved.listItems")
     );
     expect(saves).toContain("limit=50");
     expect(saves).toContain("cursor=page-1");
   });
 
-  test("setItemState PATCHes State Route", async () => {
+  test("setItemState POSTs the XRPC procedure", async () => {
     let path = "";
-    globalThis.fetch = (async (url) => {
+    let method = "";
+    let body = "";
+    globalThis.fetch = (async (url, init) => {
       path = String(url);
+      method = init?.method ?? "";
+      body = String(init?.body ?? "");
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -197,13 +206,22 @@ describe("Latrrepo Gateway Facade", () => {
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.setItemState("abc123", "archived");
-    expect(path).toContain("/v1/latr/saves/abc123/state");
+    expect(path).toContain("/xrpc/link.latr.saved.setState");
+    expect(method).toBe("POST");
+    expect(JSON.parse(body)).toEqual({
+      itemRkey: "abc123",
+      state: "archived",
+    });
   });
 
-  test("Unsave Deletes Item Route", async () => {
+  test("Unsave POSTs the XRPC procedure", async () => {
     let method = "";
-    globalThis.fetch = (async (_url, init) => {
+    let path = "";
+    let body = "";
+    globalThis.fetch = (async (url, init) => {
+      path = String(url);
       method = init?.method ?? "";
+      body = String(init?.body ?? "");
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -218,6 +236,8 @@ describe("Latrrepo Gateway Facade", () => {
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.unsave("item-rkey");
-    expect(method).toBe("DELETE");
+    expect(path).toContain("/xrpc/link.latr.saved.deleteItem");
+    expect(method).toBe("POST");
+    expect(JSON.parse(body)).toEqual({ itemRkey: "item-rkey" });
   });
 });

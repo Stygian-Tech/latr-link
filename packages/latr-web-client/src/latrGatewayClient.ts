@@ -17,6 +17,7 @@ import {
   LATR_OFFICIAL_CLIENT_HEADER,
   resolveLatrGatewayConfig,
 } from "./latrGatewayConfig";
+import { LATR_XRPC, latrXrpcPath } from "./xrpcMethods";
 
 export { LATR_OFFICIAL_CLIENT_HEADER, LATR_UPSTREAM_DPOP_HEADER };
 
@@ -40,6 +41,13 @@ type SessionWithTokenSet = OAuthSession & {
 const PDS_SESSION_ATTESTATION_PATHS = new Set([
   "/v1/latr/discover/at-uri",
   "/v1/latr/og-preview",
+  latrXrpcPath(LATR_XRPC.resolveUrl),
+  latrXrpcPath(LATR_XRPC.getOpenGraph),
+]);
+
+const XRPC_SAVE_PATHS = new Set([
+  latrXrpcPath(LATR_XRPC.saveUrl),
+  latrXrpcPath(LATR_XRPC.saveSubject),
 ]);
 
 function stripQueryAndFragment(url: string): string {
@@ -167,6 +175,20 @@ export async function createSaveUpstreamDpopProofPool(
   );
 }
 
+export async function createSetStateUpstreamDpopProofPool(
+  oauthSession: OAuthSession,
+  options: UpstreamDpopProofOptions = {}
+): Promise<string> {
+  return createChainedUpstreamDpopProofPool(
+    oauthSession,
+    [
+      { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET", count: 2 },
+      { xrpcMethod: "com.atproto.repo.putRecord", httpMethod: "POST", count: 2 },
+    ],
+    options
+  );
+}
+
 export async function latrGatewayFetch(
   oauthSession: OAuthSession,
   path: string,
@@ -208,10 +230,16 @@ export async function latrGatewayFetch(
         "GET",
         proofOptions
       );
-  } else if (method === "POST" && gatewayPath === LATR_GATEWAY_SAVES_PATH) {
+  } else if (
+    method === "POST" &&
+    (gatewayPathOnly === LATR_GATEWAY_SAVES_PATH || XRPC_SAVE_PATHS.has(gatewayPathOnly))
+  ) {
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
       await createSaveUpstreamDpopProofPool(oauthSession, proofOptions);
-  } else if (method === "POST" && gatewayPath === LATR_GATEWAY_MIGRATE_LEXICONS_PATH) {
+  } else if (
+    method === "POST" &&
+    gatewayPathOnly === LATR_GATEWAY_MIGRATE_LEXICONS_PATH
+  ) {
     // This proof pool contains enough JWTs for the legacy copy/delete pass and
     // can exceed reverse-proxy header limits. The gateway accepts it in the
     // request body for this endpoint while retaining header support for older
@@ -223,6 +251,12 @@ export async function latrGatewayFetch(
       ),
     });
     upstreamHeaders["Content-Type"] = "application/json";
+  } else if (
+    method === "POST" &&
+    gatewayPathOnly === latrXrpcPath(LATR_XRPC.migrateLegacy)
+  ) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
+      await createMigrateLexiconsUpstreamDpopProofPool(oauthSession, proofOptions);
   } else if (method === "GET" && gatewayPathOnly === LATR_GATEWAY_SAVES_PATH) {
     // Paged requests (`?limit=`) trigger a single upstream listRecords call;
     // the bare path drains every page and needs the full proof pool.
@@ -238,6 +272,52 @@ export async function latrGatewayFetch(
           proofOptions
         )
       : await createListSavesUpstreamDpopProofPool(oauthSession, proofOptions);
+  } else if (
+    method === "GET" &&
+    gatewayPathOnly === latrXrpcPath(LATR_XRPC.listItems)
+  ) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
+      oauthSession,
+      "com.atproto.repo.listRecords",
+      "GET",
+      proofOptions
+    );
+  } else if (
+    method === "POST" &&
+    gatewayPathOnly === latrXrpcPath(LATR_XRPC.setState)
+  ) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
+      await createSetStateUpstreamDpopProofPool(oauthSession, proofOptions);
+  } else if (
+    method === "POST" &&
+    gatewayPathOnly === latrXrpcPath(LATR_XRPC.deleteItem)
+  ) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
+      oauthSession,
+      "com.atproto.repo.deleteRecord",
+      "POST",
+      proofOptions
+    );
+  } else if (
+    method === "GET" &&
+    gatewayPathOnly === latrXrpcPath(LATR_XRPC.getItem)
+  ) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
+      oauthSession,
+      "com.atproto.repo.getRecord",
+      "GET",
+      proofOptions
+    );
+  } else if (
+    method === "GET" &&
+    gatewayPathOnly === latrXrpcPath(LATR_XRPC.authProbe)
+  ) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
+      oauthSession,
+      "com.atproto.repo.listRecords",
+      "GET",
+      proofOptions
+    );
   } else if (upstream) {
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] = await createUpstreamDpopProof(
       oauthSession,
