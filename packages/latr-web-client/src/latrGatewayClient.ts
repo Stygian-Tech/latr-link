@@ -1,8 +1,8 @@
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 import {
+  bookmarkUpstreamProofPlanForGatewayRequest,
+  createBookmarkMigrationRequestBody,
   createUpstreamDpopProof,
-  LATR_XRPC as BOOKMARK_XRPC,
-  latrXrpcPath as bookmarkXrpcPath,
   LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
   LATR_GATEWAY_SAVES_PATH,
   LATR_UPSTREAM_DPOP_HEADER,
@@ -191,31 +191,6 @@ export async function createSetStateUpstreamDpopProofPool(
   );
 }
 
-async function createBookmarkUpstreamDpopProofPool(
-  oauthSession: OAuthSession,
-  path: string,
-  options: UpstreamDpopProofOptions
-): Promise<string> {
-  const operations = path === bookmarkXrpcPath(BOOKMARK_XRPC.listBookmarks)
-    ? [{ xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET" as const, count: 9 }]
-    : path === bookmarkXrpcPath(BOOKMARK_XRPC.getBookmark)
-      ? [
-          { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET" as const, count: 8 },
-          { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET" as const, count: 1 },
-        ]
-      : path === bookmarkXrpcPath(BOOKMARK_XRPC.saveBookmark)
-        ? [
-            { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET" as const, count: 8 },
-            { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET" as const, count: 2 },
-            { xrpcMethod: "com.atproto.repo.applyWrites", httpMethod: "POST" as const, count: 1 },
-          ]
-        : [
-            { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET" as const, count: 2 },
-            { xrpcMethod: "com.atproto.repo.applyWrites", httpMethod: "POST" as const, count: 1 },
-          ];
-  return createChainedUpstreamDpopProofPool(oauthSession, operations, options);
-}
-
 export async function latrGatewayFetch(
   oauthSession: OAuthSession,
   path: string,
@@ -233,13 +208,10 @@ export async function latrGatewayFetch(
 
   const upstream = pdsXrpcMethodForGatewayRequest(method, gatewayPath);
   const gatewayPathOnly = stripQueryAndFragment(gatewayPath);
-  const bookmarkPaths = new Set([
-    bookmarkXrpcPath(BOOKMARK_XRPC.listBookmarks),
-    bookmarkXrpcPath(BOOKMARK_XRPC.getBookmark),
-    bookmarkXrpcPath(BOOKMARK_XRPC.saveBookmark),
-    bookmarkXrpcPath(BOOKMARK_XRPC.setBookmarkState),
-    bookmarkXrpcPath(BOOKMARK_XRPC.deleteBookmark),
-  ]);
+  const bookmarkProofPlan = bookmarkUpstreamProofPlanForGatewayRequest(
+    method,
+    gatewayPathOnly
+  );
   const upstreamHeaders: Record<string, string> = {};
   let requestBody = init?.body;
   const sessionWithTokenSet = oauthSession as SessionWithTokenSet;
@@ -253,26 +225,23 @@ export async function latrGatewayFetch(
   );
   const hopUserAuthHeaders = headersForGatewayHop(url, userAuthHeaders);
 
-  if (gatewayPathOnly === bookmarkXrpcPath(BOOKMARK_XRPC.migrateBookmarks)) {
+  if (bookmarkProofPlan?.transport === "body") {
     const parsed = typeof requestBody === "string"
       ? JSON.parse(requestBody) as Record<string, unknown>
       : {};
-    requestBody = JSON.stringify({
-      ...parsed,
-      upstreamDpopProof: await createChainedUpstreamDpopProofPool(
-        oauthSession,
-        [
-          { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET", count: 40 },
-          { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET", count: 25 },
-          { xrpcMethod: "com.atproto.repo.applyWrites", httpMethod: "POST", count: 25 },
-        ],
-        proofOptions
-      ),
-    });
+    requestBody = await createBookmarkMigrationRequestBody(
+      oauthSession,
+      parsed,
+      proofOptions
+    );
     upstreamHeaders["Content-Type"] = "application/json";
-  } else if (bookmarkPaths.has(gatewayPathOnly)) {
+  } else if (bookmarkProofPlan?.transport === "header") {
     upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
-      await createBookmarkUpstreamDpopProofPool(oauthSession, gatewayPathOnly, proofOptions);
+      await createChainedUpstreamDpopProofPool(
+        oauthSession,
+        [...bookmarkProofPlan.specs],
+        proofOptions
+      );
   } else if (
     method === "GET" &&
     PDS_SESSION_ATTESTATION_PATHS.has(gatewayPathOnly)

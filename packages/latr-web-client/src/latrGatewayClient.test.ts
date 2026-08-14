@@ -193,6 +193,63 @@ describe("latrGatewayFetch upstream proofs", () => {
     expect(body.upstreamDpopProof.split(",")).toHaveLength(32);
   });
 
+  test("bookmark setState uses the published getRecord/applyWrites proof plan", async () => {
+    let upstreamHeader = "";
+    globalThis.fetch = (async (_url, init) => {
+      upstreamHeader = new Headers(init?.headers).get(LATR_UPSTREAM_DPOP_HEADER) ?? "";
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () =>
+      new Response(null, {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      })
+    );
+
+    await latrGatewayFetch(oauth, latrXrpcPath(LATR_XRPC.setBookmarkState), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bookmarkUri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/3abc",
+        state: "archived",
+      }),
+    });
+
+    expect(upstreamHeader.split(",")).toHaveLength(3);
+  });
+
+  test("bookmark migration carries its published pool in the body", async () => {
+    let upstreamHeader = "";
+    let requestBody = "";
+    globalThis.fetch = (async (_url, init) => {
+      upstreamHeader = new Headers(init?.headers).get(LATR_UPSTREAM_DPOP_HEADER) ?? "";
+      requestBody = String(init?.body ?? "");
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () =>
+      new Response(null, {
+        status: 200,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      })
+    );
+
+    await latrGatewayFetch(oauth, latrXrpcPath(LATR_XRPC.migrateBookmarks), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limit: 25, cursor: "retry-cursor" }),
+    });
+
+    const body = JSON.parse(requestBody) as {
+      limit: number;
+      cursor: string;
+      upstreamDpopProof: string;
+    };
+    expect(upstreamHeader).toBe("");
+    expect(body.limit).toBe(25);
+    expect(body.cursor).toBe("retry-cursor");
+    expect(body.upstreamDpopProof.split(",")).toHaveLength(90);
+  });
+
   test("POST /v1/latr/saves sends save upstream proofs", async () => {
     let upstreamHeader = "";
 
