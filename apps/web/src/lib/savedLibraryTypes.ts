@@ -1,9 +1,8 @@
-import type { RepoRecord } from "@/lib/latrRepo";
 import type { ResolvedPreview } from "@/lib/resolveSubject";
-import type { SavedItemRecord } from "@/lib/latrRecords";
+import type { LatrBookmarkView } from "@/lib/latrRecords";
 
 export type SavedRow = {
-  rec: RepoRecord<SavedItemRecord>;
+  rec: LatrBookmarkView;
   preview: ResolvedPreview;
   local?: {
     archivedAt?: string;

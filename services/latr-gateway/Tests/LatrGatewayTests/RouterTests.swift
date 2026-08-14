@@ -6,6 +6,19 @@ import LatrGatewayLib
 import XCTest
 
 final class RouterTests: XCTestCase {
+    func testBookmarkXRPCRouteRejectsMissingAuthorization() async throws {
+        let (app, httpClient) = makeApp()
+        try await app.test(.router) { client in
+            try await client.execute(
+                uri: "/xrpc/link.latr.bookmarks.listBookmarks",
+                method: .get
+            ) { response in
+                XCTAssertEqual(response.status, .unauthorized)
+            }
+        }
+        try await httpClient.shutdown()
+    }
+
     private func registryURL() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("latr-router-registry-\(UUID().uuidString).json")

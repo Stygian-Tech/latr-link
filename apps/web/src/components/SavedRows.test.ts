@@ -12,8 +12,7 @@ describe("Saved Rows Sorting", () => {
         ...rows[0].rec,
         value: {
           ...rows[0].rec.value,
-          savedAt: "2026-01-01T00:00:00.000Z",
-          state: "archived" as const,
+          createdAt: "2026-01-01T00:00:00.000Z",
         },
       },
       local: { archivedAt: "2026-07-07T12:00:00.000Z" },
@@ -24,8 +23,7 @@ describe("Saved Rows Sorting", () => {
         ...rows[1].rec,
         value: {
           ...rows[1].rec.value,
-          savedAt: "2026-07-07T13:00:00.000Z",
-          state: "archived" as const,
+          createdAt: "2026-07-07T13:00:00.000Z",
         },
       },
       local: { archivedAt: "2026-07-06T12:00:00.000Z" },

@@ -1,5 +1,7 @@
 import Foundation
 import Hummingbird
+import HTTPTypes
+import LatrKit
 
 public struct GatewayError: Error, Sendable {
     public let status: HTTPResponse.Status
@@ -15,7 +17,8 @@ public struct GatewayError: Error, Sendable {
 
 public func jsonResponse<T: Encodable>(
     _ body: T,
-    status: HTTPResponse.Status = .ok
+    status: HTTPResponse.Status = .ok,
+    additionalHeaders: [(String, String)] = []
 ) throws -> Response {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
@@ -24,10 +27,40 @@ public func jsonResponse<T: Encodable>(
     buffer.writeBytes(data)
     var headers = HTTPFields()
     headers[.contentType] = "application/json; charset=utf-8"
+    for (name, value) in additionalHeaders {
+        if let field = HTTPField.Name(name) { headers[field] = value }
+    }
     return Response(status: status, headers: headers, body: .init(byteBuffer: buffer))
 }
 
+public func deprecatedJSONResponse<T: Encodable>(
+    _ body: T,
+    successor: String,
+    status: HTTPResponse.Status = .ok
+) throws -> Response {
+    try jsonResponse(body, status: status, additionalHeaders: [
+        ("Deprecation", "true"),
+        ("Link", "<\(successor)>; rel=\"successor-version\""),
+        ("Warning", "299 - \"Deprecated L@tr REST adapter; migrate to XRPC\""),
+    ])
+}
+
 public func errorResponse(_ error: Error) -> Response {
+    if let libraryError = error as? SavedLibraryError {
+        let mapped: GatewayError
+        switch libraryError {
+        case .invalidURL:
+            mapped = GatewayError(status: .badRequest, message: "Invalid bookmark subject", code: "InvalidUrl")
+        case .bookmarkNotFound, .itemNotFound:
+            mapped = GatewayError(status: .notFound, message: "Bookmark not found", code: "BookmarkNotFound")
+        case .conflict:
+            mapped = GatewayError(status: .conflict, message: "Bookmark changed concurrently", code: "Conflict")
+        case let .invalidStoredRecord(uri):
+            mapped = GatewayError(status: .badGateway, message: "Invalid stored bookmark: \(uri)", code: "UpstreamFailure")
+        }
+        return (try? jsonResponse(ErrorBody(error: mapped.code, message: mapped.message), status: mapped.status))
+            ?? Response(status: mapped.status)
+    }
     if let gatewayError = error as? GatewayError {
         return (try? jsonResponse(
             ErrorBody(error: gatewayError.code, message: gatewayError.message),

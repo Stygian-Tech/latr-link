@@ -1,4 +1,6 @@
 import {
+  COLLECTION_BOOKMARK,
+  COLLECTION_BOOKMARK_METADATA,
   COLLECTION_SAVED_EXTERNAL,
   COLLECTION_SAVED_ITEM,
   LEGACY_COLLECTION_SAVED_EXTERNAL,
@@ -22,8 +24,10 @@ function repoScope(
  */
 export const LATR_ATPROTO_OAUTH_SCOPES = [
   "atproto",
-  repoScope(COLLECTION_SAVED_EXTERNAL, ["create", "update"]),
-  repoScope(COLLECTION_SAVED_ITEM, ["create", "update", "delete"]),
+  repoScope(COLLECTION_BOOKMARK, ["create", "update", "delete"]),
+  repoScope(COLLECTION_BOOKMARK_METADATA, ["create", "update", "delete"]),
+  repoScope(COLLECTION_SAVED_EXTERNAL, ["delete"]),
+  repoScope(COLLECTION_SAVED_ITEM, ["delete"]),
   repoScope(LEGACY_COLLECTION_SAVED_EXTERNAL, ["delete"]),
   repoScope(LEGACY_COLLECTION_SAVED_ITEM, ["delete"]),
 ] as const;

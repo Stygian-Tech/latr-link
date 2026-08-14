@@ -115,7 +115,7 @@ export function filterSavedRows(
 ): SavedRow[] {
   if (!rows) return [];
   return rows.filter((row) => {
-    const state = row.rec.value.state ?? "unread";
+    const state = row.rec.metadataRecord?.value.state ?? "unread";
     if (mode === "unread") return state !== "archived";
     return state === "archived";
   });
@@ -132,9 +132,9 @@ export function sortSavedRows(rows: SavedRow[], sort: SavedRowsSort): SavedRow[]
     }
 
     const aDate =
-      sort === "archived" ? (a.local?.archivedAt ?? a.rec.value.savedAt) : a.rec.value.savedAt;
+      sort === "archived" ? (a.local?.archivedAt ?? a.rec.value.createdAt) : a.rec.value.createdAt;
     const bDate =
-      sort === "archived" ? (b.local?.archivedAt ?? b.rec.value.savedAt) : b.rec.value.savedAt;
+      sort === "archived" ? (b.local?.archivedAt ?? b.rec.value.createdAt) : b.rec.value.createdAt;
     const aTime = Date.parse(aDate);
     const bTime = Date.parse(bDate);
     const safeATime = Number.isFinite(aTime) ? aTime : 0;
@@ -358,14 +358,14 @@ function SavedRowItem({
   onOpenEmbedded: (url: string, title: string) => void;
 }) {
   const itemRkey = rkeyFromAtUri(row.rec.uri);
-  const href = row.preview.href ?? row.rec.value.subjectUri;
+  const href = row.preview.href ?? row.rec.value.subject;
   const p = row.preview;
   const origin = siteOrigin(p.canonicalUrl);
   const thumb = p.imageHref;
   const [busy, setBusy] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeDialogLeft, setRemoveDialogLeft] = useState<number | null>(null);
-  const isArchived = row.rec.value.state === "archived";
+  const isArchived = row.rec.metadataRecord?.value.state === "archived";
   const readMinutes = readingMinutesForRow(row);
   const contentType = contentTypeIcon(savedRowContentBucket(row));
 
@@ -435,7 +435,7 @@ function SavedRowItem({
                 {p.siteLabel ?? p.kind}
               </span>
               <span aria-hidden>•</span>
-              <span>{savedAtShort(row.rec.value.savedAt)}</span>
+              <span>{savedAtShort(row.rec.value.createdAt)}</span>
               <span aria-hidden>•</span>
               <span>{readMinutes} min read</span>
               {isArchived ? <Badge variant="secondary">Archived</Badge> : null}

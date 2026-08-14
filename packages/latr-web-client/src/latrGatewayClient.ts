@@ -1,6 +1,8 @@
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 import {
   createUpstreamDpopProof,
+  LATR_XRPC,
+  latrXrpcPath,
   LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
   LATR_GATEWAY_SAVES_PATH,
   LATR_UPSTREAM_DPOP_HEADER,
@@ -167,6 +169,31 @@ export async function createSaveUpstreamDpopProofPool(
   );
 }
 
+async function createBookmarkUpstreamDpopProofPool(
+  oauthSession: OAuthSession,
+  path: string,
+  options: UpstreamDpopProofOptions
+): Promise<string> {
+  const operations = path === latrXrpcPath(LATR_XRPC.listBookmarks)
+    ? [{ xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET" as const, count: 9 }]
+    : path === latrXrpcPath(LATR_XRPC.getBookmark)
+      ? [
+          { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET" as const, count: 8 },
+          { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET" as const, count: 1 },
+        ]
+      : path === latrXrpcPath(LATR_XRPC.saveBookmark)
+        ? [
+            { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET" as const, count: 8 },
+            { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET" as const, count: 2 },
+            { xrpcMethod: "com.atproto.repo.applyWrites", httpMethod: "POST" as const, count: 1 },
+          ]
+        : [
+            { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET" as const, count: 2 },
+            { xrpcMethod: "com.atproto.repo.applyWrites", httpMethod: "POST" as const, count: 1 },
+          ];
+  return createChainedUpstreamDpopProofPool(oauthSession, operations, options);
+}
+
 export async function latrGatewayFetch(
   oauthSession: OAuthSession,
   path: string,
@@ -184,6 +211,13 @@ export async function latrGatewayFetch(
 
   const upstream = pdsXrpcMethodForGatewayRequest(method, gatewayPath);
   const gatewayPathOnly = stripQueryAndFragment(gatewayPath);
+  const bookmarkPaths = new Set([
+    latrXrpcPath(LATR_XRPC.listBookmarks),
+    latrXrpcPath(LATR_XRPC.getBookmark),
+    latrXrpcPath(LATR_XRPC.saveBookmark),
+    latrXrpcPath(LATR_XRPC.setBookmarkState),
+    latrXrpcPath(LATR_XRPC.deleteBookmark),
+  ]);
   const upstreamHeaders: Record<string, string> = {};
   let requestBody = init?.body;
   const sessionWithTokenSet = oauthSession as SessionWithTokenSet;
@@ -197,7 +231,25 @@ export async function latrGatewayFetch(
   );
   const hopUserAuthHeaders = headersForGatewayHop(url, userAuthHeaders);
 
-  if (
+  if (gatewayPathOnly === latrXrpcPath(LATR_XRPC.migrateBookmarks)) {
+    const parsed = typeof requestBody === "string" ? JSON.parse(requestBody) as Record<string, unknown> : {};
+    requestBody = JSON.stringify({
+      ...parsed,
+      upstreamDpopProof: await createChainedUpstreamDpopProofPool(
+        oauthSession,
+        [
+          { xrpcMethod: "com.atproto.repo.listRecords", httpMethod: "GET", count: 40 },
+          { xrpcMethod: "com.atproto.repo.getRecord", httpMethod: "GET", count: 25 },
+          { xrpcMethod: "com.atproto.repo.applyWrites", httpMethod: "POST", count: 25 },
+        ],
+        proofOptions
+      ),
+    });
+    upstreamHeaders["Content-Type"] = "application/json";
+  } else if (bookmarkPaths.has(gatewayPathOnly)) {
+    upstreamHeaders[LATR_UPSTREAM_DPOP_HEADER] =
+      await createBookmarkUpstreamDpopProofPool(oauthSession, gatewayPathOnly, proofOptions);
+  } else if (
     method === "GET" &&
     PDS_SESSION_ATTESTATION_PATHS.has(gatewayPathOnly)
   ) {

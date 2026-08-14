@@ -1,13 +1,21 @@
 import {
+  COLLECTION_BOOKMARK,
+  COLLECTION_BOOKMARK_METADATA,
   COLLECTION_SAVED_EXTERNAL,
   COLLECTION_SAVED_ITEM,
   LEGACY_COLLECTION_SAVED_EXTERNAL,
   LEGACY_COLLECTION_SAVED_ITEM,
   isLatrExternalWrapperCollection,
   remapLegacyLatrSubjectUri,
+  type CommunityBookmarkRecord,
+  type LatrBookmarkMetadataRecord,
+  type LatrBookmarkPreview,
+  type LatrBookmarkView,
 } from "latr-packages/gateway-client";
 
 export {
+  COLLECTION_BOOKMARK,
+  COLLECTION_BOOKMARK_METADATA,
   COLLECTION_SAVED_EXTERNAL,
   COLLECTION_SAVED_ITEM,
   LEGACY_COLLECTION_SAVED_EXTERNAL,
@@ -15,6 +23,7 @@ export {
   isLatrExternalWrapperCollection,
   remapLegacyLatrSubjectUri,
 };
+export type { CommunityBookmarkRecord, LatrBookmarkMetadataRecord, LatrBookmarkPreview, LatrBookmarkView };
 
 export type SavedItemState = "unread" | "archived";
 

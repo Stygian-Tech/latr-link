@@ -61,7 +61,7 @@ function useLibraryNav(): NavItem[] {
   const { data } = useSavedLibrary();
   return useMemo(() => {
     const unread =
-      data?.filter((row) => (row.rec.value.state ?? "unread") !== "archived")
+      data?.filter((row) => (row.rec.metadataRecord?.value.state ?? "unread") !== "archived")
         .length ?? undefined;
     return [
       { href: "/library", label: "Unread", icon: Inbox, count: unread },

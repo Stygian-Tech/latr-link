@@ -12,7 +12,7 @@ export type SavedLibraryData = InfiniteData<SavedLibraryPage>;
 /**
  * Flattens loaded pages into the flat `SavedRow[]` the rest of the app
  * consumes, deduped by record URI (a row can shift pages between a mutation
- * and refetch) and sorted by `savedAt` descending.
+ * and refetch) and sorted by bookmark `createdAt` descending.
  */
 export function flattenSavedLibraryPages(
   data: SavedLibraryData | undefined
@@ -29,8 +29,8 @@ export function flattenSavedLibraryPages(
   }
   rows.sort(
     (a, b) =>
-      new Date(b.rec.value.savedAt).getTime() -
-      new Date(a.rec.value.savedAt).getTime()
+      new Date(b.rec.value.createdAt).getTime() -
+      new Date(a.rec.value.createdAt).getTime()
   );
   return rows;
 }

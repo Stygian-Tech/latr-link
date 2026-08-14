@@ -1,7 +1,6 @@
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 
 import { LatrRepo } from "./latrRepo";
-import { resolvePasteForSave } from "./resolveSaveInput";
 
 const UNSUPPORTED_TAB_URL_PREFIXES = [
   "chrome://",
@@ -32,8 +31,7 @@ export function isSupportedSaveUrl(url: string): boolean {
 export type SaveCurrentUrlResult =
   | {
       ok: true;
-      kind: "subject" | "url";
-      storage?: "native" | "external";
+      kind: "bookmark";
     }
   | { ok: false; message: string };
 
@@ -54,21 +52,11 @@ export async function saveCurrentUrl(
   }
 
   try {
-    const resolved = resolvePasteForSave(url);
     const repo = new LatrRepo(oauthSession, did);
-    if (resolved.kind === "subject") {
-      const response = await repo.saveSubjectUri(resolved.subjectUri);
-      return {
-        ok: true,
-        kind: "subject",
-        storage: response.storage,
-      };
-    }
-    const response = await repo.saveUrl(resolved.url);
+    const response = await repo.saveUrl(url.trim());
     return {
       ok: true,
       kind: response.kind,
-      storage: response.storage,
     };
   } catch (err) {
     return {
