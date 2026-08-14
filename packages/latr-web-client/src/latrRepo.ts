@@ -158,7 +158,7 @@ export class LatrRepo {
       const params = new URLSearchParams({ url: trimmed });
       return await latrGatewayJson<OpenGraphPreviewFields>(
         this.oauthSession,
-        `/v1/latr/og-preview?${params.toString()}`
+        `${latrXrpcPath(LATR_XRPC.getOpenGraph)}?${params.toString()}`
       );
     } catch {
       return null;

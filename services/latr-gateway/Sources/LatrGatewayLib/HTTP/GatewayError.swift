@@ -81,6 +81,63 @@ public func errorResponse(_ error: Error) -> Response {
     )) ?? Response(status: .internalServerError)
 }
 
+/// XRPC-compatible response encoder. Authenticated gateway queries are intentionally
+/// non-cacheable even though XRPC queries use GET.
+public func xrpcJSONResponse<T: Encodable>(_ body: T) throws -> Response {
+    var response = try jsonResponse(body)
+    response.headers[.cacheControl] = "private, no-store"
+    return response
+}
+
+public func xrpcErrorResponse(_ error: Error) -> Response {
+    let gatewayError: GatewayError
+    if let typed = error as? GatewayError {
+        gatewayError = typed
+    } else if error is DecodingError {
+        gatewayError = GatewayError(
+            status: .badRequest,
+            message: "Invalid JSON input",
+            code: "invalid_request"
+        )
+    } else {
+        gatewayError = GatewayError(
+            status: .internalServerError,
+            message: "Internal server error",
+            code: "internal_error"
+        )
+    }
+
+    let xrpcName: String = switch gatewayError.code {
+    case "missing_auth": "AuthRequired"
+    case "invalid_auth_scheme", "invalid_token", "invalid_sub", "token_expired", "unsupported_token_alg":
+        "InvalidToken"
+    case "missing_dpop", "invalid_dpop", "invalid_dpop_replay": "InvalidDpop"
+    case "missing_client_credential", "missing_client_id": "ClientAuthRequired"
+    case "invalid_client_credential", "invalid_client_id", "unknown_client": "InvalidClient"
+    case "saved_item_not_found", "not_found": "SavedItemNotFound"
+    case "invalid_url", "missing_url": "InvalidUrl"
+    case "usage_limit_exceeded": "RateLimitExceeded"
+    case "pds_error", "pds_resolve", "pds_record_decode", "database_error": "UpstreamFailure"
+    case "pds_unauthorized", "invalid_upstream_dpop", "missing_upstream_dpop": "InvalidDpop"
+    case "pds_forbidden", "forbidden", "client_forbidden": "Forbidden"
+    case "conflict": "Conflict"
+    case "client_exists": "ClientExists"
+    case "client_not_found": "ClientNotFound"
+    case "key_not_found": "KeyNotFound"
+    default: "InvalidRequest"
+    }
+
+    var response = (try? jsonResponse(
+        ErrorBody(error: xrpcName, message: gatewayError.message),
+        status: gatewayError.status
+    )) ?? Response(status: gatewayError.status)
+    response.headers[.cacheControl] = "private, no-store"
+    if gatewayError.status == .unauthorized {
+        response.headers[.wwwAuthenticate] = "DPoP"
+    }
+    return response
+}
+
 public func decodeJSONBody<T: Decodable>(_ request: Request, as type: T.Type) async throws -> T {
     do {
         let buffer = try await request.body.collect(upTo: 1_048_576)

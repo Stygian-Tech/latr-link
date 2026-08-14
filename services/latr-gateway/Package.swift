@@ -42,6 +42,8 @@ let package = Package(
                 .product(name: "HummingbirdTesting", package: "hummingbird"),
             ],
             path: "Tests/LatrGatewayTests",
+            // Golden-vector JSON is read from the source tree via #filePath, not bundled,
+            // so it is excluded rather than declared as a resource.
             exclude: ["Fixtures"]
         ),
     ]

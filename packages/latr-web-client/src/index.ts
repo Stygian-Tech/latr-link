@@ -35,6 +35,13 @@ export {
   type LatrGatewayWindowBootstrap,
 } from "./latrGatewayConfig";
 export {
+  LATR_XRPC,
+  latrXrpcPath,
+  type LatrXrpcMethod,
+  type LatrListItemsResponse,
+  type LatrLexiconMigrationResponse,
+} from "./xrpcMethods";
+export {
   latrGatewayFetch,
   latrGatewayJson,
   LATR_OFFICIAL_CLIENT_HEADER,
