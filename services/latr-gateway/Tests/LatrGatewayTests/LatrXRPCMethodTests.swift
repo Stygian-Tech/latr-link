@@ -3,7 +3,7 @@ import XCTest
 
 final class LatrXRPCMethodTests: XCTestCase {
     func testEveryMethodUsesLatrNamespace() {
-        XCTAssertEqual(LatrXRPCMethod.allCases.count, 23)
+        XCTAssertEqual(LatrXRPCMethod.allCases.count, 24)
         XCTAssertTrue(LatrXRPCMethod.allCases.allSatisfy { $0.rawValue.hasPrefix("link.latr.") })
     }
 
@@ -12,6 +12,7 @@ final class LatrXRPCMethodTests: XCTestCase {
         XCTAssertEqual(LatrXRPCMethod.listBookmarks.kind, .query)
         XCTAssertEqual(LatrXRPCMethod.getOpenGraph.kind, .query)
         XCTAssertEqual(LatrXRPCMethod.saveBookmark.kind, .procedure)
+        XCTAssertEqual(LatrXRPCMethod.syncBookmarkMetadata.kind, .procedure)
         XCTAssertEqual(LatrXRPCMethod.saveURL.kind, .procedure)
         XCTAssertEqual(LatrXRPCMethod.revokeDeveloperKey.kind, .procedure)
     }

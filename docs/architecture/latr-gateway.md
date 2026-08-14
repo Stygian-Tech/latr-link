@@ -76,6 +76,7 @@ All `/xrpc/link.latr.*` and `/v1/latr/*` save/list routes also require:
 | GET | `/xrpc/link.latr.bookmarks.listBookmarks` | Page bookmark views (`value`, optional `metadataRecord`, optional `preview`) |
 | GET | `/xrpc/link.latr.bookmarks.getBookmark?subject=` | Exact-subject lookup |
 | POST | `/xrpc/link.latr.bookmarks.saveBookmark` | Idempotent exact-subject save |
+| POST | `/xrpc/link.latr.bookmarks.syncMetadata` | Reconcile one bookmark page with same-rkey L@tr metadata |
 | POST | `/xrpc/link.latr.bookmarks.setState` | Update metadata state using bookmark URI |
 | POST | `/xrpc/link.latr.bookmarks.deleteBookmark` | Atomically delete bookmark and metadata by URI |
 | POST | `/xrpc/link.latr.bookmarks.migrateLegacy` | Retry-safe legacy migration with counts and cursor |
@@ -91,7 +92,7 @@ Developer management routes are listed above.
 
 Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). `community.lexicon.bookmarks.bookmark` is authoritative, `link.latr.bookmarks.metadata` stores user state, and Open Graph previews are service-derived cache data rather than PDS record fields. See [the migration contract](community-bookmark-migration.md).
 
-**Client read path:** list bookmarks through **`GET /xrpc/link.latr.bookmarks.listBookmarks`**. Clients do not join community and metadata collections themselves.
+**Client read path:** best-effort reconcile the requested page through **`POST /xrpc/link.latr.bookmarks.syncMetadata`**, then list it through **`GET /xrpc/link.latr.bookmarks.listBookmarks`**. Clients do not join community and metadata collections themselves, and a reconciliation failure does not hide community bookmarks.
 
 ## Bookmark save pipeline
 

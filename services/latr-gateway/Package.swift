@@ -10,7 +10,7 @@ let package = Package(
         .executable(name: "LatrGateway", targets: ["LatrGateway"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/Stygian-Tech/latr-kit.git", revision: "286d3273bb2f5e971d2571bbc2c1158bbcc43f1b"),
+        .package(url: "https://github.com/Stygian-Tech/latr-kit.git", revision: "2d3e290d0c1c85864312b33f97f2ebc7ca5091b1"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.25.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.12.0"),

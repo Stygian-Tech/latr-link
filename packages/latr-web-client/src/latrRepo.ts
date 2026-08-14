@@ -49,6 +49,7 @@ export class LatrRepo {
 
   async listSavedItems(): Promise<LatrBookmarkView[]> {
     await this.migrateLegacyLexiconsIfNeeded();
+    await this.syncBookmarkMetadataBestEffort();
     const response = await latrGatewayJson<LatrListBookmarksOutput>(
       this.oauthSession,
       latrXrpcPath(LATR_XRPC.listBookmarks),
@@ -67,12 +68,36 @@ export class LatrRepo {
     cursor?: string;
   }): Promise<SavedItemsPage> {
     await this.migrateLegacyLexiconsIfNeeded();
+    await this.syncBookmarkMetadataBestEffort(options);
     const params = new URLSearchParams({ limit: String(options.limit) });
     if (options.cursor) params.set("cursor", options.cursor);
     const response = await latrGatewayJson<LatrListBookmarksOutput>(this.oauthSession, `${latrXrpcPath(LATR_XRPC.listBookmarks)}?${params.toString()}`, {
       method: "GET",
     });
     return { records: response.bookmarks ?? [], cursor: response.cursor ?? null };
+  }
+
+  private async syncBookmarkMetadataBestEffort(options: {
+    limit?: number;
+    cursor?: string;
+  } = {}): Promise<void> {
+    try {
+      await latrGatewayJson(
+        this.oauthSession,
+        latrXrpcPath(LATR_XRPC.syncBookmarkMetadata),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...(options.limit === undefined ? {} : { limit: options.limit }),
+            ...(options.cursor ? { cursor: options.cursor } : {}),
+          }),
+        }
+      );
+    } catch {
+      // Best-effort: community bookmarks remain visible and default to unread.
+      // Retry every page refresh because other clients can add bookmarks later.
+    }
   }
 
   /** One-time legacy `com.latr.*` → `link.latr.*` migration (retries until complete). */

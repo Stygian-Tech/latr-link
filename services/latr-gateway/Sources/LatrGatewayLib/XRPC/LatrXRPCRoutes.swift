@@ -46,6 +46,15 @@ public enum LatrXRPCRoutes {
             }
         }
 
+        xrpc.post(RouterPath(LatrXRPCMethod.syncBookmarkMetadata.rawValue)) { request, _ in
+            await handleProtected(request: request, services: services, errorResponder: xrpcErrorResponse) { auth in
+                let input = try await decodeXRPCInput(request, as: LatrSyncBookmarkMetadataInput.self)
+                return try xrpcJSONResponse(
+                    try await BookmarkGatewayOperations.syncMetadata(input: input, auth: auth, services: services)
+                )
+            }
+        }
+
         xrpc.patch(RouterPath(LatrXRPCMethod.setBookmarkState.rawValue)) { request, _ in
             await handleProtected(request: request, services: services, errorResponder: xrpcErrorResponse) { auth in
                 let input = try await decodeXRPCInput(request, as: LatrSetBookmarkStateInput.self)

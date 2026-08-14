@@ -5,6 +5,7 @@ public enum LatrXRPCMethod: String, CaseIterable, Sendable {
     case listBookmarks = "link.latr.bookmarks.listBookmarks"
     case getBookmark = "link.latr.bookmarks.getBookmark"
     case saveBookmark = "link.latr.bookmarks.saveBookmark"
+    case syncBookmarkMetadata = "link.latr.bookmarks.syncMetadata"
     case setBookmarkState = "link.latr.bookmarks.setState"
     case deleteBookmark = "link.latr.bookmarks.deleteBookmark"
     case migrateBookmarks = "link.latr.bookmarks.migrateLegacy"
@@ -36,7 +37,7 @@ public enum LatrXRPCMethod: String, CaseIterable, Sendable {
         case .listBookmarks, .getBookmark, .listItems, .getItem, .getOpenGraph, .resolveURL, .authProbe,
              .listDeveloperClients, .listDeveloperKeys, .getDeveloperUsage:
             .query
-        case .saveBookmark, .setBookmarkState, .deleteBookmark, .migrateBookmarks,
+        case .saveBookmark, .syncBookmarkMetadata, .setBookmarkState, .deleteBookmark, .migrateBookmarks,
              .saveURL, .saveSubject, .setState, .deleteItem, .migrateLegacy,
              .createDeveloperClient, .deleteDeveloperClient, .createDeveloperKey,
              .revokeDeveloperKey:

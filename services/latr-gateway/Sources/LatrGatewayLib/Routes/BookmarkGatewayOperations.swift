@@ -45,6 +45,29 @@ public enum BookmarkGatewayOperations {
         return GatewayBookmarkView(view, preview: preview)
     }
 
+    public static func syncMetadata(
+        input: LatrSyncBookmarkMetadataInput,
+        auth: AuthContext,
+        services: GatewayServices
+    ) async throws -> BookmarkMetadataSyncSummary {
+        try await services.savedLibrary(for: auth).syncBookmarkMetadata(
+            limit: try syncMetadataLimit(input.limit),
+            startingAfter: input.cursor
+        )
+    }
+
+    static func syncMetadataLimit(_ requested: Int?) throws -> Int {
+        let limit = requested ?? 50
+        guard (1 ... 100).contains(limit) else {
+            throw GatewayError(
+                status: .badRequest,
+                message: "limit must be between 1 and 100",
+                code: "invalid_request"
+            )
+        }
+        return limit
+    }
+
     public static func setState(
         input: LatrSetBookmarkStateInput,
         auth: AuthContext,

@@ -19,6 +19,21 @@ final class RouterTests: XCTestCase {
         try await httpClient.shutdown()
     }
 
+    func testBookmarkMetadataSyncRouteRejectsMissingAuthorization() async throws {
+        let (app, httpClient) = makeApp()
+        try await app.test(.router) { client in
+            try await client.execute(
+                uri: "/xrpc/link.latr.bookmarks.syncMetadata",
+                method: .post,
+                headers: [.contentType: "application/json"],
+                body: ByteBuffer(string: #"{"limit":50}"#)
+            ) { response in
+                XCTAssertEqual(response.status, .unauthorized)
+            }
+        }
+        try await httpClient.shutdown()
+    }
+
     private func registryURL() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("latr-router-registry-\(UUID().uuidString).json")

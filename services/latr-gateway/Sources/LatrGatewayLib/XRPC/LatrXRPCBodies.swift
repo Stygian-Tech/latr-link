@@ -9,6 +9,10 @@ extension LatrSaveBookmarkInput: LatrXRPCInput {
     public static let allowedKeys: Set<String> = ["subject", "tags"]
 }
 
+extension LatrSyncBookmarkMetadataInput: LatrXRPCInput {
+    public static let allowedKeys: Set<String> = ["limit", "cursor"]
+}
+
 extension LatrSetBookmarkStateInput: LatrXRPCInput {
     public static let allowedKeys: Set<String> = ["bookmarkUri", "state"]
 }
