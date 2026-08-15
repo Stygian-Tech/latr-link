@@ -1,7 +1,21 @@
 import { describe, expect, test } from "bun:test";
 
 import { createDemoSavedRows } from "@/lib/demoLibrary";
-import { sortSavedRows } from "./SavedRows";
+import { savedAtShort, sortSavedRows } from "./SavedRows";
+
+describe("Saved Row Dates", () => {
+  test("Formats A Valid Created Time", () => {
+    expect(savedAtShort("2026-08-14T12:00:00.000Z")).toBe("Aug 14, 2026");
+  });
+
+  test("Handles A Persisted Pre-Migration Row Without Created Time", () => {
+    expect(savedAtShort(undefined)).toBe("Date unavailable");
+  });
+
+  test("Falls Back Safely For An Invalid Created Time", () => {
+    expect(savedAtShort("not-a-date")).toBe("not-a-date");
+  });
+});
 
 describe("Saved Rows Sorting", () => {
   test("Sorts Archive Rows by Archived Time Before Saved Time", () => {

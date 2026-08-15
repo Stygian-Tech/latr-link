@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 import { useTheme } from "@/hooks/useTheme";
 import { isLatrDemoDataEnabled } from "@/lib/demoMode";
+import { clearPersistedQueryCache } from "@/lib/queryPersistence";
 import {
   fontLabel,
   themeLabel,
@@ -323,7 +324,7 @@ export default function SettingsPage() {
             variant="outline"
             onClick={() => {
               try {
-                localStorage.removeItem("latr.link.react-query.v1");
+                clearPersistedQueryCache(localStorage);
                 setMessage("Cleared Local React Query Cache.");
               } catch {
                 setMessage("Could Not Clear Storage.");

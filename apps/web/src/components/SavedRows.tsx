@@ -97,7 +97,9 @@ function faviconUrlForOrigin(origin: string): string {
   return `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(origin)}`;
 }
 
-function savedAtShort(iso: string): string {
+export function savedAtShort(iso: string | null | undefined): string {
+  if (!iso) return "Date unavailable";
+
   try {
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
