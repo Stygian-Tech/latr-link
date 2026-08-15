@@ -64,33 +64,30 @@ function mockOAuthSession(
 }
 
 describe("LatrRepo Gateway Facade", () => {
-  test("listSavedItems migrates legacy lexicons then reads saved items", async () => {
+  test("listSavedItems migrates, synchronizes metadata, then reads saved items", async () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
-      if (String(url).includes("/v1/latr/migrate-lexicons")) {
+      if (String(url).includes("/xrpc/link.latr.bookmarks.migrateLegacy")) {
         return new Response(
           JSON.stringify({
             ok: true,
-            externalCopied: 0,
-            itemsCopied: 0,
-            externalDeleted: 0,
-            itemsDeleted: 0,
+            scanned: 0, created: 0, reused: 0, duplicates: 0,
+            skippedConflict: 0, cached: 0, retired: 0,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
       return new Response(
         JSON.stringify({
-          records: [
+          bookmarks: [
             {
-              uri: "at://did:plc:viewer/link.latr.saved.item/item1",
+              uri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/item1",
               cid: "cid",
               value: {
-                $type: "link.latr.saved.item",
-                subjectUri:
-                  "at://did:plc:viewer/link.latr.saved.external/ext1",
-                savedAt: "2026-06-01T12:00:00.000Z",
+                $type: "community.lexicon.bookmarks.bookmark",
+                subject: "https://example.com/article",
+                createdAt: "2026-06-01T12:00:00.000Z",
               },
             },
           ],
@@ -112,16 +109,28 @@ describe("LatrRepo Gateway Facade", () => {
       calls.some(
         (call) =>
           call.startsWith("POST") &&
-          call.includes("127.0.0.1:8080/v1/latr/migrate-lexicons")
+          call.includes("127.0.0.1:8080/xrpc/link.latr.bookmarks.migrateLegacy")
+      )
+    ).toBe(true);
+    expect(
+      calls.some(
+        (call) =>
+          call.startsWith("POST") &&
+          call.includes("127.0.0.1:8080/xrpc/link.latr.bookmarks.syncMetadata")
       )
     ).toBe(true);
     expect(
       calls.some(
         (call) =>
           call.startsWith("GET") &&
-          call.includes("127.0.0.1:8080/v1/latr/saves")
+          call.includes("127.0.0.1:8080/xrpc/link.latr.bookmarks.listBookmarks")
       )
     ).toBe(true);
+    const migrationIndex = calls.findIndex((call) => call.includes("/xrpc/link.latr.bookmarks.migrateLegacy"));
+    const syncIndex = calls.findIndex((call) => call.includes("/xrpc/link.latr.bookmarks.syncMetadata"));
+    const listIndex = calls.findIndex((call) => call.includes("/xrpc/link.latr.bookmarks.listBookmarks"));
+    expect(migrationIndex).toBeLessThan(syncIndex);
+    expect(syncIndex).toBeLessThan(listIndex);
   });
 
   test("listSavedItems skips migrate when lexicon migration already completed", async () => {
@@ -130,7 +139,7 @@ describe("LatrRepo Gateway Facade", () => {
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
       return new Response(
-        JSON.stringify({ records: [] }),
+        JSON.stringify({ bookmarks: [] }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }) as typeof fetch;
@@ -145,10 +154,10 @@ describe("LatrRepo Gateway Facade", () => {
     await repo.listSavedItems();
 
     expect(
-      calls.some((call) => call.includes("/v1/latr/migrate-lexicons"))
+      calls.some((call) => call.includes("/xrpc/link.latr.bookmarks.migrateLegacy"))
     ).toBe(false);
     expect(
-      calls.some((call) => call.includes("/v1/latr/saves"))
+      calls.some((call) => call.includes("/xrpc/link.latr.bookmarks.listBookmarks"))
     ).toBe(true);
   });
 
@@ -158,7 +167,7 @@ describe("LatrRepo Gateway Facade", () => {
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
       return new Response(
-        JSON.stringify({ records: [], cursor: "next-cursor" }),
+        JSON.stringify({ bookmarks: [], cursor: "next-cursor" }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }) as typeof fetch;
@@ -173,17 +182,23 @@ describe("LatrRepo Gateway Facade", () => {
     const page = await repo.listSavedItemsPage({ limit: 50 });
 
     expect(page.cursor).toBe("next-cursor");
-    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    const saves = calls.find((call) => call.includes("/xrpc/link.latr.bookmarks.listBookmarks"));
     expect(saves).toContain("?limit=50");
     expect(saves).not.toContain("cursor=");
+    const sync = calls.find((call) => call.includes("/xrpc/link.latr.bookmarks.syncMetadata"));
+    expect(sync).toBeDefined();
   });
 
   test("listSavedItemsPage propagates URL-encoded cursor and terminates on absence", async () => {
     markLexiconMigrationComplete("did:plc:viewer");
     const calls: string[] = [];
+    const syncBodies: string[] = [];
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
-      return new Response(JSON.stringify({ records: [] }), {
+      if (String(url).includes("/xrpc/link.latr.bookmarks.syncMetadata")) {
+        syncBodies.push(String(init?.body ?? ""));
+      }
+      return new Response(JSON.stringify({ bookmarks: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -202,9 +217,12 @@ describe("LatrRepo Gateway Facade", () => {
     });
 
     expect(page.cursor).toBeNull();
-    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    const saves = calls.find((call) => call.includes("/xrpc/link.latr.bookmarks.listBookmarks"));
     expect(saves).toContain("limit=25");
     expect(saves).toContain(`cursor=${encodeURIComponent("3jz/f+cij=")}`);
+    const syncCall = calls.find((call) => call.includes("/xrpc/link.latr.bookmarks.syncMetadata"));
+    expect(syncCall).toBeDefined();
+    expect(JSON.parse(syncBodies[0] ?? "{}")).toEqual({ limit: 25, cursor: "3jz/f+cij=" });
   });
 
   test("listSavedItems still requests the bare saves path", async () => {
@@ -212,7 +230,7 @@ describe("LatrRepo Gateway Facade", () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
-      return new Response(JSON.stringify({ records: [] }), {
+      return new Response(JSON.stringify({ bookmarks: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -227,18 +245,18 @@ describe("LatrRepo Gateway Facade", () => {
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.listSavedItems();
 
-    const saves = calls.find((call) => call.includes("/v1/latr/saves"));
+    const saves = calls.find((call) => call.includes("/xrpc/link.latr.bookmarks.listBookmarks"));
     expect(saves).toBeDefined();
     expect(saves).not.toContain("?");
   });
 
-  test("paged saves GET mints one upstream proof; bare GET keeps the pool", async () => {
+  test("metadata sync and bookmark reads mint their declared upstream proof pools", async () => {
     markLexiconMigrationComplete("did:plc:viewer");
     const proofHeaders: string[] = [];
     globalThis.fetch = (async (_url, init) => {
       const headers = (init?.headers ?? {}) as Record<string, string>;
       proofHeaders.push(headers["X-ATProto-Upstream-DPoP"] ?? "");
-      return new Response(JSON.stringify({ records: [] }), {
+      return new Response(JSON.stringify({ bookmarks: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -254,9 +272,39 @@ describe("LatrRepo Gateway Facade", () => {
     await repo.listSavedItemsPage({ limit: 50 });
     await repo.listSavedItems();
 
-    const [paged, bare] = proofHeaders;
-    expect(paged.split(",")).toHaveLength(1);
-    expect(bare.split(",")).toHaveLength(8);
+    expect(proofHeaders.map((value) => value.split(",").length)).toEqual([10, 9, 10, 9]);
+  });
+
+  test("metadata sync failure does not block listing and retries on refresh", async () => {
+    markLexiconMigrationComplete("did:plc:viewer");
+    const calls: string[] = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      if (String(url).includes("/xrpc/link.latr.bookmarks.syncMetadata")) {
+        return new Response(JSON.stringify({ error: "UpstreamFailure" }), {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ bookmarks: [{
+        uri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/external",
+        cid: "cid",
+        value: {
+          $type: "community.lexicon.bookmarks.bookmark",
+          subject: "https://example.com/external",
+          createdAt: "2026-08-13T00:00:00Z",
+        },
+      }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => new Response(null, {
+      status: 400,
+      headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+    }));
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+
+    expect(await repo.listSavedItems()).toHaveLength(1);
+    expect(await repo.listSavedItems()).toHaveLength(1);
+    expect(calls.filter((call) => call.includes("/xrpc/link.latr.bookmarks.syncMetadata"))).toHaveLength(2);
   });
 
   test("saveExternalUrl POSTs URL Body", async () => {
@@ -265,9 +313,9 @@ describe("LatrRepo Gateway Facade", () => {
       body = String(init?.body ?? "");
       return new Response(
         JSON.stringify({
-          ok: true,
-          kind: "url",
-          storage: "external",
+          uri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/1",
+          cid: "cid",
+          value: { $type: "community.lexicon.bookmarks.bookmark", subject: "https://example.com/x", createdAt: "2026-01-01T00:00:00Z" },
         }),
         {
         status: 201,
@@ -284,7 +332,7 @@ describe("LatrRepo Gateway Facade", () => {
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.saveExternalUrl("https://example.com/x");
-    expect(body).toContain('"kind":"url"');
+    expect(body).toContain('"subject":"https://example.com/x"');
     expect(body).toContain("example.com");
   });
 });

@@ -1,6 +1,6 @@
 import {
-  COLLECTION_SAVED_ITEM,
-  type SavedItemRecord,
+  COLLECTION_BOOKMARK,
+  COLLECTION_BOOKMARK_METADATA,
   type SavedItemState,
 } from "@/lib/latrRecords";
 import { rkeyFromAtUri } from "@/lib/rkey";
@@ -19,7 +19,7 @@ type DemoSeed = {
   readMinutes: number;
   image?: string;
   kind?: SavedRow["preview"]["kind"];
-  state?: SavedItemRecord["state"];
+  state?: SavedItemState;
   archivedAt?: string;
 };
 
@@ -257,31 +257,39 @@ const demoSeeds: DemoSeed[] = [
   },
 ];
 
-function savedItemRecord(seed: DemoSeed): SavedItemRecord {
-  const isAtUri = seed.url.startsWith("at://");
+function bookmarkRecord(seed: DemoSeed) {
   return {
-    $type: COLLECTION_SAVED_ITEM,
-    subjectUri: isAtUri
-      ? seed.url
-      : `at://did:plc:latrlocaldemo/link.latr.saved.external/${seed.rkey}`,
-    linkedWebUrl: isAtUri ? undefined : seed.url,
-    savedAt: seed.savedAt,
-    state: seed.state ?? "unread",
-    previewTitle: seed.title,
-    previewExcerpt: seed.excerpt,
-    previewSite: seed.site,
-    previewImage: seed.image,
-    previewAuthor: seed.author,
+    $type: COLLECTION_BOOKMARK,
+    subject: seed.url,
+    createdAt: seed.savedAt,
   };
 }
 
 function rowFromSeed(seed: DemoSeed): SavedRow {
-  const value = savedItemRecord(seed);
+  const value = bookmarkRecord(seed);
+  const uri = `at://did:plc:latrlocaldemo/${COLLECTION_BOOKMARK}/${seed.rkey}`;
   return {
     rec: {
-      uri: `at://did:plc:latrlocaldemo/link.latr.saved.item/${seed.rkey}`,
+      uri,
       cid: `bafyreib${seed.rkey.replace(/-/g, "")}`,
       value,
+      metadataRecord: {
+        uri: `at://did:plc:latrlocaldemo/${COLLECTION_BOOKMARK_METADATA}/${seed.rkey}`,
+        cid: `bafyreim${seed.rkey.replace(/-/g, "")}`,
+        value: {
+          $type: COLLECTION_BOOKMARK_METADATA,
+          bookmarkUri: uri,
+          subject: seed.url,
+          state: seed.state ?? "unread",
+        },
+      },
+      preview: {
+        title: seed.title,
+        description: seed.excerpt,
+        siteName: seed.site,
+        image: seed.image,
+        author: seed.author,
+      },
     },
     preview: {
       kind: seed.kind ?? "external",
@@ -348,7 +356,10 @@ export function setSavedRowState(
       ...row,
       rec: {
         ...row.rec,
-        value: { ...row.rec.value, state },
+        metadataRecord: {
+          ...row.rec.metadataRecord!,
+          value: { ...row.rec.metadataRecord!.value, state },
+        },
       },
       local: nextLocal,
     };

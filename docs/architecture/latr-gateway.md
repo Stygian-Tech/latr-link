@@ -56,13 +56,13 @@ Authenticated with the operator’s ATProto session only (no app API key):
 
 ### User OAuth + DPoP
 
-All `/v1/latr/*` save/list routes also require:
+All `/xrpc/link.latr.*` and `/v1/latr/*` save/list routes also require:
 
 - `Authorization: DPoP <access-token-jwt>` (or `Bearer`)
 - `DPoP: <dpop-proof-jwt>` bound to the gateway request
 - Optional `X-ATProto-Upstream-DPoP: <dpop-proof-jwt[, ...]>` — one PDS-bound proof per write-through call
 
-`POST /v1/latr/migrate-lexicons` needs a larger proof pool for its copy/delete pass. Current clients send that pool as JSON (`{ "upstreamDpopProof": "<jwt,...>" }`) to stay below reverse-proxy header limits. The gateway still accepts the header form for older clients.
+`POST /xrpc/link.latr.bookmarks.migrateLegacy` needs a larger proof pool for its atomic migration pass. Current clients send that pool in the JSON `upstreamDpopProof` transport field to stay below reverse-proxy header limits.
 
 ### Auth probe
 
@@ -73,10 +73,15 @@ All `/v1/latr/*` save/list routes also require:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Public health check |
+| GET | `/xrpc/link.latr.bookmarks.listBookmarks` | Page bookmark views (`value`, optional `metadataRecord`, optional `preview`) |
+| GET | `/xrpc/link.latr.bookmarks.getBookmark?subject=` | Exact-subject lookup |
+| POST | `/xrpc/link.latr.bookmarks.saveBookmark` | Idempotent exact-subject save |
+| POST | `/xrpc/link.latr.bookmarks.syncMetadata` | Reconcile one bookmark page with same-rkey L@tr metadata |
+| POST | `/xrpc/link.latr.bookmarks.setState` | Update metadata state using bookmark URI |
+| POST | `/xrpc/link.latr.bookmarks.deleteBookmark` | Atomically delete bookmark and metadata by URI |
+| POST | `/xrpc/link.latr.bookmarks.migrateLegacy` | Retry-safe legacy migration with counts and cursor |
 | POST | `/v1/latr/auth/probe` | Authenticated PDS connectivity check |
-| GET | `/v1/latr/saves` | List `link.latr.saved.item` records (auto-migrates legacy `com.latr.*` first). Optional `?limit=` (1–100, clamped) + `?cursor=` return one page as `{ records, cursor }`; `cursor` is omitted on the last page. Without `limit`, returns the full collection as `{ records }` (legacy) |
-| POST | `/v1/latr/migrate-lexicons` | Explicit one-time migration from `com.latr.saved.*` to `link.latr.saved.*` |
-| POST | `/v1/latr/saves` | Save URL or subject |
+| GET/POST/PATCH/DELETE | `/v1/latr/*` save routes | One-release deprecated adapters over bookmark XRPC; never write legacy collections |
 | GET | `/v1/latr/saves/subject?subjectUri=` | Lookup saved item by subject |
 | PATCH | `/v1/latr/saves/:itemRkey/state` | Body: `{ state: "unread" \| "archived" }` |
 | DELETE | `/v1/latr/saves/:itemRkey` | Unsave (item edge only) |
@@ -85,33 +90,29 @@ All `/v1/latr/*` save/list routes also require:
 
 Developer management routes are listed above.
 
-Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). Open Graph metadata is stored on `link.latr.saved.external` / `link.latr.saved.item`.
+Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). `community.lexicon.bookmarks.bookmark` is authoritative, `link.latr.bookmarks.metadata` stores user state, and Open Graph previews are service-derived cache data rather than PDS record fields. See [the migration contract](community-bookmark-migration.md).
 
-**Client read path:** list saved items via **`GET /v1/latr/saves`** (not direct PDS `listRecords`). L@tr.link and The Social Wire use the gateway for list, save, archive, and delete so app credentials and OAuth policy apply consistently.
+**Client read path:** best-effort reconcile the requested page through **`POST /xrpc/link.latr.bookmarks.syncMetadata`**, then list it through **`GET /xrpc/link.latr.bookmarks.listBookmarks`**. Clients do not join community and metadata collections themselves, and a reconciliation failure does not hide community bookmarks.
 
-## URL save pipeline
+## Bookmark save pipeline
 
-Clients should call **`POST /v1/latr/saves { kind: "url", url }`** only. The gateway runs a single SSRF-safe fetch and:
+Clients call **`POST /xrpc/link.latr.bookmarks.saveBookmark { subject, tags? }`**. The exact trimmed subject is stored; discovery and preview enrichment never replace an encountered HTTPS URL with an AT URI. Existing exact-subject records are adopted deterministically.
 
-1. **Native subject discovery** — Bluesky profile/post URLs normalize to `at://…/app.bsky.feed.post/…`; otherwise scan early `<head>` for any canonical `at://did/collection/rkey` in `<link href>` or `<meta content>` (Standard.site is one supported pattern, not the only one). Wrapper `link.latr.saved.external` URIs in HEAD are deprioritized.
-2. **Subject metadata** — For native subjects, resolve on-protocol preview fields: **PDS-first** `com.atproto.repo.getRecord` (from the repo DID document via PLC or `did:web`), **AppView enrichment** for Bluesky posts by trying AppView services discovered from the subject repo’s DID document (`#bsky_appview`, `#atproto_appview`, `BskyAppView`, `AtprotoAppView`), then `LATR_GATEWAY_APPVIEW_URLS`, then `https://public.api.bsky.app`, then raw PDS post text. Handle → DID uses `LATR_GATEWAY_IDENTITY_URL` (default `https://bsky.social`).
-3. **HEAD Open Graph gap-fill** — Parse OG from the HEAD slice only; subject-derived fields win, OG fills empty `preview*` slots.
-
-Direct **`POST /v1/latr/saves { kind: "subject", subjectUri, linkedWebUrl? }`** remains for rare `at://` paste.
-
-**Save response** (201):
+The gateway fetches HTTP(S) Open Graph fields as best-effort cache enrichment. Cache failure never blocks the PDS bookmark write. A successful response has the same bookmark-view shape used by list and get:
 
 ```json
 {
-  "ok": true,
-  "kind": "subject",
-  "subjectUri": "at://did:plc:…/app.bsky.feed.post/…",
-  "linkedWebUrl": "https://…",
-  "storage": "native"
+  "uri": "at://did:plc:…/community.lexicon.bookmarks.bookmark/3m…",
+  "cid": "bafy…",
+  "value": {
+    "$type": "community.lexicon.bookmarks.bookmark",
+    "subject": "https://example.com/encountered",
+    "createdAt": "2026-08-13T20:00:00Z"
+  },
+  "metadataRecord": { "uri": "at://…/link.latr.bookmarks.metadata/3m…", "cid": "bafy…", "value": { "state": "unread" } },
+  "preview": { "title": "Example" }
 }
 ```
-
-`storage`: `"native"` = saved edge points at a non-wrapper AT URI; `"external"` = subject is a `link.latr.saved.external` wrapper.
 
 ## Environment variables
 
@@ -127,7 +128,7 @@ Full template: [`services/latr-gateway/.env.example`](../../services/latr-gatewa
 | `OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT` | No | `true` when `APP_ENV=prod` | Require registered gateway client id + API key from the developer store |
 | `LATR_GATEWAY_REQUIRE_CLIENT_API_KEY` | No | `true` when `APP_ENV=prod` | Require app credential headers |
 | `LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS` | No | _(empty)_ | Internal legacy `client-id=base64` pairs |
-| `DATABASE_URL` | Yes on Railway | _(empty)_ | Private Railway Postgres URL for developer clients, API keys, and usage |
+| `DATABASE_URL` | Yes on Railway | _(empty)_ | Private Railway Postgres URL for developer data and the subject-keyed bookmark preview cache |
 | `LATR_GATEWAY_DEVELOPER_STORE_PATH` | No | `./data/developer-store.json` | JSON fallback when `DATABASE_URL` is unset (local dev) |
 | `LATR_GATEWAY_CLIENT_REGISTRY_PATH` | No | `./data/client-registry.json` | Legacy JSON registry (deprecated) |
 

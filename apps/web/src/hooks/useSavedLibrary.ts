@@ -6,7 +6,7 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLatrRepo } from "@/hooks/useLatrRepo";
 import {
-  resolveSubjectPreviewForRow,
+  resolveBookmarkPreviewForRow,
 } from "@/lib/resolveSubject";
 import type { LatrRepo } from "@/lib/latrRepo";
 import type { SavedItemState } from "@/lib/latrRecords";
@@ -41,7 +41,7 @@ export async function buildLibraryPage(
   const rows: SavedRow[] = await Promise.all(
     page.records.map(async (rec) => ({
       rec,
-      preview: await resolveSubjectPreviewForRow(repo, rec),
+      preview: await resolveBookmarkPreviewForRow(repo, rec),
     }))
   );
   return { rows, cursor: page.cursor };
@@ -128,7 +128,11 @@ export function useSavedLibraryMutations() {
       if (!repo) throw new Error("Sign In to Update Saved Items");
 
       try {
-        await repo.setItemState(itemRkey, state);
+        const bookmarkUri = flattenSavedLibraryPages(previous)?.find(
+          (row) => rkeyFromAtUri(row.rec.uri) === itemRkey
+        )?.rec.uri;
+        if (!bookmarkUri) throw new Error("Bookmark Not Found");
+        await repo.setItemState(bookmarkUri, state);
       } catch (error) {
         if (previous !== undefined) {
           queryClient.setQueryData(queryKey, previous);
@@ -150,12 +154,16 @@ export function useSavedLibraryMutations() {
       if (!repo) throw new Error("Sign In to Remove Saved Items");
 
       try {
-        await repo.unsave(itemRkey);
+        const bookmarkUri = flattenSavedLibraryPages(previous)?.find(
+          (row) => rkeyFromAtUri(row.rec.uri) === itemRkey
+        )?.rec.uri;
+        if (!bookmarkUri) throw new Error("Bookmark Not Found");
+        await repo.unsave(bookmarkUri);
         const removed = flattenSavedLibraryPages(previous)?.find(
           (row) => rkeyFromAtUri(row.rec.uri) === itemRkey
         );
         if (removed) {
-          removeCachedSubjectPreview(removed.rec.value.subjectUri);
+          removeCachedSubjectPreview(removed.rec.value.subject);
         }
       } catch (error) {
         if (previous !== undefined) {

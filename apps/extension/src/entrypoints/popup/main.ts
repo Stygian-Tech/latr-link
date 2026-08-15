@@ -60,9 +60,7 @@ async function performSave(url: string, session: OAuthSession): Promise<void> {
   try {
     const result = await saveTabUrl(url, session);
     if (result.ok) {
-      setSaveStatus(
-        result.kind === "subject" ? "Saved AT Proto Record." : "Saved Link."
-      );
+      setSaveStatus("Saved Link.");
     } else {
       setSaveStatus(result.message);
     }

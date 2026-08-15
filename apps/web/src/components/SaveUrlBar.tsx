@@ -11,7 +11,6 @@ import { useLatrRepo } from "@/hooks/useLatrRepo";
 import { createDemoSavedRowFromPaste } from "@/lib/demoLibrary";
 import { isLatrDemoDataEnabled } from "@/lib/demoMode";
 import { showSaveOutcomeDebugLabels } from "@/lib/environmentBanner";
-import { resolvePasteForSave } from "@/lib/resolveSaveInput";
 import {
   prependSavedRow,
   type SavedLibraryData,
@@ -25,14 +24,8 @@ type SaveFeedback =
   | { mode: "plain"; text: string }
   | { mode: "debug"; detail: string };
 
-function debugDetailForSave(
-  kind: "subject" | "url",
-  storage?: "native" | "external"
-): string {
-  if (kind === "subject" || storage === "native") {
-    return "Saved AT Proto Record.";
-  }
-  return "Saved Link.";
+function debugDetailForSave(subject: string): string {
+  return subject.startsWith("at://") ? "Saved AT Proto Record." : "Saved Link.";
 }
 
 export function SaveUrlBar() {
@@ -62,31 +55,12 @@ export function SaveUrlBar() {
         return;
       }
       if (!repo) throw new Error("Sign In to Save Items");
-      const resolved = resolvePasteForSave(paste);
-      if (resolved.kind === "subject") {
-        const response = await repo.saveSubjectUri(resolved.subjectUri);
-        if (!showSaveOutcomeDebugLabels()) {
-          setFeedback({ mode: "plain", text: "Saved." });
-        } else {
-          setFeedback({
-            mode: "debug",
-            detail: debugDetailForSave("subject", response.storage),
-          });
-        }
-      } else {
-        const response = await repo.saveUrl(resolved.url);
-        if (!showSaveOutcomeDebugLabels()) {
-          setFeedback({
-            mode: "plain",
-            text: response.storage === "native" ? "Saved." : "Saved Link.",
-          });
-        } else {
-          setFeedback({
-            mode: "debug",
-            detail: debugDetailForSave(response.kind, response.storage),
-          });
-        }
-      }
+      const subject = paste.trim();
+      if (subject.startsWith("at://")) await repo.saveSubjectUri(subject);
+      else await repo.saveUrl(subject);
+      setFeedback(showSaveOutcomeDebugLabels()
+        ? { mode: "debug", detail: debugDetailForSave(subject) }
+        : { mode: "plain", text: "Saved." });
       setPaste("");
       invalidate();
     } catch (err) {

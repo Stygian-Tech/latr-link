@@ -16,7 +16,7 @@ function articleLikeUrl(value?: string): boolean {
 }
 
 function savedRowLooksLikeArticle(row: SavedRow): boolean {
-  if (articleRecordNamespaceForAtUri(row.rec.value.subjectUri)) return true;
+  if (articleRecordNamespaceForAtUri(row.rec.value.subject)) return true;
   if (row.preview.kind !== "external") return false;
 
   const title = row.preview.title.trim().toLowerCase();
@@ -24,8 +24,6 @@ function savedRowLooksLikeArticle(row: SavedRow): boolean {
 
   return Boolean(
     row.preview.authorLabel?.trim() ||
-      row.rec.value.previewAuthor?.trim() ||
-      row.rec.value.previewExcerpt?.trim() ||
       articleLikeUrl(row.preview.canonicalUrl || row.preview.href)
   );
 }

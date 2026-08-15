@@ -61,7 +61,7 @@ function useLibraryNav(): NavItem[] {
   const { data } = useSavedLibrary();
   return useMemo(() => {
     const unread =
-      data?.filter((row) => (row.rec.value.state ?? "unread") !== "archived")
+      data?.filter((row) => (row.rec.metadataRecord?.value.state ?? "unread") !== "archived")
         .length ?? undefined;
     return [
       { href: "/library", label: "Unread", icon: Inbox, count: unread },
@@ -268,7 +268,9 @@ export function LibraryChrome({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-appearance-scope flex h-app max-h-app min-h-0 overflow-hidden bg-background">
-      <aside className="hidden h-full max-h-app w-56 shrink-0 border-r border-border bg-card lg:block">
+      {/* w-64 so the brand lockup fits on one line in the widest font
+          preference (mono); w-56 left it 18px short. */}
+      <aside className="hidden h-full max-h-app w-64 shrink-0 border-r border-border bg-card lg:block">
         <SidebarBody />
       </aside>
 

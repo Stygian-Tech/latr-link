@@ -8,6 +8,7 @@ import type {
 } from "latr-packages/gateway-client";
 
 import { latrGatewayFetch, latrGatewayJson } from "./latrGatewayClient";
+import { LATR_XRPC, latrXrpcPath } from "./xrpcMethods";
 
 const managementOptions = { skipClientCredential: true } as const;
 
@@ -20,7 +21,7 @@ export async function listDeveloperClients(
 ): Promise<DeveloperClientSummary[]> {
   const body = await latrGatewayJson<ListDeveloperClientsResponse>(
     oauthSession,
-    "/v1/latr/developer/clients",
+    latrXrpcPath(LATR_XRPC.listClients),
     undefined,
     managementOptions
   );
@@ -33,7 +34,7 @@ export async function createDeveloperClient(
 ): Promise<DeveloperClientSummary> {
   return latrGatewayJson<DeveloperClientSummary>(
     oauthSession,
-    "/v1/latr/developer/clients",
+    latrXrpcPath(LATR_XRPC.createClient),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -49,8 +50,12 @@ export async function deleteDeveloperClient(
 ): Promise<void> {
   await latrGatewayFetch(
     oauthSession,
-    `/v1/latr/developer/clients/${encodeURIComponent(clientId)}`,
-    { method: "DELETE" },
+    latrXrpcPath(LATR_XRPC.deleteClient),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId }),
+    },
     managementOptions
   );
 }
@@ -61,7 +66,7 @@ export async function listDeveloperApiKeys(
 ): Promise<DeveloperApiKeySummary[]> {
   const body = await latrGatewayJson<ListDeveloperApiKeysResponse>(
     oauthSession,
-    `/v1/latr/developer/clients/${encodeURIComponent(clientId)}/keys`,
+    `${latrXrpcPath(LATR_XRPC.listKeys)}?${new URLSearchParams({ clientId })}`,
     undefined,
     managementOptions
   );
@@ -75,11 +80,11 @@ export async function createDeveloperApiKey(
 ): Promise<CreateDeveloperApiKeyResponse> {
   return latrGatewayJson<CreateDeveloperApiKeyResponse>(
     oauthSession,
-    `/v1/latr/developer/clients/${encodeURIComponent(clientId)}/keys`,
+    latrXrpcPath(LATR_XRPC.createKey),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label }),
+      body: JSON.stringify({ clientId, label }),
     },
     managementOptions
   );
@@ -92,8 +97,12 @@ export async function revokeDeveloperApiKey(
 ): Promise<void> {
   await latrGatewayFetch(
     oauthSession,
-    `/v1/latr/developer/clients/${encodeURIComponent(clientId)}/keys/${encodeURIComponent(keyId)}`,
-    { method: "DELETE" },
+    latrXrpcPath(LATR_XRPC.revokeKey),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, keyId }),
+    },
     managementOptions
   );
 }
@@ -103,7 +112,7 @@ export async function listDeveloperUsage(
 ): Promise<DeveloperUsageSummary[]> {
   const body = await latrGatewayJson<ListDeveloperUsageResponse>(
     oauthSession,
-    "/v1/latr/developer/usage",
+    latrXrpcPath(LATR_XRPC.getUsage),
     undefined,
     managementOptions
   );

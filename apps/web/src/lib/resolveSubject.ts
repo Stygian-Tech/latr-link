@@ -3,6 +3,7 @@ import {
   isLatrExternalWrapperCollection,
   type SavedExternalRecord,
   type SavedItemRecord,
+  type LatrBookmarkView,
 } from "@/lib/latrRecords";
 import type { RepoRecord } from "@/lib/latrRepo";
 
@@ -65,6 +66,7 @@ export function isExternalWrapperUri(subjectUri: string): boolean {
 export function previewKindForSubjectUri(
   subjectUri: string
 ): ResolvedPreview["kind"] {
+  if (/^https?:\/\//i.test(subjectUri)) return "external";
   if (isExternalWrapperUri(subjectUri)) return "external";
   try {
     if (new AtUri(subjectUri).collection === "app.bsky.feed.post") {
@@ -74,6 +76,32 @@ export function previewKindForSubjectUri(
     /* fall through */
   }
   return "record";
+}
+
+/** Build a UI preview from the service-derived bookmark view. */
+export async function resolveBookmarkPreviewForRow(
+  repo: LatrRepo,
+  bookmark: LatrBookmarkView
+): Promise<ResolvedPreview> {
+  const subject = bookmark.value.subject;
+  const preview = bookmark.preview;
+  if (!preview && subject.startsWith("at://")) {
+    return resolveSubjectPreview(repo, subject);
+  }
+  let siteLabel = preview?.siteName?.trim();
+  if (!siteLabel && /^https?:\/\//i.test(subject)) {
+    try { siteLabel = new URL(subject).hostname; } catch { /* keep empty */ }
+  }
+  return {
+    kind: previewKindForSubjectUri(subject),
+    title: preview?.title?.trim() || subject,
+    subtitle: previewSubtitle(preview?.description, preview?.author),
+    href: /^https?:\/\//i.test(subject) ? subject : undefined,
+    canonicalUrl: /^https?:\/\//i.test(subject) ? subject : undefined,
+    imageHref: preview?.image?.trim(),
+    siteLabel,
+    authorLabel: preview?.author?.trim(),
+  };
 }
 
 function isHttpWebUrl(value?: string): boolean {

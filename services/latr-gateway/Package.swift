@@ -10,7 +10,7 @@ let package = Package(
         .executable(name: "LatrGateway", targets: ["LatrGateway"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/Stygian-Tech/latr-kit.git", revision: "24e23a0902e1a5f8ba17c8f70b3cb6ed60cf877d"),
+        .package(url: "https://github.com/Stygian-Tech/latr-kit.git", revision: "2d3e290d0c1c85864312b33f97f2ebc7ca5091b1"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.25.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.12.0"),
@@ -41,7 +41,10 @@ let package = Package(
                 "LatrGatewayLib",
                 .product(name: "HummingbirdTesting", package: "hummingbird"),
             ],
-            path: "Tests/LatrGatewayTests"
+            path: "Tests/LatrGatewayTests",
+            // Golden-vector JSON is read from the source tree via #filePath, not bundled,
+            // so it is excluded rather than declared as a resource.
+            exclude: ["Fixtures"]
         ),
     ]
 )

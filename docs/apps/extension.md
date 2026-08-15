@@ -81,7 +81,7 @@ See [`apps/extension/.env.example`](../../apps/extension/.env.example).
 1. Sign in with a Bluesky handle from the popup.
 2. Open a normal HTTPS article tab → **Save current tab**.
 3. Confirm the item appears at `/library` on the web app (same account).
-4. Save a `bsky.app` post URL → should save as AT subject when resolvable.
+4. Save a `bsky.app` post URL → the encountered HTTPS URL remains the bookmark subject; preview discovery may classify it without replacing it.
 5. Sign out from the popup.
 6. Repeat saves through the context menu and `Ctrl+Shift+L` / `Command+Shift+L`; these queue the URL and auto-save through the popup.
 

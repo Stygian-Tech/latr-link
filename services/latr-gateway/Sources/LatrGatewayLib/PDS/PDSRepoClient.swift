@@ -219,6 +219,12 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
             : [:]
 
         guard (200 ... 299).contains(response.statusCode) else {
+            if [400, 409].contains(response.statusCode),
+               ((jsonObject["error"] as? String)?.localizedCaseInsensitiveContains("swap") == true
+                   || (jsonObject["message"] as? String)?.localizedCaseInsensitiveContains("swap") == true)
+            {
+                throw RepositoryClientError.conflict
+            }
             switch response.statusCode {
             case 401:
                 throw GatewayError(
@@ -449,18 +455,21 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
         in repository: String,
         collection: LexiconCollection,
         withKey key: String,
-        value: some Encodable & Sendable
+        value: some Encodable & Sendable,
+        swapRecord: String?
     ) async throws -> UpdateRecordResponse {
         let recordData = try JSONEncoder().encode(AnyEncodable(value))
         let recordObject = try JSONSerialization.jsonObject(with: recordData) as? [String: Any] ?? [:]
+        var body: [String: Any] = [
+            "repo": repository,
+            "collection": collection.identifier,
+            "rkey": key,
+            "record": recordObject,
+        ]
+        if let swapRecord { body["swapRecord"] = swapRecord }
         let json = try await xrpcPost(
             method: "com.atproto.repo.putRecord",
-            body: [
-                "repo": repository,
-                "collection": collection.identifier,
-                "rkey": key,
-                "record": recordObject,
-            ]
+            body: body
         )
         guard let uri = json["uri"] as? String else {
             throw GatewayError(status: .badGateway, message: "PDS putRecord missing uri", code: "pds_error")
@@ -471,15 +480,56 @@ public struct PDSRepositoryClient: RepositoryClient, Sendable {
     public func deleteRecord(
         in repository: String,
         collection: LexiconCollection,
-        withKey key: String
+        withKey key: String,
+        swapRecord: String?
     ) async throws {
+        var body: [String: Any] = [
+            "repo": repository,
+            "collection": collection.identifier,
+            "rkey": key,
+        ]
+        if let swapRecord { body["swapRecord"] = swapRecord }
         _ = try await xrpcPost(
             method: "com.atproto.repo.deleteRecord",
-            body: [
-                "repo": repository,
-                "collection": collection.identifier,
-                "rkey": key,
-            ]
+            body: body
         )
     }
+
+    public func applyWrites(in repository: String, writes: [RepositoryWrite]) async throws {
+        let encodedWrites: [[String: Any]] = try writes.map { write in
+            switch write {
+            case let .create(collection, key, value):
+                return [
+                    "$type": "com.atproto.repo.applyWrites#create",
+                    "collection": collection.identifier,
+                    "rkey": key,
+                    "value": try foundationObject(value),
+                ]
+            case let .update(collection, key, value, swapRecord):
+                return [
+                    "$type": "com.atproto.repo.applyWrites#update",
+                    "collection": collection.identifier,
+                    "rkey": key,
+                    "value": try foundationObject(value),
+                    "swapRecord": swapRecord,
+                ]
+            case let .delete(collection, key, swapRecord):
+                var encoded: [String: Any] = [
+                    "$type": "com.atproto.repo.applyWrites#delete",
+                    "collection": collection.identifier,
+                    "rkey": key,
+                ]
+                if let swapRecord { encoded["swapRecord"] = swapRecord }
+                return encoded
+            }
+        }
+        _ = try await xrpcPost(
+            method: "com.atproto.repo.applyWrites",
+            body: ["repo": repository, "writes": encodedWrites]
+        )
+    }
+}
+
+private func foundationObject(_ value: some Encodable) throws -> Any {
+    try JSONSerialization.jsonObject(with: JSONEncoder().encode(AnyEncodable(value)))
 }

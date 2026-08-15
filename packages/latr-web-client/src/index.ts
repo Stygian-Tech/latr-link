@@ -3,10 +3,16 @@ export { tryCanonicalAtUri } from "./canonicalAtUri";
 export {
   COLLECTION_SAVED_EXTERNAL,
   COLLECTION_SAVED_ITEM,
+  COLLECTION_BOOKMARK,
+  COLLECTION_BOOKMARK_METADATA,
   type RepoRecord,
   type SavedExternalRecord,
   type SavedItemRecord,
   type SavedItemState,
+  type CommunityBookmarkRecord,
+  type LatrBookmarkMetadataRecord,
+  type LatrBookmarkPreview,
+  type LatrBookmarkView,
 } from "./latrRecords";
 export {
   assertLatrGatewayClientCredential,
@@ -28,6 +34,13 @@ export {
   type LatrGatewayEnvConfig,
   type LatrGatewayWindowBootstrap,
 } from "./latrGatewayConfig";
+export {
+  LATR_XRPC,
+  latrXrpcPath,
+  type LatrXrpcMethod,
+  type LatrListItemsResponse,
+  type LatrLexiconMigrationResponse,
+} from "./xrpcMethods";
 export {
   latrGatewayFetch,
   latrGatewayJson,

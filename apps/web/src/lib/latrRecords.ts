@@ -1,6 +1,8 @@
 export {
   COLLECTION_SAVED_EXTERNAL,
   COLLECTION_SAVED_ITEM,
+  COLLECTION_BOOKMARK,
+  COLLECTION_BOOKMARK_METADATA,
   LEGACY_COLLECTION_SAVED_EXTERNAL,
   LEGACY_COLLECTION_SAVED_ITEM,
   isLatrExternalWrapperCollection,
@@ -9,4 +11,8 @@ export {
   type SavedExternalRecord,
   type SavedItemRecord,
   type SavedItemState,
+  type CommunityBookmarkRecord,
+  type LatrBookmarkMetadataRecord,
+  type LatrBookmarkPreview,
+  type LatrBookmarkView,
 } from "latr-web-client/latrRecords";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { COLLECTION_SAVED_ITEM, type SavedItemRecord } from "@/lib/latrRecords";
+import { COLLECTION_BOOKMARK } from "@/lib/latrRecords";
 import type { SavedRow } from "@/lib/savedLibraryTypes";
 import { savedRowContentBucket } from "./savedRowContent";
 
@@ -8,7 +8,6 @@ function row(overrides: {
   subjectUri?: string;
   linkedWebUrl?: string;
   preview?: Partial<SavedRow["preview"]>;
-  record?: Partial<SavedItemRecord>;
 }): SavedRow {
   const subjectUri =
     overrides.subjectUri ??
@@ -16,14 +15,12 @@ function row(overrides: {
   const linkedWebUrl = overrides.linkedWebUrl;
   return {
     rec: {
-      uri: "at://did:plc:viewer/link.latr.saved.item/test",
+      uri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/test",
       cid: "bafytest",
       value: {
-        $type: COLLECTION_SAVED_ITEM,
-        subjectUri,
-        linkedWebUrl,
-        savedAt: "2026-07-07T12:00:00.000Z",
-        ...overrides.record,
+        $type: COLLECTION_BOOKMARK,
+        subject: subjectUri,
+        createdAt: "2026-07-07T12:00:00.000Z",
       },
     },
     preview: {

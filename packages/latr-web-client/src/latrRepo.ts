@@ -2,10 +2,11 @@ import type { OAuthSession } from "@atproto/oauth-client-browser";
 import { Agent } from "@atproto/api";
 import { AtUri } from "@atproto/syntax";
 import {
-  LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
-  LATR_GATEWAY_SAVES_PATH,
-  type LatrGatewayLexiconMigrationResponse,
-  type LatrGatewaySavedItemsResponse,
+  LATR_XRPC,
+  latrXrpcPath,
+  type LatrBookmarkView,
+  type LatrListBookmarksOutput,
+  type LatrMigrationResult,
 } from "latr-packages/gateway-client";
 
 import {
@@ -13,7 +14,7 @@ import {
   markLexiconMigrationComplete,
 } from "./lexiconMigrationCache";
 import { latrGatewayJson } from "./latrGatewayClient";
-import type { RepoRecord, SavedItemRecord } from "./latrRecords";
+import type { SavedItemState } from "./latrRecords";
 
 export type { RepoRecord } from "./latrRecords";
 
@@ -26,16 +27,14 @@ export type OpenGraphPreviewFields = {
 };
 
 export type SavedItemsPage = {
-  records: RepoRecord<SavedItemRecord>[];
+  records: LatrBookmarkView[];
   cursor: string | null;
 };
 
 export type SaveUrlResponse = {
   ok: true;
-  kind: "subject" | "url";
-  subjectUri?: string;
-  linkedWebUrl?: string;
-  storage?: "native" | "external";
+  kind: "bookmark";
+  bookmark: LatrBookmarkView;
 };
 
 export class LatrRepo {
@@ -48,12 +47,15 @@ export class LatrRepo {
     this.readAgent = new Agent(oauthSession);
   }
 
-  async listSavedItems(): Promise<RepoRecord<SavedItemRecord>[]> {
+  async listSavedItems(): Promise<LatrBookmarkView[]> {
     await this.migrateLegacyLexiconsIfNeeded();
-    const response = await latrGatewayJson<
-      LatrGatewaySavedItemsResponse<SavedItemRecord>
-    >(this.oauthSession, LATR_GATEWAY_SAVES_PATH, { method: "GET" });
-    return response.records ?? [];
+    await this.syncBookmarkMetadataBestEffort();
+    const response = await latrGatewayJson<LatrListBookmarksOutput>(
+      this.oauthSession,
+      latrXrpcPath(LATR_XRPC.listBookmarks),
+      { method: "GET" }
+    );
+    return response.bookmarks ?? [];
   }
 
   /**
@@ -66,14 +68,36 @@ export class LatrRepo {
     cursor?: string;
   }): Promise<SavedItemsPage> {
     await this.migrateLegacyLexiconsIfNeeded();
+    await this.syncBookmarkMetadataBestEffort(options);
     const params = new URLSearchParams({ limit: String(options.limit) });
     if (options.cursor) params.set("cursor", options.cursor);
-    const response = await latrGatewayJson<
-      LatrGatewaySavedItemsResponse<SavedItemRecord> & { cursor?: string | null }
-    >(this.oauthSession, `${LATR_GATEWAY_SAVES_PATH}?${params.toString()}`, {
+    const response = await latrGatewayJson<LatrListBookmarksOutput>(this.oauthSession, `${latrXrpcPath(LATR_XRPC.listBookmarks)}?${params.toString()}`, {
       method: "GET",
     });
-    return { records: response.records ?? [], cursor: response.cursor ?? null };
+    return { records: response.bookmarks ?? [], cursor: response.cursor ?? null };
+  }
+
+  private async syncBookmarkMetadataBestEffort(options: {
+    limit?: number;
+    cursor?: string;
+  } = {}): Promise<void> {
+    try {
+      await latrGatewayJson(
+        this.oauthSession,
+        latrXrpcPath(LATR_XRPC.syncBookmarkMetadata),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...(options.limit === undefined ? {} : { limit: options.limit }),
+            ...(options.cursor ? { cursor: options.cursor } : {}),
+          }),
+        }
+      );
+    } catch {
+      // Best-effort: community bookmarks remain visible and default to unread.
+      // Retry every page refresh because other clients can add bookmarks later.
+    }
   }
 
   /** One-time legacy `com.latr.*` → `link.latr.*` migration (retries until complete). */
@@ -81,22 +105,19 @@ export class LatrRepo {
     if (isLexiconMigrationComplete(this.did)) return;
 
     const maxAttempts = 8;
+    let cursor: string | undefined;
     try {
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const summary = await latrGatewayJson<LatrGatewayLexiconMigrationResponse>(
+        const summary = await latrGatewayJson<LatrMigrationResult>(
           this.oauthSession,
-          LATR_GATEWAY_MIGRATE_LEXICONS_PATH,
-          { method: "POST" }
+          latrXrpcPath(LATR_XRPC.migrateBookmarks),
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 25, ...(cursor ? { cursor } : {}) }) }
         );
-        const changed =
-          summary.externalCopied > 0 ||
-          summary.itemsCopied > 0 ||
-          summary.externalDeleted > 0 ||
-          summary.itemsDeleted > 0;
-        if (!changed) {
+        if (!summary.cursor) {
           markLexiconMigrationComplete(this.did);
           return;
         }
+        cursor = summary.cursor;
       }
     } catch {
       // Best-effort: still list saves if migration fails (stale proofs, offline, etc.).
@@ -108,11 +129,12 @@ export class LatrRepo {
   }
 
   async saveUrl(url: string): Promise<SaveUrlResponse> {
-    return latrGatewayJson<SaveUrlResponse>(this.oauthSession, "/v1/latr/saves", {
+    const bookmark = await latrGatewayJson<LatrBookmarkView>(this.oauthSession, latrXrpcPath(LATR_XRPC.saveBookmark), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "url", url }),
+      body: JSON.stringify({ subject: url.trim() }),
     });
+    return { ok: true, kind: "bookmark", bookmark };
   }
 
   async saveSubjectUri(
@@ -120,39 +142,34 @@ export class LatrRepo {
     options: { linkedWebUrl?: string } = {}
   ): Promise<SaveUrlResponse> {
     new AtUri(subjectUri);
-    return latrGatewayJson<SaveUrlResponse>(this.oauthSession, "/v1/latr/saves", {
+    const bookmark = await latrGatewayJson<LatrBookmarkView>(this.oauthSession, latrXrpcPath(LATR_XRPC.saveBookmark), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kind: "subject",
-        subjectUri,
-        ...(options.linkedWebUrl?.trim()
-          ? { linkedWebUrl: options.linkedWebUrl.trim() }
-          : {}),
-      }),
+      body: JSON.stringify({ subject: subjectUri }),
     });
+    return { ok: true, kind: "bookmark", bookmark };
   }
 
   async setItemState(
-    itemRkey: string,
-    state: NonNullable<SavedItemRecord["state"]>
+    bookmarkUri: string,
+    state: SavedItemState
   ): Promise<void> {
     await latrGatewayJson(
       this.oauthSession,
-      `/v1/latr/saves/${encodeURIComponent(itemRkey)}/state`,
+      latrXrpcPath(LATR_XRPC.setBookmarkState),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state }),
+        body: JSON.stringify({ bookmarkUri, state }),
       }
     );
   }
 
-  async unsave(itemRkey: string): Promise<void> {
+  async unsave(bookmarkUri: string): Promise<void> {
     await latrGatewayJson(
       this.oauthSession,
-      `/v1/latr/saves/${encodeURIComponent(itemRkey)}`,
-      { method: "DELETE" }
+      latrXrpcPath(LATR_XRPC.deleteBookmark),
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bookmarkUri }) }
     );
   }
 
@@ -166,7 +183,7 @@ export class LatrRepo {
       const params = new URLSearchParams({ url: trimmed });
       return await latrGatewayJson<OpenGraphPreviewFields>(
         this.oauthSession,
-        `/v1/latr/og-preview?${params.toString()}`
+        `${latrXrpcPath(LATR_XRPC.getOpenGraph)}?${params.toString()}`
       );
     } catch {
       return null;

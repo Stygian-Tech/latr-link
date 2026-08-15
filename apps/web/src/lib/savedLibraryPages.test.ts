@@ -25,12 +25,12 @@ function pagedData(pageSizes: number[], lastCursor: string | null = null): Saved
 }
 
 describe("Saved Library Page Helpers", () => {
-  test("flatten concatenates pages sorted by savedAt descending", () => {
+  test("flatten concatenates pages sorted by createdAt descending", () => {
     const data = pagedData([2, 2, 1]);
     const rows = flattenSavedLibraryPages(data);
 
     expect(rows).toHaveLength(5);
-    const times = rows!.map((row) => new Date(row.rec.value.savedAt).getTime());
+    const times = rows!.map((row) => new Date(row.rec.value.createdAt).getTime());
     expect(times).toEqual([...times].sort((a, b) => b - a));
   });
 
@@ -60,8 +60,8 @@ describe("Saved Library Page Helpers", () => {
       data.pages.map((page) => page.cursor)
     );
     expect(patched!.pageParams).toEqual(data.pageParams);
-    expect(patched!.pages[1].rows[0].rec.value.state).toBe("archived");
-    expect(data.pages[1].rows[0].rec.value.state).not.toBe("archived");
+    expect(patched!.pages[1].rows[0].rec.metadataRecord?.value.state).toBe("archived");
+    expect(data.pages[1].rows[0].rec.metadataRecord?.value.state).not.toBe("archived");
   });
 
   test("patch removes a row from its page only", () => {

@@ -57,29 +57,26 @@ describe("Latrrepo Gateway Facade", () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
-      if (String(url).includes("/v1/latr/migrate-lexicons")) {
+      if (String(url).includes("/xrpc/link.latr.bookmarks.migrateLegacy")) {
         return new Response(
           JSON.stringify({
             ok: true,
-            externalCopied: 0,
-            itemsCopied: 0,
-            externalDeleted: 0,
-            itemsDeleted: 0,
+            scanned: 0, created: 0, reused: 0, duplicates: 0,
+            skippedConflict: 0, cached: 0, retired: 0,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
       return new Response(
         JSON.stringify({
-          records: [
+          bookmarks: [
             {
-              uri: "at://did:plc:viewer/link.latr.saved.item/item1",
+              uri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/item1",
               cid: "cid",
               value: {
-                $type: "link.latr.saved.item",
-                subjectUri:
-                  "at://did:plc:viewer/link.latr.saved.external/ext1",
-                savedAt: "2026-06-01T12:00:00.000Z",
+                $type: "community.lexicon.bookmarks.bookmark",
+                subject: "https://example.com/article",
+                createdAt: "2026-06-01T12:00:00.000Z",
               },
             },
           ],
@@ -101,14 +98,14 @@ describe("Latrrepo Gateway Facade", () => {
       calls.some(
         (call) =>
           call.startsWith("POST") &&
-          call.includes("127.0.0.1:8080/v1/latr/migrate-lexicons")
+          call.includes("127.0.0.1:8080/xrpc/link.latr.bookmarks.migrateLegacy")
       )
     ).toBe(true);
     expect(
       calls.some(
         (call) =>
           call.startsWith("GET") &&
-          call.includes("127.0.0.1:8080/v1/latr/saves")
+          call.includes("127.0.0.1:8080/xrpc/link.latr.bookmarks.listBookmarks")
       )
     ).toBe(true);
   });
@@ -118,7 +115,7 @@ describe("Latrrepo Gateway Facade", () => {
     globalThis.fetch = (async (_url, init) => {
       body = String(init?.body ?? "");
       return new Response(
-        JSON.stringify({ ok: true, kind: "url", storage: "external" }),
+        JSON.stringify({ uri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/1", cid: "cid", value: { $type: "community.lexicon.bookmarks.bookmark", subject: "https://example.com/a", createdAt: "2026-01-01T00:00:00Z" } }),
         {
           status: 201,
           headers: { "Content-Type": "application/json" },
@@ -134,30 +131,25 @@ describe("Latrrepo Gateway Facade", () => {
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
     await repo.saveExternalUrl("https://example.com/a");
-    expect(JSON.parse(body)).toEqual({
-      kind: "url",
-      url: "https://example.com/a",
-    });
+    expect(JSON.parse(body)).toEqual({ subject: "https://example.com/a" });
   });
 
   test("listSavedItemsPage sends limit and cursor and preserves returned cursor", async () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url, init) => {
       calls.push(`${init?.method ?? "GET"} ${url}`);
-      if (String(url).includes("/v1/latr/migrate-lexicons")) {
+      if (String(url).includes("/xrpc/link.latr.bookmarks.migrateLegacy")) {
         return new Response(
           JSON.stringify({
             ok: true,
-            externalCopied: 0,
-            itemsCopied: 0,
-            externalDeleted: 0,
-            itemsDeleted: 0,
+            scanned: 0, created: 0, reused: 0, duplicates: 0,
+            skippedConflict: 0, cached: 0, retired: 0,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
       return new Response(
-        JSON.stringify({ records: [], cursor: "page-2" }),
+        JSON.stringify({ bookmarks: [], cursor: "page-2" }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }) as typeof fetch;
@@ -173,13 +165,13 @@ describe("Latrrepo Gateway Facade", () => {
 
     expect(page.cursor).toBe("page-2");
     const saves = calls.find(
-      (call) => call.startsWith("GET") && call.includes("/v1/latr/saves")
+      (call) => call.startsWith("GET") && call.includes("/xrpc/link.latr.bookmarks.listBookmarks")
     );
     expect(saves).toContain("limit=50");
     expect(saves).toContain("cursor=page-1");
   });
 
-  test("setItemState PATCHes State Route", async () => {
+  test("setItemState posts bookmark URI to XRPC", async () => {
     let path = "";
     globalThis.fetch = (async (url) => {
       path = String(url);
@@ -196,11 +188,11 @@ describe("Latrrepo Gateway Facade", () => {
     });
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
-    await repo.setItemState("abc123", "archived");
-    expect(path).toContain("/v1/latr/saves/abc123/state");
+    await repo.setItemState("at://did:plc:viewer/community.lexicon.bookmarks.bookmark/abc123", "archived");
+    expect(path).toContain("/xrpc/link.latr.bookmarks.setState");
   });
 
-  test("Unsave Deletes Item Route", async () => {
+  test("Unsave posts deleteBookmark XRPC", async () => {
     let method = "";
     globalThis.fetch = (async (_url, init) => {
       method = init?.method ?? "";
@@ -217,7 +209,7 @@ describe("Latrrepo Gateway Facade", () => {
     });
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
-    await repo.unsave("item-rkey");
-    expect(method).toBe("DELETE");
+    await repo.unsave("at://did:plc:viewer/community.lexicon.bookmarks.bookmark/item-rkey");
+    expect(method).toBe("POST");
   });
 });
