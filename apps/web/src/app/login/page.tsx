@@ -179,8 +179,13 @@ export default function LoginPage() {
                     one-time migration.
                   </p>
                   <p>
-                    It cannot post for you, edit your profile, read messages or
-                    email, upload media, or manage your account.
+                    If you send feedback, L@tr.link can publish it to the public
+                    User Input board from your repository and upload the images
+                    you attach.
+                  </p>
+                  <p>
+                    It cannot post to social feeds for you, edit your profile,
+                    read messages or email, or manage your account.
                   </p>
                 </div>
               </details>

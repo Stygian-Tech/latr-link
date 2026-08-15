@@ -14,6 +14,12 @@ final class WebOAuthClientMetadataTests: XCTestCase {
                 + "repo:com.latr.saved.external?action=delete "
                 + "repo:com.latr.saved.item?action=delete"
         )
+        XCTAssertEqual(
+            ATProtoOAuthScopes.webScope,
+            ATProtoOAuthScopes.scope
+                + " include:app.userinput.authFull"
+                + " blob:*/*"
+        )
     }
 
     func testBuildsGatewayMetadataWithSeparateRedirectOrigin() throws {
@@ -30,7 +36,7 @@ final class WebOAuthClientMetadataTests: XCTestCase {
             obj?["redirect_uris"] as? [String],
             ["https://testing.latr.link/callback"]
         )
-        XCTAssertEqual(obj?["scope"] as? String, ATProtoOAuthScopes.scope)
+        XCTAssertEqual(obj?["scope"] as? String, ATProtoOAuthScopes.webScope)
         XCTAssertEqual(
             obj?["client_uri"] as? String,
             "https://api.testing.latr.link"

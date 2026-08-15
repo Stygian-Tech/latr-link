@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { AT_PROTO_OAUTH_SCOPES } from "@/lib/atprotoOAuthScopes";
+import { AT_PROTO_OAUTH_SCOPES as LATR_AT_PROTO_OAUTH_SCOPES } from "latr-web-client/atprotoOAuthScopes";
 import {
   buildWebOAuthClientMetadata,
   gatewayWebOAuthClientMetadataUrl,
@@ -29,7 +30,7 @@ describe("Buildweboauthclientmetadata", () => {
 });
 
 describe("static OAuth client metadata", () => {
-  test("keeps web and extension documents on the shared minimal scopes", () => {
+  test("adds User Input permissions to web without widening the extension", () => {
     const web = JSON.parse(
       readFileSync(
         resolve(import.meta.dir, "../../public/client-metadata.json"),
@@ -44,7 +45,7 @@ describe("static OAuth client metadata", () => {
     ) as { scope: string; logo_uri: string };
 
     expect(web.scope).toBe(AT_PROTO_OAUTH_SCOPES);
-    expect(extension.scope).toBe(AT_PROTO_OAUTH_SCOPES);
+    expect(extension.scope).toBe(LATR_AT_PROTO_OAUTH_SCOPES);
     expect(web.logo_uri).toBe("https://latr.link/icon.png");
     expect(extension.logo_uri).toBe("https://latr.link/icon.png");
   });

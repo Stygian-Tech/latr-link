@@ -10,12 +10,14 @@ import {
   Inbox,
   LogOut,
   Menu,
+  MessageSquarePlus,
   Settings,
   X,
   type LucideIcon,
 } from "lucide-react";
 
 import { BrandLockup } from "@/components/BrandLockup";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -229,10 +231,12 @@ function ProfileBlock({
 function SidebarBody({
   mobile = false,
   onNavigate,
+  onFeedback,
   headerAction,
 }: {
   mobile?: boolean;
   onNavigate?: () => void;
+  onFeedback: () => void;
   headerAction?: ReactNode;
 }) {
   const pathname = usePathname();
@@ -254,6 +258,17 @@ function SidebarBody({
         pathname={pathname}
         onNavigate={onNavigate}
       />
+      <button
+        type="button"
+        onClick={onFeedback}
+        className={cn(
+          "flex items-center gap-2.5 rounded-md font-medium text-muted-foreground transition-colors hover:bg-accent/70 hover:text-accent-foreground",
+          mobile ? "min-h-11 px-3 text-base" : "h-9 px-2.5 text-sm"
+        )}
+      >
+        <MessageSquarePlus className="size-4" aria-hidden strokeWidth={1.9} />
+        <span>Feedback</span>
+      </button>
       <div className={cn("mt-auto flex flex-col", mobile ? "gap-4" : "gap-3")}>
         <DemoStatus mobile={mobile} />
         <Separator />
@@ -265,74 +280,82 @@ function SidebarBody({
 
 export function LibraryChrome({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
-    <div className="app-appearance-scope flex h-app max-h-app min-h-0 overflow-hidden bg-background">
-      {/* w-64 so the brand lockup fits on one line in the widest font
-          preference (mono); w-56 left it 18px short. */}
-      <aside className="hidden h-full max-h-app w-64 shrink-0 border-r border-border bg-card lg:block">
-        <SidebarBody />
-      </aside>
+    <>
+      <div className="app-appearance-scope flex h-app max-h-app min-h-0 overflow-hidden bg-background">
+        {/* w-64 so the brand lockup fits on one line in the widest font
+            preference (mono); w-56 left it 18px short. */}
+        <aside className="hidden h-full max-h-app w-64 shrink-0 border-r border-border bg-card lg:block">
+          <SidebarBody onFeedback={() => setFeedbackOpen(true)} />
+        </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-[80] flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
-          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-expanded={mobileNavOpen}
-                aria-controls={LIBRARY_MOBILE_NAV_ID}
-                aria-label="Open Menu"
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="sticky top-0 z-[80] flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-expanded={mobileNavOpen}
+                  aria-controls={LIBRARY_MOBILE_NAV_ID}
+                  aria-label="Open Menu"
+                >
+                  <Menu className="size-5" aria-hidden strokeWidth={2} />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-[19rem] max-w-[calc(100vw-1rem)] p-0"
+                aria-label="Library Navigation"
               >
-                <Menu className="size-5" aria-hidden strokeWidth={2} />
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-[19rem] max-w-[calc(100vw-1rem)] p-0"
-              aria-label="Library Navigation"
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Library Navigation</SheetTitle>
+                </SheetHeader>
+                <SidebarBody
+                  mobile
+                  onNavigate={() => setMobileNavOpen(false)}
+                  onFeedback={() => {
+                    setMobileNavOpen(false);
+                    setFeedbackOpen(true);
+                  }}
+                  headerAction={
+                    <SheetClose asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-10"
+                        aria-label="Close Menu"
+                      >
+                        <X className="size-5" aria-hidden strokeWidth={2} />
+                      </Button>
+                    </SheetClose>
+                  }
+                />
+              </SheetContent>
+            </Sheet>
+            <BrandLockup
+              href="/library"
+              iconSize={24}
+              textClassName="text-sm"
+            />
+            <Link
+              href="/library/settings"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              <SheetHeader className="sr-only">
-                <SheetTitle>Library Navigation</SheetTitle>
-              </SheetHeader>
-              <SidebarBody
-                mobile
-                onNavigate={() => setMobileNavOpen(false)}
-                headerAction={
-                  <SheetClose asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-10"
-                      aria-label="Close Menu"
-                    >
-                      <X className="size-5" aria-hidden strokeWidth={2} />
-                    </Button>
-                  </SheetClose>
-                }
-              />
-            </SheetContent>
-          </Sheet>
-          <BrandLockup
-            href="/library"
-            iconSize={24}
-            textClassName="text-sm"
-          />
-          <Link
-            href="/library/settings"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            Settings
-          </Link>
-        </header>
+              Settings
+            </Link>
+          </header>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <EmbeddedReaderPortal>{children}</EmbeddedReaderPortal>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <EmbeddedReaderPortal>{children}</EmbeddedReaderPortal>
+          </div>
         </div>
       </div>
-    </div>
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+    </>
   );
 }
