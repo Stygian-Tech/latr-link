@@ -44,6 +44,8 @@ export {
 export {
   latrGatewayFetch,
   latrGatewayJson,
+  isLatrGatewayConflictError,
+  LatrGatewayError,
   LATR_OFFICIAL_CLIENT_HEADER,
   LATR_UPSTREAM_DPOP_HEADER,
 } from "./latrGatewayClient";
@@ -54,7 +56,12 @@ export {
   BSKY_APPVIEW_PUBLIC,
   type ResolvedSavePaste,
 } from "./resolveSaveInput";
-export { LatrRepo, type SaveUrlResponse } from "./latrRepo";
+export {
+  LatrRepo,
+  type BookmarkTagsPage,
+  type SavedItemsPage,
+  type SaveUrlResponse,
+} from "./latrRepo";
 export {
   isSupportedSaveUrl,
   saveCurrentUrl,

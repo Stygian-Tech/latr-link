@@ -6,13 +6,27 @@ public enum BookmarkGatewayOperations {
         auth: AuthContext,
         services: GatewayServices,
         limit: Int,
-        cursor: String?
+        cursor: String?,
+        tag: String? = nil
     ) async throws -> GatewayBookmarkList {
-        let page = try await services.savedLibrary(for: auth).bookmarks(limit: limit, startingAfter: cursor)
+        let page = try await services.savedLibrary(for: auth).bookmarks(
+            limit: limit,
+            startingAfter: cursor,
+            taggedWith: tag
+        )
         let views = await page.records.asyncMap { view in
             GatewayBookmarkView(view, preview: try? await services.previewStore.preview(for: view.value.subject))
         }
         return GatewayBookmarkList(bookmarks: views, cursor: page.cursor)
+    }
+
+    public static func listTags(
+        auth: AuthContext,
+        services: GatewayServices,
+        limit: Int,
+        cursor: String?
+    ) async throws -> BookmarkTagList {
+        try await services.savedLibrary(for: auth).bookmarkTags(limit: limit, startingAfter: cursor)
     }
 
     public static func get(
@@ -79,6 +93,58 @@ public enum BookmarkGatewayOperations {
             throw GatewayError(status: .notFound, message: "Bookmark not found", code: "bookmark_not_found")
         }
         return SimpleOKResponse(ok: true)
+    }
+
+    public static func setTags(
+        input: LatrSetBookmarkTagsInput,
+        auth: AuthContext,
+        services: GatewayServices
+    ) async throws -> GatewayBookmarkView {
+        let view = try await services.savedLibrary(for: auth).setTags(
+            ofBookmarkURI: input.bookmarkUri,
+            to: input.tags
+        )
+        return GatewayBookmarkView(
+            view,
+            preview: try? await services.previewStore.preview(for: view.value.subject)
+        )
+    }
+
+    public static func renameTag(
+        input: LatrRenameBookmarkTagInput,
+        auth: AuthContext,
+        services: GatewayServices
+    ) async throws -> BookmarkTagMutationSummary {
+        try await services.savedLibrary(for: auth).renameTag(
+            input.tag,
+            to: input.replacement,
+            limit: try tagMutationLimit(input.limit),
+            continuingFrom: input.cursor
+        )
+    }
+
+    public static func deleteTag(
+        input: LatrDeleteBookmarkTagInput,
+        auth: AuthContext,
+        services: GatewayServices
+    ) async throws -> BookmarkTagMutationSummary {
+        try await services.savedLibrary(for: auth).deleteTag(
+            input.tag,
+            limit: try tagMutationLimit(input.limit),
+            continuingFrom: input.cursor
+        )
+    }
+
+    static func tagMutationLimit(_ requested: Int?) throws -> Int {
+        let limit = requested ?? 25
+        guard (1 ... 25).contains(limit) else {
+            throw GatewayError(
+                status: .badRequest,
+                message: "limit must be between 1 and 25",
+                code: "invalid_request"
+            )
+        }
+        return limit
     }
 
     public static func delete(

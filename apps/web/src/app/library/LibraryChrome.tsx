@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useMemo, useState } from "react";
 
 import {
@@ -11,7 +11,11 @@ import {
   LogOut,
   Menu,
   MessageSquarePlus,
+  Pencil,
+  RefreshCw,
   Settings,
+  Tag,
+  Trash2,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -19,6 +23,15 @@ import {
 import { BrandLockup } from "@/components/BrandLockup";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -32,9 +45,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/UserAvatar";
 import { EmbeddedReaderPortal } from "@/contexts/embeddedReader";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  BulkTagOperationError,
+  type BulkTagProgress,
+  useBookmarkTagInventory,
+  useBulkBookmarkTagMutation,
+} from "@/hooks/useBookmarkTags";
 import { useSavedLibrary } from "@/hooks/useSavedLibrary";
 import { useViewerProfile } from "@/hooks/useViewerProfile";
 import { DEMO_HANDLE, isLatrDemoDataEnabled } from "@/lib/demoMode";
+import { normalizeBookmarkTags } from "@/lib/bookmarkTags";
+import {
+  libraryHrefWithTag,
+  selectedBookmarkTag,
+} from "@/lib/tagFilterUrl";
 import { cn } from "@/lib/utils";
 
 const LIBRARY_NAV_ID = "library-primary-nav";
@@ -60,7 +84,7 @@ function ProfileSkeleton() {
 }
 
 function useLibraryNav(): NavItem[] {
-  const { data } = useSavedLibrary();
+  const { data } = useSavedLibrary({ ignoreTag: true });
   return useMemo(() => {
     const unread =
       data?.filter((row) => (row.rec.metadataRecord?.value.state ?? "unread") !== "archived")
@@ -71,6 +95,264 @@ function useLibraryNav(): NavItem[] {
       { href: "/library/settings", label: "Settings", icon: Settings },
     ];
   }, [data]);
+}
+
+function SidebarTags({
+  mobile = false,
+  onNavigate,
+}: {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTag = selectedBookmarkTag(searchParams);
+  const inventory = useBookmarkTagInventory();
+  const bulk = useBulkBookmarkTagMutation();
+  const [dialog, setDialog] = useState<
+    | { kind: "rename"; tag: string }
+    | { kind: "delete"; tag: string }
+    | null
+  >(null);
+  const [replacement, setReplacement] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<BulkTagProgress | null>(null);
+  const [operationError, setOperationError] = useState<BulkTagOperationError | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  function openDialog(next: NonNullable<typeof dialog>) {
+    setDialog(next);
+    setReplacement("");
+    setProgress(null);
+    setOperationError(null);
+    setValidationError(null);
+  }
+
+  async function runOperation(resume = false) {
+    if (!dialog || busy) return;
+    let operation:
+      | { kind: "rename"; tag: string; replacement: string }
+      | { kind: "delete"; tag: string };
+    try {
+      if (dialog.kind === "rename") {
+        const [source] = normalizeBookmarkTags([dialog.tag]);
+        const [target] = normalizeBookmarkTags([replacement]);
+        if (source === target) {
+          throw new Error("Choose a different replacement tag.");
+        }
+        operation = { kind: "rename", tag: source, replacement: target };
+      } else {
+        operation = { kind: "delete", tag: dialog.tag };
+      }
+    } catch (error) {
+      setValidationError(error instanceof Error ? error.message : "Invalid tag.");
+      return;
+    }
+
+    setBusy(true);
+    setValidationError(null);
+    try {
+      await bulk.run(operation, {
+        ...(resume && operationError?.resumeCursor
+          ? { resumeCursor: operationError.resumeCursor }
+          : {}),
+        ...(resume && operationError?.progress
+          ? { initialProgress: operationError.progress }
+          : {}),
+        onProgress: setProgress,
+      });
+      if (activeTag === operation.tag) {
+        router.replace(
+          libraryHrefWithTag(
+            pathname,
+            searchParams,
+            operation.kind === "rename" ? operation.replacement : undefined
+          )
+        );
+      }
+      setDialog(null);
+      setOperationError(null);
+    } catch (error) {
+      if (error instanceof BulkTagOperationError) {
+        setProgress(error.progress);
+        setOperationError(error);
+      } else {
+        setValidationError(error instanceof Error ? error.message : "Tag operation failed.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby={mobile ? "mobile-tags-heading" : "tags-heading"} className="min-h-0">
+      <div className="mb-1.5 flex items-center justify-between px-2.5">
+        <h2
+          id={mobile ? "mobile-tags-heading" : "tags-heading"}
+          className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        >
+          Tags
+        </h2>
+        {inventory.isFetching && !inventory.isLoading ? (
+          <RefreshCw className="size-3 animate-spin text-muted-foreground" aria-label="Refreshing tags" />
+        ) : null}
+      </div>
+      {inventory.error && !inventory.tags.length ? (
+        <div className="mx-2 rounded-md border border-destructive/25 p-2 text-xs text-destructive">
+          <p>Couldn’t load the complete tag list.</p>
+          <Button type="button" variant="ghost" size="sm" className="mt-1 h-7" onClick={() => void inventory.retry()}>
+            Retry
+          </Button>
+        </div>
+      ) : inventory.isLoading ? (
+        <div className="space-y-1 px-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-4/5" />
+        </div>
+      ) : (
+        <>
+          {inventory.error ? (
+            <div className="mx-2 mb-1 rounded-md border border-destructive/25 p-2 text-xs text-destructive">
+              <p>Showing the last complete tag list.</p>
+              <Button type="button" variant="ghost" size="sm" className="mt-1 h-7" onClick={() => void inventory.retry()}>
+                Retry
+              </Button>
+            </div>
+          ) : null}
+          <div className={cn("overflow-y-auto", mobile ? "max-h-64" : "max-h-52")}>
+          <Link
+            href={libraryHrefWithTag(pathname, searchParams, undefined)}
+            onClick={onNavigate}
+            className={cn(
+              "flex h-8 items-center gap-2 rounded-md px-2.5 text-sm font-medium transition-colors",
+              !activeTag
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground"
+            )}
+          >
+            <Tag className="size-3.5" aria-hidden />
+            <span className="flex-1 truncate">All tags</span>
+          </Link>
+          {inventory.tags.map(({ tag, count }) => (
+            <div key={tag} className="group flex items-center gap-0.5">
+              <Link
+                href={libraryHrefWithTag(pathname, searchParams, tag)}
+                onClick={onNavigate}
+                className={cn(
+                  "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-sm transition-colors",
+                  activeTag === tag
+                    ? "bg-accent font-medium text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground"
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate">{tag}</span>
+                <span className="text-xs tabular-nums">{count}</span>
+              </Link>
+              {bulk.canMutate ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    aria-label={`Rename ${tag}`}
+                    title={`Rename ${tag}`}
+                    onClick={() => openDialog({ kind: "rename", tag })}
+                  >
+                    <Pencil className="size-3.5" aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0 text-destructive hover:text-destructive"
+                    aria-label={`Delete tag ${tag}`}
+                    title={`Delete tag ${tag}`}
+                    onClick={() => openDialog({ kind: "delete", tag })}
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          ))}
+          {!inventory.tags.length ? (
+            <p className="px-2.5 py-2 text-xs text-muted-foreground">Tags you add to bookmarks will appear here.</p>
+          ) : null}
+          </div>
+        </>
+      )}
+
+      <AlertDialog open={dialog !== null} onOpenChange={(open) => !open && !busy && setDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {dialog?.kind === "rename" ? `Rename “${dialog.tag}”` : `Delete “${dialog?.tag ?? ""}”`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialog?.kind === "rename"
+                ? "This updates the tag across your complete bookmark library in resumable batches."
+                : "This removes the tag from bookmarks; it does not delete the bookmarks themselves."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {dialog?.kind === "rename" ? (
+            <div className="space-y-1.5">
+              <label htmlFor="rename-bookmark-tag" className="text-sm font-medium">Replacement tag</label>
+              <Input
+                id="rename-bookmark-tag"
+                value={replacement}
+                onChange={(event) => setReplacement(event.target.value)}
+                disabled={busy}
+                autoFocus
+              />
+            </div>
+          ) : null}
+          {progress ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              Scanned {progress.scanned}; updated {progress.updated}. Pass {Math.min(progress.convergencePass, 3)} of 3.
+            </p>
+          ) : null}
+          {operationError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {operationError.message} {progress ? `${progress.updated} updates were acknowledged.` : ""}
+            </p>
+          ) : validationError ? (
+            <p className="text-sm text-destructive" role="alert">{validationError}</p>
+          ) : null}
+          <AlertDialogFooter>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setDialog(null)}>
+              Cancel
+            </Button>
+            {operationError ? (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => void runOperation(Boolean(operationError.resumeCursor))}
+              >
+                {busy
+                  ? operationError.resumeCursor
+                    ? "Resuming…"
+                    : "Retrying…"
+                  : operationError.resumeCursor
+                    ? "Resume"
+                    : "Retry"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant={dialog?.kind === "delete" ? "destructive" : "default"}
+                disabled={busy || (dialog?.kind === "rename" && !replacement.trim())}
+                onClick={() => void runOperation(false)}
+              >
+                {busy ? "Updating…" : dialog?.kind === "delete" ? "Remove Tag" : "Rename Tag"}
+              </Button>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  );
 }
 
 function SidebarNav({
@@ -85,6 +367,8 @@ function SidebarNav({
   onNavigate?: () => void;
 }) {
   const nav = useLibraryNav();
+  const searchParams = useSearchParams();
+  const activeTag = selectedBookmarkTag(searchParams);
 
   return (
     <nav
@@ -97,7 +381,11 @@ function SidebarNav({
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={
+              item.href === "/library" || item.href === "/library/archive"
+                ? libraryHrefWithTag(item.href, searchParams, activeTag)
+                : item.href
+            }
             onClick={onNavigate}
             className={cn(
               "flex items-center gap-2.5 rounded-md font-medium transition-colors",
@@ -258,6 +546,7 @@ function SidebarBody({
         pathname={pathname}
         onNavigate={onNavigate}
       />
+      <SidebarTags mobile={mobile} onNavigate={onNavigate} />
       <button
         type="button"
         onClick={onFeedback}

@@ -57,8 +57,15 @@ public func errorResponse(_ error: Error) -> Response {
             mapped = GatewayError(status: .conflict, message: "Bookmark changed concurrently", code: "Conflict")
         case let .invalidStoredRecord(uri):
             mapped = GatewayError(status: .badGateway, message: "Invalid stored bookmark: \(uri)", code: "UpstreamFailure")
+        case .invalidTagMutationCursor:
+            mapped = GatewayError(status: .badRequest, message: "Invalid tag mutation cursor", code: "InvalidRequest")
         }
         return (try? jsonResponse(ErrorBody(error: mapped.code, message: mapped.message), status: mapped.status))
+            ?? Response(status: mapped.status)
+    }
+    if let tagError = error as? BookmarkTagValidationError {
+        let mapped = tagValidationGatewayError(tagError)
+        return (try? jsonResponse(ErrorBody(error: "InvalidRequest", message: mapped.message), status: mapped.status))
             ?? Response(status: mapped.status)
     }
     if let gatewayError = error as? GatewayError {
@@ -93,6 +100,23 @@ public func xrpcErrorResponse(_ error: Error) -> Response {
     let gatewayError: GatewayError
     if let typed = error as? GatewayError {
         gatewayError = typed
+    } else if let libraryError = error as? SavedLibraryError {
+        gatewayError = switch libraryError {
+        case .invalidURL:
+            GatewayError(status: .badRequest, message: "Invalid bookmark subject", code: "invalid_url")
+        case .bookmarkNotFound:
+            GatewayError(status: .notFound, message: "Bookmark not found", code: "bookmark_not_found")
+        case .itemNotFound:
+            GatewayError(status: .notFound, message: "Saved item not found", code: "saved_item_not_found")
+        case .conflict:
+            GatewayError(status: .conflict, message: "Bookmark changed concurrently", code: "conflict")
+        case let .invalidStoredRecord(uri):
+            GatewayError(status: .badGateway, message: "Invalid stored bookmark: \(uri)", code: "pds_record_decode")
+        case .invalidTagMutationCursor:
+            GatewayError(status: .badRequest, message: "Invalid tag mutation cursor", code: "invalid_request")
+        }
+    } else if let tagError = error as? BookmarkTagValidationError {
+        gatewayError = tagValidationGatewayError(tagError)
     } else if error is DecodingError {
         gatewayError = GatewayError(
             status: .badRequest,
@@ -114,6 +138,7 @@ public func xrpcErrorResponse(_ error: Error) -> Response {
     case "missing_dpop", "invalid_dpop", "invalid_dpop_replay": "InvalidDpop"
     case "missing_client_credential", "missing_client_id": "ClientAuthRequired"
     case "invalid_client_credential", "invalid_client_id", "unknown_client": "InvalidClient"
+    case "bookmark_not_found": "BookmarkNotFound"
     case "saved_item_not_found", "not_found": "SavedItemNotFound"
     case "invalid_url", "missing_url": "InvalidUrl"
     case "usage_limit_exceeded": "RateLimitExceeded"
@@ -136,6 +161,22 @@ public func xrpcErrorResponse(_ error: Error) -> Response {
         response.headers[.wwwAuthenticate] = "DPoP"
     }
     return response
+}
+
+private func tagValidationGatewayError(_ error: BookmarkTagValidationError) -> GatewayError {
+    let message: String = switch error {
+    case .emptyTag:
+        "Tags must not be empty"
+    case let .tooManyTags(maximum):
+        "A bookmark may have at most \(maximum) tags"
+    case let .exceedsGraphemeLimit(maximum):
+        "Each tag may have at most \(maximum) characters"
+    case let .exceedsUTF8Limit(maximum):
+        "Each tag may use at most \(maximum) UTF-8 bytes"
+    case .identicalRename:
+        "The replacement tag must differ from the source tag"
+    }
+    return GatewayError(status: .badRequest, message: message, code: "invalid_request")
 }
 
 public func decodeJSONBody<T: Decodable>(_ request: Request, as type: T.Type) async throws -> T {

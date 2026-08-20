@@ -76,30 +76,33 @@ function FilterRow({
 export function LibraryRightRail({
   activeFilter = "all",
   className,
+  mode = "unread",
   onFilterChange,
 }: {
   activeFilter?: SavedRowsFilter;
   className?: string;
+  mode?: "unread" | "archive";
   onFilterChange?: (filter: SavedRowsFilter) => void;
 }) {
   const { data } = useSavedLibrary();
   const unread = filterSavedRows(data, "unread");
   const archive = filterSavedRows(data, "archive");
+  const currentRows = mode === "archive" ? archive : unread;
   const readingTime = unread.reduce(
     (total, row) => total + readingMinutesForRow(row),
     0
   );
-  const articleCount = unread.filter(
+  const articleCount = currentRows.filter(
     (row) => savedRowContentBucket(row) === "article"
   ).length;
-  const socialCount = unread.filter(
+  const socialCount = currentRows.filter(
     (row) => savedRowContentBucket(row) === "social"
   ).length;
-  const otherCount = unread.filter(
+  const otherCount = currentRows.filter(
     (row) => savedRowContentBucket(row) === "other"
   ).length;
   const filters: FilterOption[] = [
-    { value: "all", label: "All Items", icon: Inbox, count: unread.length },
+    { value: "all", label: "All Items", icon: Inbox, count: currentRows.length },
     { value: "article", label: "Articles", icon: FileText, count: articleCount },
     { value: "social", label: "Social", icon: MessageCircle, count: socialCount },
     { value: "other", label: "Other", icon: Bookmark, count: otherCount },

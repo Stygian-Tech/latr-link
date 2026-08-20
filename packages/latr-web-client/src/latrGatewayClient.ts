@@ -363,12 +363,37 @@ export async function latrGatewayFetch(
   });
 }
 
-async function readGatewayError(res: Response): Promise<string> {
+type LatrGatewayErrorBody = {
+  error?: string;
+  message?: string;
+};
+
+export class LatrGatewayError extends Error {
+  readonly name = "LatrGatewayError";
+
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+export function isLatrGatewayConflictError(error: unknown): error is LatrGatewayError {
+  return error instanceof LatrGatewayError && error.status === 409 && error.code === "Conflict";
+}
+
+async function readGatewayError(res: Response): Promise<LatrGatewayError> {
   try {
-    const body = (await res.json()) as { message?: string; error?: string };
-    return body.message ?? body.error ?? `Gateway error (${res.status})`;
+    const body = (await res.json()) as LatrGatewayErrorBody;
+    return new LatrGatewayError(
+      res.status,
+      body.error ?? "GatewayError",
+      body.message ?? body.error ?? `Gateway error (${res.status})`
+    );
   } catch {
-    return `Gateway error (${res.status})`;
+    return new LatrGatewayError(res.status, "GatewayError", `Gateway error (${res.status})`);
   }
 }
 
@@ -380,7 +405,7 @@ export async function latrGatewayJson<T>(
 ): Promise<T> {
   const res = await latrGatewayFetch(oauthSession, path, init, options);
   if (!res.ok) {
-    throw new Error(await readGatewayError(res));
+    throw await readGatewayError(res);
   }
   return (await res.json()) as T;
 }

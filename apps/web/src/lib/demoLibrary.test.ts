@@ -3,8 +3,12 @@ import { describe, expect, test } from "bun:test";
 import {
   createDemoSavedRowFromPaste,
   createDemoSavedRows,
+  deleteSavedRowTag,
   removeSavedRow,
+  renameSavedRowTag,
   setSavedRowState,
+  setSavedRowTags,
+  tagCountsForSavedRows,
 } from "./demoLibrary";
 import { rkeyFromAtUri } from "./rkey";
 
@@ -18,10 +22,13 @@ describe("Demo Saved Library Fixtures", () => {
   });
 
   test("Creates a Local Row From a Pasted URL", () => {
-    const row = createDemoSavedRowFromPaste("https://example.com/story");
+    const row = createDemoSavedRowFromPaste("https://example.com/story", [
+      "work",
+    ]);
     expect(row.preview.title).toBe("Saved from example.com");
     expect(row.rec.value.subject).toBe("https://example.com/story");
     expect(row.rec.metadataRecord?.value.state).toBe("unread");
+    expect(row.rec.value.tags).toEqual(["work"]);
   });
 
   test("Archives and Removes Rows Without Mutating Originals", () => {
@@ -34,5 +41,26 @@ describe("Demo Saved Library Fixtures", () => {
     const removed = removeSavedRow(archived, targetRkey);
     expect(removed).toHaveLength(archived.length - 1);
     expect(removed.some((row) => rkeyFromAtUri(row.rec.uri) === targetRkey)).toBe(false);
+  });
+
+  test("edits, renames, deletes, and counts tags without changing bookmark state", () => {
+    const rows = createDemoSavedRows();
+    const bookmarkUri = rows[0]!.rec.uri;
+    const archivedState = rows[0]!.rec.metadataRecord?.value.state;
+
+    const replaced = setSavedRowTags(rows, bookmarkUri, ["Work", "funny videos"]);
+    expect(replaced[0]!.rec.value.tags).toEqual(["Work", "funny videos"]);
+    expect(rows[0]!.rec.value.tags).not.toEqual(replaced[0]!.rec.value.tags);
+
+    const renamed = renameSavedRowTag(replaced, "Work", "funny videos");
+    expect(renamed[0]!.rec.value.tags).toEqual(["funny videos"]);
+
+    const deleted = deleteSavedRowTag(renamed, "funny videos");
+    expect(deleted[0]!.rec.value.tags).toBeUndefined();
+    expect(deleted[0]!.rec.metadataRecord?.value.state).toBe(archivedState);
+
+    const counts = tagCountsForSavedRows(replaced);
+    expect(counts).toContainEqual({ tag: "funny videos", count: 1 });
+    expect(counts).toContainEqual({ tag: "Work", count: 1 });
   });
 });

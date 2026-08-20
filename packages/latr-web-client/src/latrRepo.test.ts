@@ -225,6 +225,79 @@ describe("LatrRepo Gateway Facade", () => {
     expect(JSON.parse(syncBodies[0] ?? "{}")).toEqual({ limit: 25, cursor: "3jz/f+cij=" });
   });
 
+  test("listSavedItemsPage preserves an exact URL-encoded tag filter", async () => {
+    markLexiconMigrationComplete("did:plc:viewer");
+    const calls: string[] = [];
+    globalThis.fetch = (async (url) => {
+      calls.push(String(url));
+      return new Response(JSON.stringify({ bookmarks: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => new Response(null, {
+      status: 400,
+      headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+    }));
+
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+    await repo.listSavedItemsPage({ limit: 50, tag: "Café & Research" });
+
+    const listCall = calls.find((call) => call.includes("link.latr.bookmarks.listBookmarks"));
+    expect(listCall).toContain("tag=Caf%C3%A9+%26+Research");
+  });
+
+  test("tag facade pages and resumes bounded mutations", async () => {
+    const calls: Array<{ url: string; body: string }> = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push({ url: String(url), body: String(init?.body ?? "") });
+      if (String(url).includes("listTags")) {
+        return new Response(JSON.stringify({
+          tagCounts: [{ tag: "Research", count: 2 }],
+          scanned: 100,
+          cursor: "tags/f+c=",
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({
+        ok: true,
+        scanned: 25,
+        matched: 2,
+        updated: 2,
+        cursor: "v:resume/f+c=",
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () => new Response(null, {
+      status: 400,
+      headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+    }));
+    const repo = new LatrRepo(oauth, "did:plc:viewer");
+
+    const tags = await repo.listBookmarkTagsPage({ limit: 100, cursor: "page/f+c=" });
+    const renamed = await repo.renameBookmarkTag("Research", "Reference", {
+      limit: 25,
+      cursor: "m:resume/f+c=",
+    });
+    await repo.deleteBookmarkTag("Reference", { limit: 25, cursor: renamed.cursor });
+
+    expect(tags).toEqual({
+      tagCounts: [{ tag: "Research", count: 2 }],
+      scanned: 100,
+      cursor: "tags/f+c=",
+    });
+    expect(calls[0]?.url).toContain(`cursor=${encodeURIComponent("page/f+c=")}`);
+    expect(JSON.parse(calls[1]?.body ?? "{}")).toEqual({
+      tag: "Research",
+      replacement: "Reference",
+      limit: 25,
+      cursor: "m:resume/f+c=",
+    });
+    expect(JSON.parse(calls[2]?.body ?? "{}")).toEqual({
+      tag: "Reference",
+      limit: 25,
+      cursor: "v:resume/f+c=",
+    });
+  });
+
   test("listSavedItems still requests the bare saves path", async () => {
     markLexiconMigrationComplete("did:plc:viewer");
     const calls: string[] = [];
@@ -331,8 +404,9 @@ describe("LatrRepo Gateway Facade", () => {
     });
 
     const repo = new LatrRepo(oauth, "did:plc:viewer");
-    await repo.saveExternalUrl("https://example.com/x");
+    await repo.saveExternalUrl("https://example.com/x", { tags: ["Research", "Read Later"] });
     expect(body).toContain('"subject":"https://example.com/x"');
     expect(body).toContain("example.com");
+    expect(JSON.parse(body).tags).toEqual(["Research", "Read Later"]);
   });
 });
