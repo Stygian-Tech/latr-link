@@ -15,6 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { isLatrDemoDataEnabled } from "@/lib/demoMode";
 import { BRAND_ICON_PATH } from "@/lib/brandIcon";
+import {
+  OAUTH_SCOPE_DISCLOSURE_GROUPS,
+  OAUTH_SCOPE_LIMITATION_DISCLOSURE,
+} from "@/lib/oauthScopeDisclosure";
 
 const callbackErrorMessage =
   "Sign-In Callback Failed. Try an External Browser (Chrome/Safari) if Preview Tools Block WebSockets or Storage.";
@@ -168,25 +172,16 @@ export default function LoginPage() {
                 <summary className="cursor-pointer font-medium text-foreground">
                   What L@tr.link can access
                 </summary>
-                <div className="mt-3 space-y-2 leading-5 text-muted-foreground">
-                  <p>
-                    L@tr.link can identify your account and create or update
-                    link metadata in your public repository.
-                  </p>
-                  <p>
-                    It can create, update, and delete only your L@tr saved-item
-                    records. It can also delete obsolete L@tr records after a
-                    one-time migration.
-                  </p>
-                  <p>
-                    If you send feedback, L@tr.link can publish it to the public
-                    User Input board from your repository and upload the images
-                    you attach.
-                  </p>
-                  <p>
-                    It cannot post to social feeds for you, edit your profile,
-                    read messages or email, or manage your account.
-                  </p>
+                <div className="mt-3 space-y-3 leading-5 text-muted-foreground">
+                  <dl className="space-y-3">
+                    {OAUTH_SCOPE_DISCLOSURE_GROUPS.map((group) => (
+                      <div key={group.title}>
+                        <dt className="font-medium text-foreground">{group.title}</dt>
+                        <dd>{group.detail}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p>{OAUTH_SCOPE_LIMITATION_DISCLOSURE}</p>
                 </div>
               </details>
             ) : null}

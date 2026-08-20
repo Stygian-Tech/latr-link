@@ -8,12 +8,20 @@ final class WebOAuthClientMetadataTests: XCTestCase {
             ATProtoOAuthScopes.scope,
             "atproto "
                 + "repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete "
-                + "repo:link.latr.bookmarks.metadata?action=create&action=update&action=delete "
+                + "include:link.latr.authFull "
                 + "repo:link.latr.saved.external?action=delete "
                 + "repo:link.latr.saved.item?action=delete "
                 + "repo:com.latr.saved.external?action=delete "
                 + "repo:com.latr.saved.item?action=delete"
         )
+        XCTAssertEqual(
+            ATProtoOAuthScopes.bookmarkScopes,
+            ["repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete"]
+        )
+        XCTAssertEqual(ATProtoOAuthScopes.readingStateScope, "include:link.latr.authFull")
+        XCTAssertEqual(ATProtoOAuthScopes.migrationCleanupScopes.count, 4)
+        XCTAssertFalse(ATProtoOAuthScopes.scope.contains("transition:generic"))
+        XCTAssertFalse(ATProtoOAuthScopes.scope.contains("repo:*"))
         XCTAssertEqual(
             ATProtoOAuthScopes.webScope,
             ATProtoOAuthScopes.scope
