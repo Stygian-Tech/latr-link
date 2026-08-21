@@ -1,35 +1,28 @@
 import {
-  COLLECTION_BOOKMARK,
-  COLLECTION_BOOKMARK_METADATA,
-  COLLECTION_SAVED_EXTERNAL,
-  COLLECTION_SAVED_ITEM,
-  LEGACY_COLLECTION_SAVED_EXTERNAL,
-  LEGACY_COLLECTION_SAVED_ITEM,
+  LATR_BOOKMARK_REPO_OAUTH_SCOPES,
+  LATR_MIGRATION_CLEANUP_REPO_OAUTH_SCOPES,
+  LATR_READING_STATE_OAUTH_SCOPE,
+  LATR_REPO_OAUTH_SCOPES,
 } from "latr-packages/gateway-client";
 
-function repoScope(
-  collection: string,
-  actions: readonly ("create" | "update" | "delete")[]
-): string {
-  const query = actions.map((action) => `action=${action}`).join("&");
-  return `repo:${collection}?${query}`;
-}
-
 /**
- * Exact repository mutations used by L@tr.link.
+ * Exact OAuth permissions used by L@tr.link.
  *
  * Public repository reads need no additional permission. Legacy collections are
  * read during one-time migration, but L@tr only needs permission to delete them
  * after copying their records into the current collections.
  */
+export {
+  LATR_BOOKMARK_REPO_OAUTH_SCOPES,
+  LATR_MIGRATION_CLEANUP_REPO_OAUTH_SCOPES,
+} from "latr-packages/gateway-client";
+
+/** Compatibility name for the canonical latr-packages reading-state scope. */
+export const LATR_READING_STATE_PERMISSION_SCOPE = LATR_READING_STATE_OAUTH_SCOPE;
+
 export const LATR_ATPROTO_OAUTH_SCOPES = [
   "atproto",
-  repoScope(COLLECTION_BOOKMARK, ["create", "update", "delete"]),
-  repoScope(COLLECTION_BOOKMARK_METADATA, ["create", "update", "delete"]),
-  repoScope(COLLECTION_SAVED_EXTERNAL, ["delete"]),
-  repoScope(COLLECTION_SAVED_ITEM, ["delete"]),
-  repoScope(LEGACY_COLLECTION_SAVED_EXTERNAL, ["delete"]),
-  repoScope(LEGACY_COLLECTION_SAVED_ITEM, ["delete"]),
+  ...LATR_REPO_OAUTH_SCOPES,
 ] as const;
 
 /** @deprecated Use {@link LATR_ATPROTO_OAUTH_SCOPES} */
