@@ -178,6 +178,27 @@ export default function LoginPage() {
                       <div key={group.title}>
                         <dt className="font-medium text-foreground">{group.title}</dt>
                         <dd>{group.detail}</dd>
+                        {group.collection ? (
+                          <dd className="mt-1">
+                            <code className="break-all rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
+                              {group.collection}
+                            </code>
+                          </dd>
+                        ) : null}
+                        {group.permissions ? (
+                          <dd>
+                            <ul className="mt-2 space-y-1.5 border-l border-border pl-3">
+                              {group.permissions.map((permission) => (
+                                <li key={permission.action}>
+                                  <span className="font-medium text-foreground">
+                                    {permission.action}:
+                                  </span>{" "}
+                                  {permission.detail}
+                                </li>
+                              ))}
+                            </ul>
+                          </dd>
+                        ) : null}
                       </div>
                     ))}
                   </dl>
