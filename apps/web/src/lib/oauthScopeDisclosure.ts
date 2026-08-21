@@ -1,6 +1,13 @@
+export type OAuthScopeDisclosurePermission = Readonly<{
+  action: "Create" | "Update" | "Delete";
+  detail: string;
+}>;
+
 export type OAuthScopeDisclosureGroup = Readonly<{
   title: string;
   detail: string;
+  collection?: string;
+  permissions?: readonly OAuthScopeDisclosurePermission[];
   webOnly?: boolean;
 }>;
 
@@ -8,6 +15,21 @@ export const OAUTH_SCOPE_DISCLOSURE_GROUPS: readonly OAuthScopeDisclosureGroup[]
   {
     title: "Bookmarks",
     detail: "Create, update, and delete community bookmark records in your public repository.",
+    collection: "community.lexicon.bookmarks.bookmark",
+    permissions: [
+      {
+        action: "Create",
+        detail: "Save links as new public bookmark records.",
+      },
+      {
+        action: "Update",
+        detail: "Edit tags on existing bookmark records.",
+      },
+      {
+        action: "Delete",
+        detail: "Remove bookmark records from your repository.",
+      },
+    ],
   },
   {
     title: "Reading State",
