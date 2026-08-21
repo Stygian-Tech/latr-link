@@ -6,7 +6,9 @@ import {
   latrXrpcPath,
   type LatrBookmarkView,
   type LatrListBookmarksOutput,
+  type LatrListTagsOutput,
   type LatrMigrationResult,
+  type LatrTagMutationResult,
 } from "latr-packages/gateway-client";
 
 import {
@@ -28,6 +30,12 @@ export type OpenGraphPreviewFields = {
 
 export type SavedItemsPage = {
   records: LatrBookmarkView[];
+  cursor: string | null;
+};
+
+export type BookmarkTagsPage = {
+  tagCounts: LatrListTagsOutput["tagCounts"];
+  scanned: number;
   cursor: string | null;
 };
 
@@ -66,15 +74,37 @@ export class LatrRepo {
   async listSavedItemsPage(options: {
     limit: number;
     cursor?: string;
+    tag?: string;
   }): Promise<SavedItemsPage> {
     await this.migrateLegacyLexiconsIfNeeded();
     await this.syncBookmarkMetadataBestEffort(options);
     const params = new URLSearchParams({ limit: String(options.limit) });
     if (options.cursor) params.set("cursor", options.cursor);
+    if (options.tag !== undefined) params.set("tag", options.tag);
     const response = await latrGatewayJson<LatrListBookmarksOutput>(this.oauthSession, `${latrXrpcPath(LATR_XRPC.listBookmarks)}?${params.toString()}`, {
       method: "GET",
     });
     return { records: response.bookmarks ?? [], cursor: response.cursor ?? null };
+  }
+
+  async listBookmarkTagsPage(options: {
+    limit?: number;
+    cursor?: string;
+  } = {}): Promise<BookmarkTagsPage> {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.size === 0 ? "" : `?${params.toString()}`;
+    const response = await latrGatewayJson<LatrListTagsOutput>(
+      this.oauthSession,
+      `${latrXrpcPath(LATR_XRPC.listTags)}${query}`,
+      { method: "GET" }
+    );
+    return {
+      tagCounts: response.tagCounts,
+      scanned: response.scanned,
+      cursor: response.cursor ?? null,
+    };
   }
 
   private async syncBookmarkMetadataBestEffort(options: {
@@ -124,28 +154,28 @@ export class LatrRepo {
     }
   }
 
-  async saveExternalUrl(url: string): Promise<SaveUrlResponse> {
-    return this.saveUrl(url);
+  async saveExternalUrl(url: string, options: { tags?: string[] } = {}): Promise<SaveUrlResponse> {
+    return this.saveUrl(url, options);
   }
 
-  async saveUrl(url: string): Promise<SaveUrlResponse> {
+  async saveUrl(url: string, options: { tags?: string[] } = {}): Promise<SaveUrlResponse> {
     const bookmark = await latrGatewayJson<LatrBookmarkView>(this.oauthSession, latrXrpcPath(LATR_XRPC.saveBookmark), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject: url.trim() }),
+      body: JSON.stringify({ subject: url.trim(), ...(options.tags ? { tags: options.tags } : {}) }),
     });
     return { ok: true, kind: "bookmark", bookmark };
   }
 
   async saveSubjectUri(
     subjectUri: string,
-    options: { linkedWebUrl?: string } = {}
+    options: { linkedWebUrl?: string; tags?: string[] } = {}
   ): Promise<SaveUrlResponse> {
     new AtUri(subjectUri);
     const bookmark = await latrGatewayJson<LatrBookmarkView>(this.oauthSession, latrXrpcPath(LATR_XRPC.saveBookmark), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject: subjectUri }),
+      body: JSON.stringify({ subject: subjectUri, ...(options.tags ? { tags: options.tags } : {}) }),
     });
     return { ok: true, kind: "bookmark", bookmark };
   }
@@ -161,6 +191,49 @@ export class LatrRepo {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bookmarkUri, state }),
+      }
+    );
+  }
+
+  async setBookmarkTags(bookmarkUri: string, tags: string[]): Promise<LatrBookmarkView> {
+    return latrGatewayJson<LatrBookmarkView>(
+      this.oauthSession,
+      latrXrpcPath(LATR_XRPC.setBookmarkTags),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookmarkUri, tags }),
+      }
+    );
+  }
+
+  async renameBookmarkTag(
+    tag: string,
+    replacement: string,
+    options: { limit?: number; cursor?: string } = {}
+  ): Promise<LatrTagMutationResult> {
+    return latrGatewayJson<LatrTagMutationResult>(
+      this.oauthSession,
+      latrXrpcPath(LATR_XRPC.renameBookmarkTag),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag, replacement, ...options }),
+      }
+    );
+  }
+
+  async deleteBookmarkTag(
+    tag: string,
+    options: { limit?: number; cursor?: string } = {}
+  ): Promise<LatrTagMutationResult> {
+    return latrGatewayJson<LatrTagMutationResult>(
+      this.oauthSession,
+      latrXrpcPath(LATR_XRPC.deleteBookmarkTag),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag, ...options }),
       }
     );
   }

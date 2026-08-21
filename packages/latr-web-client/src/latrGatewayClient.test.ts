@@ -9,7 +9,10 @@ import { configureLatrGateway } from "./latrGatewayConfig";
 import {
   LATR_PROXY_USER_AUTHORIZATION_HEADER,
   LATR_PROXY_USER_DPOP_HEADER,
+  isLatrGatewayConflictError,
   latrGatewayFetch,
+  latrGatewayJson,
+  LatrGatewayError,
 } from "./latrGatewayClient";
 import { LATR_XRPC, latrXrpcPath } from "./xrpcMethods";
 
@@ -78,6 +81,40 @@ function mockOAuthSession(
 }
 
 describe("latrGatewayFetch upstream proofs", () => {
+  test("latrGatewayJson exposes typed XRPC conflicts", async () => {
+    globalThis.fetch = (async (_url, _init) =>
+      new Response(JSON.stringify({ error: "Conflict", message: "Bookmark changed concurrently" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      })) as typeof fetch;
+    const oauth = mockOAuthSession(async () =>
+      new Response(null, {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      })
+    );
+
+    let caught: unknown;
+    try {
+      await latrGatewayJson(oauth, latrXrpcPath(LATR_XRPC.deleteBookmarkTag), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag: "Research", limit: 25 }),
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(LatrGatewayError);
+    expect(caught).toMatchObject({
+      status: 409,
+      code: "Conflict",
+      message: "Bookmark changed concurrently",
+    });
+    expect(isLatrGatewayConflictError(caught)).toBe(true);
+    expect(isLatrGatewayConflictError(new Error("Conflict"))).toBe(false);
+  });
+
   test("XRPC listItems sends list-only upstream proofs", async () => {
     let upstreamHeader = "";
     globalThis.fetch = (async (_url, init) => {
@@ -216,6 +253,40 @@ describe("latrGatewayFetch upstream proofs", () => {
     });
 
     expect(upstreamHeader.split(",")).toHaveLength(3);
+  });
+
+  test("tag methods use their published bounded proof plans", async () => {
+    const proofCounts: number[] = [];
+    globalThis.fetch = (async (_url, init) => {
+      const header = new Headers(init?.headers).get(LATR_UPSTREAM_DPOP_HEADER) ?? "";
+      proofCounts.push(header ? header.split(",").length : 0);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as typeof fetch;
+    const oauth = mockOAuthSession(async () =>
+      new Response(null, {
+        status: 400,
+        headers: { "DPoP-Nonce": "fresh-pds-nonce" },
+      })
+    );
+
+    await latrGatewayFetch(oauth, latrXrpcPath(LATR_XRPC.listTags), { method: "GET" });
+    await latrGatewayFetch(oauth, latrXrpcPath(LATR_XRPC.setBookmarkTags), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookmarkUri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/3abc", tags: ["Research"] }),
+    });
+    await latrGatewayFetch(oauth, latrXrpcPath(LATR_XRPC.renameBookmarkTag), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tag: "Research", replacement: "Reference", limit: 25 }),
+    });
+    await latrGatewayFetch(oauth, latrXrpcPath(LATR_XRPC.deleteBookmarkTag), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tag: "Reference", limit: 25 }),
+    });
+
+    expect(proofCounts).toEqual([1, 4, 2, 2]);
   });
 
   test("bookmark migration carries its published pool in the body", async () => {

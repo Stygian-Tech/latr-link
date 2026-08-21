@@ -21,6 +21,7 @@ type DemoSeed = {
   kind?: SavedRow["preview"]["kind"];
   state?: SavedItemState;
   archivedAt?: string;
+  tags?: string[];
 };
 
 function localWithoutArchivedAt(row: SavedRow): SavedRow["local"] {
@@ -44,6 +45,7 @@ const demoSeeds: DemoSeed[] = [
     readMinutes: 6,
     image:
       "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=320&q=80",
+    tags: ["technology", "work"],
   },
   {
     rkey: "second-brain",
@@ -57,6 +59,7 @@ const demoSeeds: DemoSeed[] = [
     readMinutes: 8,
     image:
       "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=320&q=80",
+    tags: ["knowledge", "work"],
   },
   {
     rkey: "remote-work-collaboration",
@@ -69,6 +72,7 @@ const demoSeeds: DemoSeed[] = [
     readMinutes: 5,
     image:
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=320&q=80",
+    tags: ["work"],
   },
   {
     rkey: "tiny-habits",
@@ -81,6 +85,7 @@ const demoSeeds: DemoSeed[] = [
     readMinutes: 4,
     image:
       "https://images.unsplash.com/photo-1512428813834-c702c7702b78?auto=format&fit=crop&w=320&q=80",
+    tags: ["habits"],
   },
   {
     rkey: "ai-terminal",
@@ -201,6 +206,7 @@ const demoSeeds: DemoSeed[] = [
       "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=320&q=80",
     state: "archived",
     archivedAt: "2026-07-07T09:05:00.000Z",
+    tags: ["technology", "privacy"],
   },
   {
     rkey: "neighborhood-parks",
@@ -215,6 +221,7 @@ const demoSeeds: DemoSeed[] = [
       "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=320&q=80",
     state: "archived",
     archivedAt: "2026-07-07T08:24:00.000Z",
+    tags: ["weekend plans"],
   },
   {
     rkey: "css-container-queries",
@@ -262,6 +269,7 @@ function bookmarkRecord(seed: DemoSeed) {
     $type: COLLECTION_BOOKMARK,
     subject: seed.url,
     createdAt: seed.savedAt,
+    ...(seed.tags?.length ? { tags: seed.tags } : {}),
   };
 }
 
@@ -309,7 +317,10 @@ export function createDemoSavedRows(): SavedRow[] {
   return demoSeeds.map(rowFromSeed);
 }
 
-export function createDemoSavedRowFromPaste(paste: string): SavedRow {
+export function createDemoSavedRowFromPaste(
+  paste: string,
+  tags: string[] = []
+): SavedRow {
   const trimmed = paste.trim();
   const isUrl = /^https?:\/\//i.test(trimmed);
   const host = (() => {
@@ -332,6 +343,7 @@ export function createDemoSavedRowFromPaste(paste: string): SavedRow {
     savedAt: demoNow,
     readMinutes: 3,
     kind: isUrl ? "external" : "record",
+    tags,
   });
 }
 
@@ -368,4 +380,57 @@ export function setSavedRowState(
 
 export function removeSavedRow(rows: SavedRow[], itemRkey: string): SavedRow[] {
   return rows.filter((row) => rkeyFromAtUri(row.rec.uri) !== itemRkey);
+}
+
+export function setSavedRowTags(
+  rows: SavedRow[],
+  bookmarkUri: string,
+  tags: string[]
+): SavedRow[] {
+  return rows.map((row) => {
+    if (row.rec.uri !== bookmarkUri) return row;
+    const value = { ...row.rec.value };
+    if (tags.length) value.tags = tags;
+    else delete value.tags;
+    return { ...row, rec: { ...row.rec, value } };
+  });
+}
+
+export function renameSavedRowTag(
+  rows: SavedRow[],
+  source: string,
+  replacement: string
+): SavedRow[] {
+  return rows.map((row) => {
+    const tags = row.rec.value.tags;
+    if (!tags?.includes(source)) return row;
+    const replaced = tags.map((tag) => (tag === source ? replacement : tag));
+    return setSavedRowTags([row], row.rec.uri, [...new Set(replaced)])[0]!;
+  });
+}
+
+export function deleteSavedRowTag(rows: SavedRow[], tag: string): SavedRow[] {
+  return rows.map((row) => {
+    if (!row.rec.value.tags?.includes(tag)) return row;
+    return setSavedRowTags(
+      [row],
+      row.rec.uri,
+      row.rec.value.tags.filter((candidate) => candidate !== tag)
+    )[0]!;
+  });
+}
+
+export function tagCountsForSavedRows(
+  rows: SavedRow[]
+): Array<{ tag: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    for (const tag of new Set(row.rec.value.tags ?? [])) {
+      if (!tag) continue;
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((left, right) => left.tag.localeCompare(right.tag, "en-US"));
 }

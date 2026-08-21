@@ -34,6 +34,29 @@ final class RouterTests: XCTestCase {
         try await httpClient.shutdown()
     }
 
+    func testBookmarkTagXRPCRoutesRejectMissingAuthorization() async throws {
+        let (app, httpClient) = makeApp()
+        try await app.test(.router) { client in
+            try await client.execute(
+                uri: "/xrpc/link.latr.bookmarks.listTags?limit=100",
+                method: .get
+            ) { response in
+                XCTAssertEqual(response.status, .unauthorized)
+            }
+            for method in ["setTags", "renameTag", "deleteTag"] {
+                try await client.execute(
+                    uri: "/xrpc/link.latr.bookmarks.\(method)",
+                    method: .post,
+                    headers: [.contentType: "application/json"],
+                    body: ByteBuffer(string: "{}")
+                ) { response in
+                    XCTAssertEqual(response.status, .unauthorized)
+                }
+            }
+        }
+        try await httpClient.shutdown()
+    }
+
     private func registryURL() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("latr-router-registry-\(UUID().uuidString).json")

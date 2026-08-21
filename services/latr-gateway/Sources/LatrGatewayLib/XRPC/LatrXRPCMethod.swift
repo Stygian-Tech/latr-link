@@ -3,10 +3,14 @@ import Foundation
 /// Canonical NSIDs implemented by the directly-addressed L@tr XRPC service.
 public enum LatrXRPCMethod: String, CaseIterable, Sendable {
     case listBookmarks = "link.latr.bookmarks.listBookmarks"
+    case listTags = "link.latr.bookmarks.listTags"
     case getBookmark = "link.latr.bookmarks.getBookmark"
     case saveBookmark = "link.latr.bookmarks.saveBookmark"
     case syncBookmarkMetadata = "link.latr.bookmarks.syncMetadata"
     case setBookmarkState = "link.latr.bookmarks.setState"
+    case setBookmarkTags = "link.latr.bookmarks.setTags"
+    case renameBookmarkTag = "link.latr.bookmarks.renameTag"
+    case deleteBookmarkTag = "link.latr.bookmarks.deleteTag"
     case deleteBookmark = "link.latr.bookmarks.deleteBookmark"
     case migrateBookmarks = "link.latr.bookmarks.migrateLegacy"
     case listItems = "link.latr.saved.listItems"
@@ -34,10 +38,11 @@ public enum LatrXRPCMethod: String, CaseIterable, Sendable {
 
     public var kind: Kind {
         switch self {
-        case .listBookmarks, .getBookmark, .listItems, .getItem, .getOpenGraph, .resolveURL, .authProbe,
+        case .listBookmarks, .listTags, .getBookmark, .listItems, .getItem, .getOpenGraph, .resolveURL, .authProbe,
              .listDeveloperClients, .listDeveloperKeys, .getDeveloperUsage:
             .query
-        case .saveBookmark, .syncBookmarkMetadata, .setBookmarkState, .deleteBookmark, .migrateBookmarks,
+        case .saveBookmark, .syncBookmarkMetadata, .setBookmarkState, .setBookmarkTags,
+             .renameBookmarkTag, .deleteBookmarkTag, .deleteBookmark, .migrateBookmarks,
              .saveURL, .saveSubject, .setState, .deleteItem, .migrateLegacy,
              .createDeveloperClient, .deleteDeveloperClient, .createDeveloperKey,
              .revokeDeveloperKey:
