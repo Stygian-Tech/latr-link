@@ -1,15 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { SavedRows } from "@/components/SavedRows";
 import { useAuth } from "@/hooks/useAuth";
+import type { SavedRowsFilter } from "@/lib/savedRowContent";
 import { LibraryRightRail } from "../LibraryRightRail";
 
 export default function ArchivePage() {
   const { session, isLoading } = useAuth();
   const router = useRouter();
+  const [filter, setFilter] = useState<SavedRowsFilter>("all");
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -28,10 +30,15 @@ export default function ArchivePage() {
           </h1>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-          <SavedRows mode="archive" sort="archived" />
+          <SavedRows mode="archive" filter={filter} sort="archived" />
         </div>
       </section>
-      <LibraryRightRail className="self-start xl:mt-[7rem]" />
+      <LibraryRightRail
+        activeFilter={filter}
+        className="self-start xl:mt-[7rem]"
+        mode="archive"
+        onFilterChange={setFilter}
+      />
     </main>
   );
 }

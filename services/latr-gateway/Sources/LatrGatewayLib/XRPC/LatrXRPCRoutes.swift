@@ -11,13 +11,28 @@ public enum LatrXRPCRoutes {
 
         xrpc.get(RouterPath(LatrXRPCMethod.listBookmarks.rawValue)) { request, _ in
             await handleProtected(request: request, services: services, errorResponder: xrpcErrorResponse) { auth in
-                try validateQueryParameters(request, allowed: ["limit", "cursor"])
+                try validateQueryParameters(request, allowed: ["limit", "cursor", "tag"])
                 let limit = try integerParameter(request, named: "limit", default: 50, range: 1 ... 100)
                 return try xrpcJSONResponse(
                     try await BookmarkGatewayOperations.list(
                         auth: auth,
                         services: services,
                         limit: limit,
+                        cursor: optionalParameter(request, named: "cursor"),
+                        tag: try optionalTagParameter(request)
+                    )
+                )
+            }
+        }
+
+        xrpc.get(RouterPath(LatrXRPCMethod.listTags.rawValue)) { request, _ in
+            await handleProtected(request: request, services: services, errorResponder: xrpcErrorResponse) { auth in
+                try validateQueryParameters(request, allowed: ["limit", "cursor"])
+                return try xrpcJSONResponse(
+                    try await BookmarkGatewayOperations.listTags(
+                        auth: auth,
+                        services: services,
+                        limit: try integerParameter(request, named: "limit", default: 100, range: 1 ... 100),
                         cursor: optionalParameter(request, named: "cursor")
                     )
                 )
@@ -60,6 +75,33 @@ public enum LatrXRPCRoutes {
                 let input = try await decodeXRPCInput(request, as: LatrSetBookmarkStateInput.self)
                 return try xrpcJSONResponse(
                     try await BookmarkGatewayOperations.setState(input: input, auth: auth, services: services)
+                )
+            }
+        }
+
+        xrpc.post(RouterPath(LatrXRPCMethod.setBookmarkTags.rawValue)) { request, _ in
+            await handleProtected(request: request, services: services, errorResponder: xrpcErrorResponse) { auth in
+                let input = try await decodeXRPCInput(request, as: LatrSetBookmarkTagsInput.self)
+                return try xrpcJSONResponse(
+                    try await BookmarkGatewayOperations.setTags(input: input, auth: auth, services: services)
+                )
+            }
+        }
+
+        xrpc.post(RouterPath(LatrXRPCMethod.renameBookmarkTag.rawValue)) { request, _ in
+            await handleProtected(request: request, services: services, errorResponder: xrpcErrorResponse) { auth in
+                let input = try await decodeXRPCInput(request, as: LatrRenameBookmarkTagInput.self)
+                return try xrpcJSONResponse(
+                    try await BookmarkGatewayOperations.renameTag(input: input, auth: auth, services: services)
+                )
+            }
+        }
+
+        xrpc.post(RouterPath(LatrXRPCMethod.deleteBookmarkTag.rawValue)) { request, _ in
+            await handleProtected(request: request, services: services, errorResponder: xrpcErrorResponse) { auth in
+                let input = try await decodeXRPCInput(request, as: LatrDeleteBookmarkTagInput.self)
+                return try xrpcJSONResponse(
+                    try await BookmarkGatewayOperations.deleteTag(input: input, auth: auth, services: services)
                 )
             }
         }
@@ -430,6 +472,11 @@ private func optionalParameter(_ request: Request, named name: String) -> String
           !raw.isEmpty
     else { return nil }
     return raw
+}
+
+private func optionalTagParameter(_ request: Request) throws -> String? {
+    guard request.uri.queryParameters.get("tag") != nil else { return nil }
+    return try requiredParameter(request, named: "tag")
 }
 
 private func integerParameter(

@@ -64,6 +64,8 @@ All `/xrpc/link.latr.*` and `/v1/latr/*` save/list routes also require:
 
 `POST /xrpc/link.latr.bookmarks.migrateLegacy` needs a larger proof pool for its atomic migration pass. Current clients send that pool in the JSON `upstreamDpopProof` transport field to stay below reverse-proxy header limits.
 
+Tag calls use the immutable proof plans published by `latr-packages`: `listTags` uses one `listRecords` proof; `setTags` uses three `getRecord` proofs plus one `applyWrites` proof; and each bounded `renameTag`/`deleteTag` call uses one `listRecords` proof plus one `applyWrites` proof. The latter proof may remain unused when a scanned page has no matches.
+
 ### Auth probe
 
 `POST /v1/latr/auth/probe` — lists one saved item via PDS to confirm write-through credentials. Response includes `clientId` when app credential auth is active.
@@ -73,11 +75,15 @@ All `/xrpc/link.latr.*` and `/v1/latr/*` save/list routes also require:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Public health check |
-| GET | `/xrpc/link.latr.bookmarks.listBookmarks` | Page bookmark views (`value`, optional `metadataRecord`, optional `preview`) |
+| GET | `/xrpc/link.latr.bookmarks.listBookmarks?limit=&cursor=&tag=` | Page bookmark views, optionally exact-filtered by tag; a short/empty page can still return a cursor |
+| GET | `/xrpc/link.latr.bookmarks.listTags?limit=&cursor=` | Count exact tags in one bounded bookmark page |
 | GET | `/xrpc/link.latr.bookmarks.getBookmark?subject=` | Exact-subject lookup |
 | POST | `/xrpc/link.latr.bookmarks.saveBookmark` | Idempotent exact-subject save |
 | POST | `/xrpc/link.latr.bookmarks.syncMetadata` | Reconcile one bookmark page with same-rkey L@tr metadata |
-| POST | `/xrpc/link.latr.bookmarks.setState` | Update metadata state using bookmark URI |
+| PATCH | `/xrpc/link.latr.bookmarks.setState` | Update metadata state using bookmark URI |
+| POST | `/xrpc/link.latr.bookmarks.setTags` | Replace a bookmark's complete tag array using its URI and current CID |
+| POST | `/xrpc/link.latr.bookmarks.renameTag` | Rename an exact tag in bounded batches of at most 25 records; resume the opaque cursor through verification |
+| POST | `/xrpc/link.latr.bookmarks.deleteTag` | Delete an exact tag in bounded batches of at most 25 records; resume the opaque cursor through verification |
 | POST | `/xrpc/link.latr.bookmarks.deleteBookmark` | Atomically delete bookmark and metadata by URI |
 | POST | `/xrpc/link.latr.bookmarks.migrateLegacy` | Retry-safe legacy migration with counts and cursor |
 | POST | `/v1/latr/auth/probe` | Authenticated PDS connectivity check |

@@ -17,6 +17,18 @@ extension LatrSetBookmarkStateInput: LatrXRPCInput {
     public static let allowedKeys: Set<String> = ["bookmarkUri", "state"]
 }
 
+extension LatrSetBookmarkTagsInput: LatrXRPCInput {
+    public static let allowedKeys: Set<String> = ["bookmarkUri", "tags"]
+}
+
+extension LatrRenameBookmarkTagInput: LatrXRPCInput {
+    public static let allowedKeys: Set<String> = ["tag", "replacement", "limit", "cursor"]
+}
+
+extension LatrDeleteBookmarkTagInput: LatrXRPCInput {
+    public static let allowedKeys: Set<String> = ["tag", "limit", "cursor"]
+}
+
 extension LatrDeleteBookmarkInput: LatrXRPCInput {
     public static let allowedKeys: Set<String> = ["bookmarkUri"]
 }

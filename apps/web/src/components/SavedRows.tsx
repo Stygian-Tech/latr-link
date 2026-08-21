@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   type CSSProperties,
+  type KeyboardEvent,
   type MouseEvent,
   type ReactElement,
   useEffect,
@@ -16,8 +19,10 @@ import {
   FileText,
   Link2,
   MessageCircle,
+  Tag,
   Bookmark,
   Trash2,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -55,6 +61,11 @@ import {
   type SavedRowsFilter,
 } from "@/lib/savedRowContent";
 import { cn } from "@/lib/utils";
+import {
+  normalizeBookmarkTags,
+  splitAuthoredBookmarkTags,
+} from "@/lib/bookmarkTags";
+import { libraryHrefWithTag } from "@/lib/tagFilterUrl";
 
 const showSavedStorageDevHint = isEnvironmentBannerShown();
 
@@ -277,6 +288,7 @@ export function SavedRows({
               row={row}
               canMutate={mutations.canMutate}
               onArchiveToggle={mutations.setItemState}
+              onSetTags={mutations.setItemTags}
               onRemove={mutations.unsave}
               onOpenEmbedded={openEmbeddedReader}
             />
@@ -347,6 +359,7 @@ function SavedRowItem({
   row,
   canMutate,
   onArchiveToggle,
+  onSetTags,
   onRemove,
   onOpenEmbedded,
 }: {
@@ -356,6 +369,7 @@ function SavedRowItem({
     itemRkey: string,
     state: "unread" | "archived"
   ) => Promise<void>;
+  onSetTags: (bookmarkUri: string, tags: string[]) => Promise<void>;
   onRemove: (itemRkey: string) => Promise<void>;
   onOpenEmbedded: (url: string, title: string) => void;
 }) {
@@ -366,10 +380,16 @@ function SavedRowItem({
   const thumb = p.imageHref;
   const [busy, setBusy] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [editedTags, setEditedTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [tagError, setTagError] = useState<string | null>(null);
   const [removeDialogLeft, setRemoveDialogLeft] = useState<number | null>(null);
   const isArchived = row.rec.metadataRecord?.value.state === "archived";
   const readMinutes = readingMinutesForRow(row);
   const contentType = contentTypeIcon(savedRowContentBucket(row));
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const openLabel = `Open Saved Link: ${p.title}`;
   const removeDialogStyle: CSSProperties | undefined =
@@ -385,6 +405,36 @@ function SavedRowItem({
   function handleRemoveDialogOpenChange(open: boolean) {
     setRemoveDialogOpen(open);
     if (!open) setRemoveDialogLeft(null);
+  }
+
+  function openTagDialog() {
+    setEditedTags([...(row.rec.value.tags ?? [])]);
+    setTagInput("");
+    setTagError(null);
+    setTagDialogOpen(true);
+  }
+
+  function commitTagEditorInput(): string[] | null {
+    try {
+      const next = normalizeBookmarkTags([
+        ...editedTags,
+        ...splitAuthoredBookmarkTags(tagInput),
+      ]);
+      setEditedTags(next);
+      setTagInput("");
+      setTagError(null);
+      return next;
+    } catch (error) {
+      setTagError(error instanceof Error ? error.message : "Invalid tag.");
+      return null;
+    }
+  }
+
+  function onTagEditorKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "," || (event.key === "Enter" && tagInput.trim())) {
+      event.preventDefault();
+      commitTagEditorInput();
+    }
   }
 
   return (
@@ -450,6 +500,19 @@ function SavedRowItem({
                 {p.subtitle}
               </p>
             ) : null}
+            {row.rec.value.tags?.length ? (
+              <div className="relative z-20 mt-2 flex flex-wrap gap-1.5 pointer-events-auto" aria-label="Bookmark tags">
+                {row.rec.value.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={libraryHrefWithTag(pathname, searchParams, tag)}
+                    className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {tag}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -499,6 +562,23 @@ function SavedRowItem({
         </Tooltip>
         {canMutate ? (
           <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={busy}
+                  aria-label={`Edit Tags for ${p.title}`}
+                  title={`Edit Tags for ${p.title}`}
+                  className="size-9 sm:size-8"
+                  onClick={openTagDialog}
+                >
+                  <Tag className="size-4" aria-hidden strokeWidth={1.9} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Edit Tags</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -614,6 +694,81 @@ function SavedRowItem({
                     }}
                   >
                     Remove Permanently
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Edit Tags</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Replace or clear the tags on this bookmark. Tag matching is exact and case-sensitive.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {editedTags.length ? (
+                  <div className="flex flex-wrap gap-1.5" aria-label="Current bookmark tags">
+                    {editedTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          className="rounded-full p-0.5 hover:bg-background/70"
+                          aria-label={`Remove ${tag}`}
+                          onClick={() => setEditedTags((current) => current.filter((item) => item !== tag))}
+                        >
+                          <X className="size-3" aria-hidden />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">This bookmark has no tags.</p>
+                )}
+                <div className="space-y-1.5">
+                  <label htmlFor={`edit-tags-${itemRkey}`} className="text-sm font-medium">
+                    Add Tags
+                  </label>
+                  <Input
+                    id={`edit-tags-${itemRkey}`}
+                    value={tagInput}
+                    onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={onTagEditorKeyDown}
+                    placeholder="Press Enter or comma after each tag"
+                    autoComplete="off"
+                    disabled={busy}
+                  />
+                  {tagError ? (
+                    <p className="text-sm text-destructive" role="alert">{tagError}</p>
+                  ) : null}
+                </div>
+                <AlertDialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setTagDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      const finalTags = tagInput.trim()
+                        ? commitTagEditorInput()
+                        : editedTags;
+                      if (!finalTags) return;
+                      setBusy(true);
+                      try {
+                        await onSetTags(row.rec.uri, finalTags);
+                        setTagDialogOpen(false);
+                      } catch (error) {
+                        setTagError(mutationErrorMessage(error));
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Save Tags
                   </Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
