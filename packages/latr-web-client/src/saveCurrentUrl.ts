@@ -1,5 +1,6 @@
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 
+import { normalizeBookmarkTags } from "./bookmarkTags";
 import { LatrRepo } from "./latrRepo";
 
 const UNSUPPORTED_TAB_URL_PREFIXES = [
@@ -35,9 +36,14 @@ export type SaveCurrentUrlResult =
     }
   | { ok: false; message: string };
 
+export type SaveCurrentUrlOptions = {
+  tags?: readonly string[];
+};
+
 export async function saveCurrentUrl(
   url: string,
-  oauthSession: OAuthSession
+  oauthSession: OAuthSession,
+  options: SaveCurrentUrlOptions = {}
 ): Promise<SaveCurrentUrlResult> {
   if (!isSupportedSaveUrl(url)) {
     return {
@@ -52,8 +58,14 @@ export async function saveCurrentUrl(
   }
 
   try {
+    const tags = options.tags === undefined
+      ? undefined
+      : normalizeBookmarkTags(options.tags);
     const repo = new LatrRepo(oauthSession, did);
-    const response = await repo.saveUrl(url.trim());
+    const response = await repo.saveUrl(
+      url.trim(),
+      tags === undefined ? {} : { tags }
+    );
     return {
       ok: true,
       kind: response.kind,
