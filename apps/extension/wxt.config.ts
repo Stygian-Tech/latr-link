@@ -10,7 +10,7 @@ export default defineConfig({
       name: "L@tr.link",
       short_name: "L@tr",
       description: "Save the Current Page to Your L@tr.link Read-Later Library.",
-      version: "0.1.0",
+      version: "0.2.0",
       icons: {
         16: "/icon/16.png",
         32: "/icon/32.png",

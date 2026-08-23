@@ -12,6 +12,23 @@
       <p class="subtitle">Save This Page to Your Library</p>
     </header>
 
+    <section class="panel composer" aria-labelledby="save-heading">
+      <h2 id="save-heading" class="visually-hidden">Bookmark details</h2>
+      <p id="tab-url" class="url-preview"></p>
+      <div class="tag-field">
+        <label for="save-tags">Tags <span>(optional)</span></label>
+        <div id="tag-chips" class="tag-chips hidden" aria-label="Tags to save"></div>
+        <input
+          id="save-tags"
+          type="text"
+          placeholder="Add a tag, then press Enter or comma"
+          autocomplete="off"
+        />
+        <p class="field-hint">Tags may contain spaces. Matching is exact and case-sensitive.</p>
+        <p id="tag-error" class="error hidden" role="alert"></p>
+      </div>
+    </section>
+
     <section id="signed-out" class="panel hidden">
       <label for="handle">Bluesky Handle</label>
       <div class="row">
@@ -22,7 +39,6 @@
     </section>
 
     <section id="signed-in" class="panel hidden">
-      <p id="tab-url" class="url-preview"></p>
       <button id="save" type="button" class="primary">Save Current Tab</button>
       <p id="save-status" class="status" role="status"></p>
       <div class="footer">

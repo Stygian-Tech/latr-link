@@ -1,12 +1,21 @@
 import { isSupportedExtensionSaveUrl } from "./browser";
+import { normalizeBookmarkTags } from "latr-web-client/bookmarkTags";
 
 export const PENDING_SAVE_STORAGE_KEY = "latr.pending-save.v1";
 export const PENDING_SAVE_TTL_MS = 5 * 60 * 1000;
 
 export type PendingSave = {
-  version: 1;
+  version: 2;
   url: string;
+  tags: string[];
   requestedAt: number;
+};
+
+type StoredPendingSaveCandidate = {
+  version?: unknown;
+  url?: unknown;
+  tags?: unknown;
+  requestedAt?: unknown;
 };
 
 export function parsePendingSave(
@@ -14,9 +23,9 @@ export function parsePendingSave(
   now = Date.now()
 ): PendingSave | null {
   if (!value || typeof value !== "object") return null;
-  const candidate = value as Partial<PendingSave>;
+  const candidate = value as StoredPendingSaveCandidate;
   if (
-    candidate.version !== 1 ||
+    (candidate.version !== 1 && candidate.version !== 2) ||
     typeof candidate.url !== "string" ||
     typeof candidate.requestedAt !== "number" ||
     !Number.isFinite(candidate.requestedAt) ||
@@ -26,19 +35,34 @@ export function parsePendingSave(
   ) {
     return null;
   }
+  let tags: string[];
+  try {
+    tags = candidate.version === 2
+      ? normalizeBookmarkTags(Array.isArray(candidate.tags) ? candidate.tags : [])
+      : [];
+  } catch {
+    return null;
+  }
   return {
-    version: 1,
+    version: 2,
     url: candidate.url.trim(),
+    tags,
     requestedAt: candidate.requestedAt,
   };
 }
 
 export async function queuePendingSave(
   url: string,
+  tags: readonly string[] = [],
   requestedAt = Date.now()
 ): Promise<boolean> {
   if (!isSupportedExtensionSaveUrl(url)) return false;
-  const pending: PendingSave = { version: 1, url: url.trim(), requestedAt };
+  const pending: PendingSave = {
+    version: 2,
+    url: url.trim(),
+    tags: normalizeBookmarkTags(tags),
+    requestedAt,
+  };
   await browser.storage.local.set({ [PENDING_SAVE_STORAGE_KEY]: pending });
   return true;
 }
