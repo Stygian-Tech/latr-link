@@ -30,10 +30,14 @@ const tagError = document.getElementById("tag-error")!;
 const saveStatus = document.getElementById("save-status")!;
 const authError = document.getElementById("auth-error")!;
 const openLibrary = document.getElementById("open-library") as HTMLAnchorElement;
+const privacyPolicy = document.getElementById("privacy-policy") as HTMLAnchorElement;
+const support = document.getElementById("support") as HTMLAnchorElement;
 let selectedUrl: string | null = null;
 let selectedTags: string[] = [];
 
 openLibrary.href = `${extensionWebAppUrl()}/library`;
+privacyPolicy.href = `${extensionWebAppUrl()}/privacy`;
+support.href = `${extensionWebAppUrl()}/support`;
 
 function showSignedOut(): void {
   signedOut.classList.remove("hidden");
@@ -199,6 +203,7 @@ signInBtn.addEventListener("click", () => {
 signOutBtn.addEventListener("click", () => {
   void (async () => {
     await signOutExtension();
+    await takePendingSave();
     showSignedOut();
     setSaveStatus("");
   })();

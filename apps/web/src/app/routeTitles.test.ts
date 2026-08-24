@@ -6,6 +6,8 @@ import { metadata as libraryMetadata } from "./library/layout";
 import { metadata as archiveMetadata } from "./library/archive/layout";
 import { metadata as settingsMetadata } from "./library/settings/layout";
 import { metadata as loginMetadata } from "./login/layout";
+import { metadata as privacyMetadata } from "./privacy/page";
+import { metadata as supportMetadata } from "./support/page";
 
 describe("route title metadata", () => {
   test("preserves the site title template for nested library routes", () => {
@@ -21,6 +23,8 @@ describe("route title metadata", () => {
     ["/extension/callback", extensionCallbackMetadata, "Extension Sign In"],
     ["/library/archive", archiveMetadata, "Archive"],
     ["/library/settings", settingsMetadata, "Settings"],
+    ["/privacy", privacyMetadata, "Privacy Policy"],
+    ["/support", supportMetadata, "Support"],
   ])("defines a contextual title for %s", (_route, metadata, expectedTitle) => {
     expect(metadata.title).toBe(expectedTitle);
   });
