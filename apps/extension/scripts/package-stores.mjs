@@ -141,7 +141,7 @@ function validateSourceArchive(path) {
     "apps/web/package.json",
     "apps/extension/wxt.config.ts",
     "apps/extension/.env.store",
-    "apps/extension/store/env/.env",
+    "apps/extension/store/env/README.md",
     "apps/extension/store/BUILD.md",
     "packages/latr-web-client/package.json",
     "packages/latr-web-client/src/latrGatewayClient.ts",

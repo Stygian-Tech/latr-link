@@ -59,7 +59,7 @@ export default defineConfig({
       "apps/extension/scripts/**",
       "apps/extension/src/**",
       "apps/extension/store/**",
-      "apps/extension/store/env/.env",
+      "apps/extension/store/env/README.md",
       "packages/latr-web-client/package.json",
       "packages/latr-web-client/tsconfig.json",
       "packages/latr-web-client/src/**",
