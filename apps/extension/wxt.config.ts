@@ -6,17 +6,18 @@ export default defineConfig({
   modules: [],
   manifest: ({ browser, manifestVersion }) => {
     const isMv2 = manifestVersion === 2;
+    const icons = {
+      16: "/icon/16.png",
+      32: "/icon/32.png",
+      48: "/icon/48.png",
+      128: "/icon/128.png",
+    };
     return {
       name: "L@tr.link",
       short_name: "L@tr",
       description: "Save the Current Page to Your L@tr.link Read-Later Library.",
       version: "0.2.0",
-      icons: {
-        16: "/icon/16.png",
-        32: "/icon/32.png",
-        48: "/icon/48.png",
-        128: "/icon/128.png",
-      },
+      icons,
       permissions: ["activeTab", "storage", "contextMenus", "tabs"],
       host_permissions: ["https://*/*", "http://127.0.0.1:8080/*"],
       ...(browser === "firefox"
@@ -50,12 +51,14 @@ export default defineConfig({
             browser_action: {
               default_title: "Save to L@tr.link",
               default_popup: "popup.html",
+              default_icon: icons,
             },
           }
         : {
             action: {
               default_title: "Save to L@tr.link",
               default_popup: "popup.html",
+              default_icon: icons,
             },
           }),
     };
