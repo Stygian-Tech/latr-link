@@ -37,7 +37,19 @@ export default defineConfig({
     // Vite otherwise loads .env.production.local during a production bundle,
     // even when WXT's release mode is "store".
     ...(isStoreBuild
-      ? { envDir: fileURLToPath(new URL("./store/env", import.meta.url)) }
+      ? {
+          envDir: fileURLToPath(new URL("./store/env", import.meta.url)),
+          resolve: {
+            alias: [
+              {
+                find: "latr-web-client/latrGatewayConfig",
+                replacement: fileURLToPath(
+                  new URL("./src/lib/storeLatrGatewayConfig.ts", import.meta.url)
+                ),
+              },
+            ],
+          },
+        }
       : {}),
   }),
   zip: {

@@ -123,6 +123,8 @@ function validateBundle(directory, browserName) {
   assert(text.includes("https://latr.link/api/latr-gateway"), `${browserName} does not contain the Production proxy target`);
   assert(text.includes("https://api.latr.link/oauth/extension-client-metadata.json"), `${browserName} does not contain Production OAuth metadata`);
   assert(text.includes("https://latr.link/extension/callback"), `${browserName} does not contain the Production callback`);
+  assert(!text.includes("https://api.testing.latr.link"), `${browserName} contains the Development gateway URL`);
+  assert(!text.includes("http://127.0.0.1:8080"), `${browserName} contains the loopback gateway URL`);
 
   const keyLike = text.match(/\blk_[A-Za-z0-9_-]{16,}\b/);
   assert(!keyLike, `${browserName} appears to contain a gateway API key`);

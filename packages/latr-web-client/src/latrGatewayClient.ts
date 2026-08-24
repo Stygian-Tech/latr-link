@@ -19,7 +19,7 @@ import {
   LATR_OFFICIAL_CLIENT_HEADER,
   isTrustedLatrGatewayProxyUrl,
   resolveLatrGatewayConfig,
-} from "./latrGatewayConfig";
+} from "latr-web-client/latrGatewayConfig";
 import { LATR_XRPC, latrXrpcPath } from "./xrpcMethods";
 
 export { LATR_OFFICIAL_CLIENT_HEADER, LATR_UPSTREAM_DPOP_HEADER };
