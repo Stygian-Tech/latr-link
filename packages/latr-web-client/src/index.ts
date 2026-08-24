@@ -8,6 +8,17 @@ export {
 } from "./atprotoOAuthScopes";
 export { tryCanonicalAtUri } from "./canonicalAtUri";
 export {
+  BookmarkTagValidationError,
+  MAX_BOOKMARK_TAGS,
+  MAX_BOOKMARK_TAG_GRAPHEMES,
+  MAX_BOOKMARK_TAG_BYTES,
+  appendBookmarkTag,
+  bookmarkTagByteCount,
+  bookmarkTagGraphemeCount,
+  normalizeBookmarkTags,
+  splitAuthoredBookmarkTags,
+} from "./bookmarkTags";
+export {
   COLLECTION_SAVED_EXTERNAL,
   COLLECTION_SAVED_ITEM,
   COLLECTION_BOOKMARK,
@@ -72,5 +83,6 @@ export {
 export {
   isSupportedSaveUrl,
   saveCurrentUrl,
+  type SaveCurrentUrlOptions,
   type SaveCurrentUrlResult,
 } from "./saveCurrentUrl";

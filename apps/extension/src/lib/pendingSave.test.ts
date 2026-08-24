@@ -12,8 +12,28 @@ describe("Pending Quick Save", () => {
         now
       )
     ).toEqual({
-      version: 1,
+      version: 2,
       url: "https://example.com/article",
+      tags: [],
+      requestedAt: now - 1,
+    });
+  });
+
+  test("Preserves canonical tags across OAuth continuation", () => {
+    expect(
+      parsePendingSave(
+        {
+          version: 2,
+          url: "https://example.com/article",
+          tags: ["  funny videos ", "Work", "Work"],
+          requestedAt: now - 1,
+        },
+        now
+      )
+    ).toEqual({
+      version: 2,
+      url: "https://example.com/article",
+      tags: ["funny videos", "Work"],
       requestedAt: now - 1,
     });
   });
@@ -36,6 +56,17 @@ describe("Pending Quick Save", () => {
       )
     ).toBeNull();
     expect(parsePendingSave({ version: 2 }, now)).toBeNull();
+    expect(
+      parsePendingSave(
+        {
+          version: 2,
+          url: "https://example.com",
+          tags: ["a".repeat(65)],
+          requestedAt: now,
+        },
+        now
+      )
+    ).toBeNull();
     expect(
       parsePendingSave(
         { version: 1, url: "about:config", requestedAt: now },

@@ -5,8 +5,11 @@ import { syncExtensionGatewayConfig } from "./config";
 
 export async function saveTabUrl(
   url: string,
-  session: OAuthSession
+  session: OAuthSession,
+  tags: readonly string[] = []
 ): Promise<SaveCurrentUrlResult> {
   syncExtensionGatewayConfig();
-  return saveCurrentUrl(url, session);
+  return tags.length
+    ? saveCurrentUrl(url, session, { tags })
+    : saveCurrentUrl(url, session);
 }

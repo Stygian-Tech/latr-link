@@ -36,8 +36,8 @@ cp apps/extension/.env.example apps/extension/.env.local
 # Set VITE_LATR_GATEWAY_API_KEY to the issued testing key.
 
 bun install
-bun --cwd apps/extension run dev          # Chromium (default)
-bun --cwd apps/extension run dev:firefox
+bun run --cwd apps/extension dev          # Chromium (default)
+bun run --cwd apps/extension dev:firefox
 ```
 
 Load the unpacked build shown by WXT:
@@ -50,16 +50,16 @@ Firefox uses the stable add-on ID `latr-link@stygian.tech`, requires Firefox 140
 ## Builds
 
 ```bash
-bun --cwd apps/extension run build:chromium
-bun --cwd apps/extension run build:firefox
-bun --cwd apps/extension run build:safari   # macOS + Xcode for distribution
+bun run --cwd apps/extension build:chromium
+bun run --cwd apps/extension build:firefox
+bun run --cwd apps/extension build:safari   # macOS + Xcode for distribution
 ```
 
 Zip artifacts for store upload:
 
 ```bash
-bun --cwd apps/extension run zip:chromium
-bun --cwd apps/extension run zip:firefox
+bun run --cwd apps/extension zip:chromium
+bun run --cwd apps/extension zip:firefox
 ```
 
 ## Environment variables
@@ -79,12 +79,13 @@ See [`apps/extension/.env.example`](../../apps/extension/.env.example).
 ## Smoke test
 
 1. Sign in with a Bluesky handle from the popup.
-2. Open a normal HTTPS article tab → **Save current tab**.
-3. Confirm the item appears at `/library` on the web app (same account).
-4. Save a `bsky.app` post URL → the encountered HTTPS URL remains the bookmark subject; preview discovery may classify it without replacing it.
-5. Sign out from the popup.
-6. Repeat saves through the context menu and `Ctrl+Shift+L` / `Command+Shift+L`; these queue the URL and auto-save through the popup.
+2. Open a normal HTTPS article tab, add comma- or Enter-delimited tags, and select **Save current tab**.
+3. Confirm the item and its exact, case-sensitive tags appear at `/library` on the web app (same account).
+4. Sign out, author tags in the popup, and sign back in; confirm OAuth continuation keeps the tags on the saved bookmark.
+5. Save a `bsky.app` post URL → the encountered HTTPS URL remains the bookmark subject; preview discovery may classify it without replacing it.
+6. Sign out from the popup.
+7. Repeat saves through the context menu and `Ctrl+Shift+L` / `Command+Shift+L`; these queue the URL and auto-save through the popup. Firefox MV2 uses `browserAction` when available and falls back to a normal extension tab.
 
 ## CI
 
-`scripts/ci.sh` runs `turbo … --filter=extension...` for typecheck, test, and build (Chromium).
+`scripts/ci.sh` runs `turbo … --filter=extension...` for typecheck, test, and both Chromium and Firefox builds.

@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./atprotoOAuthScopes": "./src/atprotoOAuthScopes.ts",
+    "./bookmarkTags": "./src/bookmarkTags.ts",
     "./canonicalAtUri": "./src/canonicalAtUri.ts",
     "./latrRecords": "./src/latrRecords.ts",
     "./latrGatewayConfig": "./src/latrGatewayConfig.ts",
