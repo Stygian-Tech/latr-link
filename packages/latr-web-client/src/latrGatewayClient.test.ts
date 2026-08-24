@@ -484,4 +484,59 @@ describe("latrGatewayFetch upstream proofs", () => {
     expect(proxyAuthorization).toBe("DPoP test-access-token");
     expect(proxyDpop).toBe("proof-1");
   });
+
+  test("uses the credential-free Production proxy from an extension origin", async () => {
+    const previousWindow = globalThis.window;
+    globalThis.window = {
+      location: { origin: "moz-extension://test-extension" },
+    } as Window & typeof globalThis;
+    configureLatrGateway({
+      appEnv: "prod",
+      gatewayUrl: "https://latr.link/api/latr-gateway",
+      clientCredential: "",
+      clientId: "",
+      apiKey: "",
+    });
+
+    let requestUrl = "";
+    let requestHeaders = new Headers();
+    const claimsSeen: Record<string, string | number>[] = [];
+    globalThis.fetch = (async (url, init) => {
+      requestUrl = String(url);
+      requestHeaders = new Headers(init?.headers);
+      return new Response(JSON.stringify({ records: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const oauth = mockOAuthSession(
+      async () => new Response(null, { status: 200 }),
+      (claims) => claimsSeen.push(claims)
+    );
+
+    try {
+      await latrGatewayFetch(oauth, "/v1/latr/saves?limit=1", {
+        method: "GET",
+      });
+    } finally {
+      globalThis.window = previousWindow;
+    }
+
+    expect(requestUrl).toBe(
+      "https://latr.link/api/latr-gateway/v1/latr/saves?limit=1"
+    );
+    expect(requestHeaders.get("Authorization")).toBeNull();
+    expect(requestHeaders.get("DPoP")).toBeNull();
+    expect(requestHeaders.get("X-Latr-Client-Id")).toBeNull();
+    expect(requestHeaders.get("X-Latr-API-Key")).toBeNull();
+    expect(requestHeaders.get(LATR_PROXY_USER_AUTHORIZATION_HEADER)).toBe(
+      "DPoP test-access-token"
+    );
+    expect(requestHeaders.get(LATR_PROXY_USER_DPOP_HEADER)).toBe("proof-1");
+    expect(claimsSeen[0]).toMatchObject({
+      htm: "GET",
+      htu: "https://latr.link/api/latr-gateway/v1/latr/saves",
+    });
+  });
 });
