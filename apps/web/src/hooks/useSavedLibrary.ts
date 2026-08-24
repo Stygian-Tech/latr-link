@@ -32,6 +32,7 @@ import { selectedBookmarkTag } from "@/lib/tagFilterUrl";
 export type { SavedRow } from "@/lib/savedLibraryTypes";
 
 export const SAVED_LIBRARY_PAGE_SIZE = 50;
+export const BOOKMARK_PREVIEW_REPAIR_LIMIT = 4;
 
 export function nextSavedLibraryPageParam(
   page: SavedLibraryPage
@@ -50,9 +51,13 @@ export async function buildLibraryPage(
     tag,
   });
   const rows: SavedRow[] = await Promise.all(
-    page.records.map(async (rec) => ({
+    page.records.map(async (rec, index) => ({
       rec,
-      preview: await resolveBookmarkPreviewForRow(repo, rec),
+      preview: await resolveBookmarkPreviewForRow(repo, rec, {
+        // Keep first render to one bounded enrichment batch. Gateway pages are
+        // newest-first, so a just-saved extension bookmark is repaired first.
+        repairWeakHttpPreview: index < BOOKMARK_PREVIEW_REPAIR_LIMIT,
+      }),
     }))
   );
   return { rows, cursor: page.cursor };
