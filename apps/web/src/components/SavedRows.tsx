@@ -58,6 +58,7 @@ import type { ResolvedPreview } from "@/lib/resolveSubject";
 import {
   filterSavedRowsByContent,
   savedRowContentBucket,
+  savedRowOpenTarget,
   type SavedRowsFilter,
 } from "@/lib/savedRowContent";
 import { cn } from "@/lib/utils";
@@ -339,20 +340,32 @@ export function SavedRows({
   );
 }
 
-function activateSavedHref(
+function openSavedHrefInNewTab(rawHref: string): void {
+  const http = parsedHttpHttpsUrl(rawHref);
+  window.open(http?.href ?? rawHref, "_blank", "noopener,noreferrer");
+}
+
+export function activateSavedHref(
   rawHref: string,
   previewTitle: string,
   openEmbedded: (url: string, title: string) => void,
-  modifiers: Pick<MouseEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey">
+  openInNewTab: boolean,
+  modifiers: Pick<MouseEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey">,
+  openExternal: (url: string) => void = openSavedHrefInNewTab
 ): void {
-  if (modifiers.metaKey || modifiers.ctrlKey || modifiers.shiftKey || modifiers.altKey) {
-    const http = parsedHttpHttpsUrl(rawHref);
-    window.open(http?.href ?? rawHref, "_blank", "noopener,noreferrer");
+  if (
+    openInNewTab ||
+    modifiers.metaKey ||
+    modifiers.ctrlKey ||
+    modifiers.shiftKey ||
+    modifiers.altKey
+  ) {
+    openExternal(rawHref);
     return;
   }
   const parsed = parsedHttpHttpsUrl(rawHref);
   if (parsed) openEmbedded(parsed.href, previewTitle || "Saved Link");
-  else window.open(rawHref, "_blank", "noopener,noreferrer");
+  else openExternal(rawHref);
 }
 
 function SavedRowItem({
@@ -387,11 +400,15 @@ function SavedRowItem({
   const [removeDialogLeft, setRemoveDialogLeft] = useState<number | null>(null);
   const isArchived = row.rec.metadataRecord?.value.state === "archived";
   const readMinutes = readingMinutesForRow(row);
-  const contentType = contentTypeIcon(savedRowContentBucket(row));
+  const contentBucket = savedRowContentBucket(row);
+  const contentType = contentTypeIcon(contentBucket);
+  const opensInNewTab = savedRowOpenTarget(contentBucket) === "new-tab";
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const openLabel = `Open Saved Link: ${p.title}`;
+  const openLabel = opensInNewTab
+    ? `Open Saved Article in a New Tab: ${p.title}`
+    : `Open Saved Link: ${p.title}`;
   const removeDialogStyle: CSSProperties | undefined =
     removeDialogLeft === null ? undefined : { left: removeDialogLeft };
 
@@ -442,7 +459,9 @@ function SavedRowItem({
       <button
         type="button"
         aria-label={openLabel}
-        onClick={(e) => activateSavedHref(href, p.title, onOpenEmbedded, e)}
+        onClick={(e) =>
+          activateSavedHref(href, p.title, onOpenEmbedded, opensInNewTab, e)
+        }
         onAuxClick={(e) => {
           if (e.button !== 1) return;
           e.preventDefault();
@@ -550,15 +569,25 @@ function SavedRowItem({
               type="button"
               variant="ghost"
               size="icon"
-              aria-label={`Open ${p.title}`}
-              title={`Open ${p.title}`}
+              aria-label={openLabel}
+              title={openLabel}
               className="size-9 sm:size-8"
-              onClick={(e) => activateSavedHref(href, p.title, onOpenEmbedded, e)}
+              onClick={(e) =>
+                activateSavedHref(
+                  href,
+                  p.title,
+                  onOpenEmbedded,
+                  opensInNewTab,
+                  e
+                )
+              }
             >
               <ExternalLink className="size-4" aria-hidden strokeWidth={1.9} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Open</TooltipContent>
+          <TooltipContent>
+            {opensInNewTab ? "Open in New Tab" : "Open"}
+          </TooltipContent>
         </Tooltip>
         {canMutate ? (
           <>

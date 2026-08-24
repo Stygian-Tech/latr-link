@@ -39,6 +39,14 @@ jobs:
         run: bash scripts/ci-js.sh
         env:
           NEXT_PUBLIC_APP_ENV: test
+      - name: Build and verify browser store packages
+        run: bun run --cwd apps/extension package:stores
+      - name: Upload browser store packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: latr-link-store-packages-${{ github.sha }}
+          path: apps/extension/.output/store/
+          retention-days: 14
 
   required:
     name: CI — Required

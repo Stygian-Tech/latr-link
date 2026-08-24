@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import { createDemoSavedRows } from "@/lib/demoLibrary";
-import { savedAtShort, sortSavedRows } from "./SavedRows";
+import { activateSavedHref, savedAtShort, sortSavedRows } from "./SavedRows";
+
+const unmodifiedClick = {
+  metaKey: false,
+  ctrlKey: false,
+  shiftKey: false,
+  altKey: false,
+};
 
 describe("Saved Row Dates", () => {
   test("Formats A Valid Created Time", () => {
@@ -49,5 +56,58 @@ describe("Saved Rows Sorting", () => {
     );
 
     expect(sorted[0].rec.uri).toBe(olderSavedNewerArchived.rec.uri);
+  });
+});
+
+describe("Saved Row Navigation", () => {
+  test("Opens an article externally instead of in the embedded reader", () => {
+    const embedded: string[] = [];
+    const external: string[] = [];
+
+    activateSavedHref(
+      "https://example.com/news/article",
+      "Longform Article",
+      (url) => embedded.push(url),
+      true,
+      unmodifiedClick,
+      (url) => external.push(url)
+    );
+
+    expect(external).toEqual(["https://example.com/news/article"]);
+    expect(embedded).toEqual([]);
+  });
+
+  test("Keeps a normal non-article HTTP click in the embedded reader", () => {
+    const embedded: string[] = [];
+    const external: string[] = [];
+
+    activateSavedHref(
+      "https://example.com",
+      "Example",
+      (url) => embedded.push(url),
+      false,
+      unmodifiedClick,
+      (url) => external.push(url)
+    );
+
+    expect(embedded).toEqual(["https://example.com/"]);
+    expect(external).toEqual([]);
+  });
+
+  test("Preserves modifier-click external navigation for non-articles", () => {
+    const embedded: string[] = [];
+    const external: string[] = [];
+
+    activateSavedHref(
+      "https://example.com",
+      "Example",
+      (url) => embedded.push(url),
+      false,
+      { ...unmodifiedClick, metaKey: true },
+      (url) => external.push(url)
+    );
+
+    expect(external).toEqual(["https://example.com"]);
+    expect(embedded).toEqual([]);
   });
 });

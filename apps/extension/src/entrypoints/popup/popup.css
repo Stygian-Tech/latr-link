@@ -37,6 +37,30 @@ body {
   border-top: 1px solid #e4e4e7;
 }
 
+.privacy-disclosure {
+  padding: 10px 14px;
+  border-top: 1px solid #e4e4e7;
+  border-bottom: 1px solid #e4e4e7;
+  background: #eff6ff;
+  color: #3f3f46;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.privacy-disclosure p {
+  margin: 0;
+}
+
+.privacy-disclosure p + p {
+  margin-top: 6px;
+}
+
+.privacy-disclosure a {
+  color: #1d4ed8;
+  font-weight: 500;
+  text-decoration: none;
+}
+
 .hidden {
   display: none !important;
 }

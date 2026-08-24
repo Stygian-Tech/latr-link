@@ -10,6 +10,7 @@ import {
   LATR_CLIENT_ID_HEADER,
   LATR_OFFICIAL_CLIENT_HEADER,
   LOCAL_LATR_GATEWAY_URL,
+  isTrustedLatrGatewayProxyUrl,
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
   resolveLatrGatewayConfig,
@@ -116,6 +117,34 @@ describe("Latr Gateway Base URL", () => {
     expect(() => assertLatrGatewayClientCredential()).not.toThrow();
   });
 
+  test("Allows exact hosted L@tr.link proxies without a distributable credential", () => {
+    for (const gatewayUrl of [
+      "https://latr.link/api/latr-gateway",
+      "https://www.latr.link/api/latr-gateway/",
+      "https://testing.latr.link/api/latr-gateway",
+    ]) {
+      expect(isTrustedLatrGatewayProxyUrl(gatewayUrl)).toBe(true);
+      expect(() =>
+        assertLatrGatewayClientCredential({ appEnv: "prod", gatewayUrl })
+      ).not.toThrow();
+    }
+  });
+
+  test("Rejects proxy lookalikes and direct hosted gateways without a credential", () => {
+    for (const gatewayUrl of [
+      "http://latr.link/api/latr-gateway",
+      "https://latr.link.evil.example/api/latr-gateway",
+      "https://latr.link/api/latr-gateway/extra",
+      "https://api.latr.link",
+      "https://example.com/api/latr-gateway",
+    ]) {
+      expect(isTrustedLatrGatewayProxyUrl(gatewayUrl)).toBe(false);
+      expect(() =>
+        assertLatrGatewayClientCredential({ appEnv: "prod", gatewayUrl })
+      ).toThrow(/client credentials/i);
+    }
+  });
+
   test("resolveLatrGatewayConfig Merges Window Bootstrap Credentials", () => {
     configureLatrGateway({
       appEnv: "dev",
@@ -162,6 +191,31 @@ describe("Latr Gateway Base URL", () => {
       expect(latrGatewayBaseUrl(resolveLatrGatewayConfig())).toBe(
         "https://testing.latr.link/api/latr-gateway"
       );
+    } finally {
+      globalThis.window = previousWindow;
+    }
+  });
+
+  test("resolveLatrGatewayConfig Keeps Production Proxy From an Extension Origin", () => {
+    configureLatrGateway({
+      appEnv: "prod",
+      gatewayUrl: "https://latr.link/api/latr-gateway",
+      clientId: "",
+      apiKey: "",
+    });
+    const previousWindow = globalThis.window;
+    globalThis.window = {
+      location: { origin: "chrome-extension://test-extension" },
+      __LATR_GATEWAY_BOOTSTRAP__: {
+        gatewayUrl: DEFAULT_PROD_LATR_GATEWAY_URL,
+        appEnv: "prod",
+      },
+    } as Window & typeof globalThis;
+    try {
+      expect(latrGatewayBaseUrl(resolveLatrGatewayConfig())).toBe(
+        "https://latr.link/api/latr-gateway"
+      );
+      expect(() => assertLatrGatewayClientCredential()).not.toThrow();
     } finally {
       globalThis.window = previousWindow;
     }

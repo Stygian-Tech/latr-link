@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { COLLECTION_BOOKMARK } from "@/lib/latrRecords";
 import type { SavedRow } from "@/lib/savedLibraryTypes";
-import { savedRowContentBucket } from "./savedRowContent";
+import { savedRowContentBucket, savedRowOpenTarget } from "./savedRowContent";
 
 function row(overrides: {
   subjectUri?: string;
@@ -45,6 +45,18 @@ describe("Saved Row Content Buckets", () => {
     ).toBe("social");
   });
 
+  test("Treats Extension-saved Bluesky HTTP Posts as Social", () => {
+    expect(
+      savedRowContentBucket(
+        row({
+          subjectUri: "https://bsky.app/profile/alice.test/post/3abc",
+          linkedWebUrl: "https://bsky.app/profile/alice.test/post/3abc",
+          preview: { kind: "external", title: "A social post" },
+        })
+      )
+    ).toBe("social");
+  });
+
   test("Treats Standard Site AT Records as Articles", () => {
     expect(
       savedRowContentBucket(
@@ -69,5 +81,50 @@ describe("Saved Row Content Buckets", () => {
         })
       )
     ).toBe("other");
+  });
+});
+
+describe("Saved Row Open Targets", () => {
+  test("Opens Articles in a New Tab", () => {
+    expect(
+      savedRowOpenTarget(
+        savedRowContentBucket(
+          row({
+            linkedWebUrl: "https://example.com/news/article",
+            preview: { title: "Longform Article" },
+          })
+        )
+      )
+    ).toBe("new-tab");
+  });
+
+  test("Keeps Social Posts in the Embedded Reader", () => {
+    expect(
+      savedRowOpenTarget(
+        savedRowContentBucket(
+          row({
+            subjectUri: "https://bsky.app/profile/alice.test/post/3abc",
+            linkedWebUrl: "https://bsky.app/profile/alice.test/post/3abc",
+            preview: { kind: "external", title: "A social post" },
+          })
+        )
+      )
+    ).toBe("embedded");
+  });
+
+  test("Keeps Non-article Links in the Embedded Reader", () => {
+    expect(
+      savedRowOpenTarget(
+        savedRowContentBucket(
+          row({
+            linkedWebUrl: "https://example.com",
+            preview: {
+              title: "Saved from example.com",
+              siteLabel: "example.com",
+            },
+          })
+        )
+      )
+    ).toBe("embedded");
   });
 });

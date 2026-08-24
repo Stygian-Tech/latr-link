@@ -1,16 +1,18 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import type { SavedItemRecord } from "@/lib/latrRecords";
-import type { RepoRecord } from "@/lib/latrRepo";
+import type { LatrBookmarkView, SavedItemRecord } from "@/lib/latrRecords";
+import type { LatrRepo, RepoRecord } from "@/lib/latrRepo";
 import {
   previewFromSavedItemRecord,
   previewHasRichMetadata,
   previewKindForSavedItemRecord,
+  resolveBookmarkPreviewForRow,
   savedItemHasProtocolPreview,
 } from "@/lib/resolveSubject";
 import {
   previewCacheFingerprint,
   readCachedSubjectPreview,
+  removeCachedSubjectPreview,
   writeCachedSubjectPreview,
 } from "@/lib/savedPreviewCache";
 
@@ -38,7 +40,33 @@ function savedItem(
   };
 }
 
+function bookmark(
+  preview?: LatrBookmarkView["preview"],
+  subject = "https://example.com/article"
+): LatrBookmarkView {
+  return {
+    uri: "at://did:plc:viewer/community.lexicon.bookmarks.bookmark/3abc",
+    cid: "bafybookmark",
+    value: {
+      $type: "community.lexicon.bookmarks.bookmark",
+      subject,
+      createdAt: "2026-08-24T01:39:17.000Z",
+    },
+    ...(preview ? { preview } : {}),
+  };
+}
+
+function repoWithOpenGraph(
+  fetchOpenGraphPreview: LatrRepo["fetchOpenGraphPreview"]
+): LatrRepo {
+  return { fetchOpenGraphPreview } as LatrRepo;
+}
+
 afterEach(() => {
+  removeCachedSubjectPreview("https://example.com/article");
+  for (let index = 0; index < 8; index += 1) {
+    removeCachedSubjectPreview(`https://example.com/article-${index}`);
+  }
   if (typeof window !== "undefined") {
     window.localStorage.removeItem("latr.link.saved-preview.v7");
   }
@@ -104,6 +132,108 @@ describe("Preview from Saved Item Record", () => {
 
     expect(previewKindForSavedItemRecord(record.value)).toBe("external");
     expect(previewFromSavedItemRecord(record)?.kind).toBe("external");
+  });
+});
+
+describe("Bookmark Preview Hydration", () => {
+  test("Backfills a raw HTTP bookmark when the list response has no preview", async () => {
+    const requested: string[] = [];
+    const repo = repoWithOpenGraph(async (url) => {
+      requested.push(url);
+      return {
+        title: "Example Headline",
+        description: "Short Summary",
+        image: "https://example.com/og.png",
+        siteName: "Example",
+        author: "Jane Doe",
+      };
+    });
+
+    const preview = await resolveBookmarkPreviewForRow(repo, bookmark());
+    const cachedPreview = await resolveBookmarkPreviewForRow(repo, bookmark(), {
+      repairWeakHttpPreview: false,
+    });
+
+    expect(requested).toEqual(["https://example.com/article"]);
+    expect(cachedPreview).toEqual(preview);
+    expect(preview).toEqual({
+      kind: "external",
+      title: "Example Headline",
+      subtitle: "Short Summary",
+      href: "https://example.com/article",
+      imageHref: "https://example.com/og.png",
+      canonicalUrl: "https://example.com/article",
+      siteLabel: "Example",
+      authorLabel: "Jane Doe",
+    });
+  });
+
+  test("Does not refetch a strong preview merely because its image is missing", async () => {
+    let calls = 0;
+    const repo = repoWithOpenGraph(async () => {
+      calls += 1;
+      return null;
+    });
+
+    const preview = await resolveBookmarkPreviewForRow(
+      repo,
+      bookmark({ title: "Canonical Headline", siteName: "Canonical Site" })
+    );
+
+    expect(calls).toBe(0);
+    expect(preview.title).toBe("Canonical Headline");
+    expect(preview.imageHref).toBeUndefined();
+    expect(preview.siteLabel).toBe("Canonical Site");
+  });
+
+  test("Preserves a canonical site name while repairing a weak title", async () => {
+    const repo = repoWithOpenGraph(async () => ({
+      title: "Canonical Headline",
+      siteName: "Fetched Site",
+    }));
+
+    const preview = await resolveBookmarkPreviewForRow(
+      repo,
+      bookmark({
+        title: "https://example.com/article",
+        siteName: "Canonical Site",
+      })
+    );
+
+    expect(preview.title).toBe("Canonical Headline");
+    expect(preview.siteLabel).toBe("Canonical Site");
+  });
+
+  test("Limits concurrent repair requests for a page of raw bookmarks", async () => {
+    let active = 0;
+    let maximumActive = 0;
+    let releaseRequests: (() => void) | undefined;
+    const requestsCanFinish = new Promise<void>((resolve) => {
+      releaseRequests = resolve;
+    });
+    const repo = repoWithOpenGraph(async (url) => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await requestsCanFinish;
+      active -= 1;
+      return { title: `Title for ${url}` };
+    });
+
+    const pending = Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        resolveBookmarkPreviewForRow(
+          repo,
+          bookmark(undefined, `https://example.com/article-${index}`)
+        )
+      )
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(maximumActive).toBe(4);
+    releaseRequests?.();
+    await pending;
+    expect(maximumActive).toBe(4);
   });
 });
 
