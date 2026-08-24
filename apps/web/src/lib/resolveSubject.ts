@@ -40,6 +40,72 @@ export interface ResolvedPreview {
   authorLabel?: string;
 }
 
+const BOOKMARK_PREVIEW_HYDRATION_CONCURRENCY = 4;
+let activeBookmarkPreviewHydrations = 0;
+const bookmarkPreviewHydrationWaiters: Array<() => void> = [];
+type OpenGraphPreview = Awaited<
+  ReturnType<LatrRepo["fetchOpenGraphPreview"]>
+>;
+const bookmarkPreviewHydrations = new Map<
+  string,
+  Promise<OpenGraphPreview>
+>();
+
+async function withBookmarkPreviewHydrationLimit<T>(
+  operation: () => Promise<T>
+): Promise<T> {
+  if (activeBookmarkPreviewHydrations < BOOKMARK_PREVIEW_HYDRATION_CONCURRENCY) {
+    activeBookmarkPreviewHydrations += 1;
+  } else {
+    await new Promise<void>((resolve) => {
+      bookmarkPreviewHydrationWaiters.push(resolve);
+    });
+  }
+
+  try {
+    return await operation();
+  } finally {
+    const next = bookmarkPreviewHydrationWaiters.shift();
+    if (next) {
+      next();
+    } else {
+      activeBookmarkPreviewHydrations -= 1;
+    }
+  }
+}
+
+async function fetchBookmarkOpenGraphPreview(
+  repo: LatrRepo,
+  subject: string
+): Promise<OpenGraphPreview> {
+  const existing = bookmarkPreviewHydrations.get(subject);
+  if (existing) return existing;
+
+  const request = withBookmarkPreviewHydrationLimit(() =>
+    repo.fetchOpenGraphPreview(subject)
+  );
+  bookmarkPreviewHydrations.set(subject, request);
+  try {
+    return await request;
+  } finally {
+    if (bookmarkPreviewHydrations.get(subject) === request) {
+      bookmarkPreviewHydrations.delete(subject);
+    }
+  }
+}
+
+function bookmarkPreviewCacheFingerprint(bookmark: LatrBookmarkView): string {
+  const preview = bookmark.preview;
+  return [
+    bookmark.cid,
+    preview?.title ?? "",
+    preview?.description ?? "",
+    preview?.image ?? "",
+    preview?.siteName ?? "",
+    preview?.author ?? "",
+  ].join("\0");
+}
+
 function previewSubtitle(excerpt?: string, author?: string): string | undefined {
   const trimmedExcerpt = excerpt?.trim();
   if (trimmedExcerpt) return trimmedExcerpt.slice(0, 200);
@@ -81,18 +147,20 @@ export function previewKindForSubjectUri(
 /** Build a UI preview from the service-derived bookmark view. */
 export async function resolveBookmarkPreviewForRow(
   repo: LatrRepo,
-  bookmark: LatrBookmarkView
+  bookmark: LatrBookmarkView,
+  options: { repairWeakHttpPreview?: boolean } = {}
 ): Promise<ResolvedPreview> {
   const subject = bookmark.value.subject;
   const preview = bookmark.preview;
   if (!preview && subject.startsWith("at://")) {
     return resolveSubjectPreview(repo, subject);
   }
+  const hasCanonicalSiteLabel = Boolean(preview?.siteName?.trim());
   let siteLabel = preview?.siteName?.trim();
   if (!siteLabel && /^https?:\/\//i.test(subject)) {
     try { siteLabel = new URL(subject).hostname; } catch { /* keep empty */ }
   }
-  return {
+  const resolved: ResolvedPreview = {
     kind: previewKindForSubjectUri(subject),
     title: preview?.title?.trim() || subject,
     subtitle: previewSubtitle(preview?.description, preview?.author),
@@ -102,6 +170,41 @@ export async function resolveBookmarkPreviewForRow(
     siteLabel,
     authorLabel: preview?.author?.trim(),
   };
+
+  const weakTitle = isWeakPreviewTitle(
+    resolved.title,
+    resolved.siteLabel,
+    subject
+  );
+  if (/^https?:\/\//i.test(subject) && weakTitle) {
+    const fingerprint = bookmarkPreviewCacheFingerprint(bookmark);
+    const cached = readCachedSubjectPreview(subject, fingerprint);
+    if (cached) return cached;
+    if (options.repairWeakHttpPreview === false) return resolved;
+
+    const openGraph = await fetchBookmarkOpenGraphPreview(repo, subject);
+    if (openGraph && openGraphFieldsHavePreview(openGraph)) {
+      const openGraphTitle = openGraph.title?.trim();
+      const openGraphImage = openGraph.image?.trim();
+
+      const hydrated = {
+        ...resolved,
+        title: weakTitle && openGraphTitle ? openGraphTitle : resolved.title,
+        subtitle:
+          resolved.subtitle ||
+          previewSubtitle(openGraph.description, openGraph.author),
+        imageHref: resolved.imageHref || openGraphImage,
+        siteLabel: hasCanonicalSiteLabel
+          ? resolved.siteLabel
+          : openGraph.siteName?.trim() || resolved.siteLabel,
+        authorLabel: resolved.authorLabel || openGraph.author?.trim(),
+      };
+      writeCachedSubjectPreview(subject, fingerprint, hydrated);
+      return hydrated;
+    }
+  }
+
+  return resolved;
 }
 
 function isHttpWebUrl(value?: string): boolean {
@@ -395,6 +498,13 @@ function isWeakPreviewTitle(
 ): boolean {
   const trimmed = title.trim();
   if (!trimmed) return true;
+
+  if (trimmed === linkedWebUrl.trim()) return true;
+  try {
+    if (new URL(trimmed).href === new URL(linkedWebUrl).href) return true;
+  } catch {
+    /* title is not a URL */
+  }
 
   let hostname: string | undefined;
   try {

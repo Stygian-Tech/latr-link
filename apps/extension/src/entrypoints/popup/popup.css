@@ -33,6 +33,34 @@ body {
   padding: 12px 14px 14px;
 }
 
+.panel + .panel {
+  border-top: 1px solid #e4e4e7;
+}
+
+.privacy-disclosure {
+  padding: 10px 14px;
+  border-top: 1px solid #e4e4e7;
+  border-bottom: 1px solid #e4e4e7;
+  background: #eff6ff;
+  color: #3f3f46;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.privacy-disclosure p {
+  margin: 0;
+}
+
+.privacy-disclosure p + p {
+  margin-top: 6px;
+}
+
+.privacy-disclosure a {
+  color: #1d4ed8;
+  font-weight: 500;
+  text-decoration: none;
+}
+
 .hidden {
   display: none !important;
 }
@@ -43,6 +71,22 @@ label {
   font-weight: 500;
   color: #52525b;
   margin-bottom: 6px;
+}
+
+label span {
+  font-weight: 400;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .row {
@@ -57,6 +101,17 @@ input {
   border: 1px solid #d4d4d8;
   border-radius: 6px;
   font-size: 13px;
+}
+
+#save-tags {
+  width: 100%;
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 button {
@@ -102,6 +157,52 @@ button.link {
   line-height: 1.4;
   max-height: 4.2em;
   overflow: hidden;
+}
+
+.tag-field {
+  margin-top: 12px;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e4e4e7;
+  color: #27272a;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.tag-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag-chip button {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: #52525b;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  color: #71717a;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .status {

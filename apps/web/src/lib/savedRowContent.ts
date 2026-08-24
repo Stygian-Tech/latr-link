@@ -1,3 +1,5 @@
+import { extractBskyAppProfilePostParts } from "latr-web-client/resolveSaveInput";
+
 import { articleRecordNamespaceForAtUri } from "@/lib/resolveSubject";
 import type { SavedRow } from "@/lib/savedLibraryTypes";
 
@@ -10,6 +12,16 @@ function articleLikeUrl(value?: string): boolean {
     const parts = url.pathname.split("/").filter(Boolean);
     const last = parts.at(-1) ?? "";
     return parts.length > 1 || last.includes("-") || last.length > 18;
+  } catch {
+    return false;
+  }
+}
+
+function savedRowLooksLikeSocial(row: SavedRow): boolean {
+  const candidate =
+    row.preview.canonicalUrl || row.preview.href || row.rec.value.subject;
+  try {
+    return extractBskyAppProfilePostParts(new URL(candidate)) !== null;
   } catch {
     return false;
   }
@@ -31,9 +43,17 @@ function savedRowLooksLikeArticle(row: SavedRow): boolean {
 export function savedRowContentBucket(
   row: SavedRow
 ): Exclude<SavedRowsFilter, "all"> {
-  if (row.preview.kind === "post") return "social";
+  if (row.preview.kind === "post" || savedRowLooksLikeSocial(row)) {
+    return "social";
+  }
   if (savedRowLooksLikeArticle(row)) return "article";
   return "other";
+}
+
+export function savedRowOpenTarget(
+  bucket: Exclude<SavedRowsFilter, "all">
+): "embedded" | "new-tab" {
+  return bucket === "article" ? "new-tab" : "embedded";
 }
 
 export function filterSavedRowsByContent(

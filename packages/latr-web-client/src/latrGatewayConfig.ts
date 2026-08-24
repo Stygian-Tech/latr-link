@@ -18,6 +18,8 @@ export const DEFAULT_DEV_LATR_GATEWAY_URL =
   "https://api.testing.latr.link";
 export const DEFAULT_PROD_LATR_GATEWAY_URL =
   "https://api.latr.link";
+export const DEFAULT_PROD_LATR_GATEWAY_PROXY_URL =
+  "https://latr.link/api/latr-gateway";
 
 export type LatrAppEnv = "local" | "dev" | "prod" | "test";
 
@@ -69,7 +71,7 @@ function mergeGatewayConfigWithWindowBootstrap(
   const clientCredential = bootstrap.clientCredential?.trim();
   const gatewayUrl = bootstrap.gatewayUrl?.trim();
   const keepConfiguredProxy =
-    config.gatewayUrl?.trim() && isSameOriginGatewayProxyUrl(config.gatewayUrl.trim());
+    config.gatewayUrl?.trim() && isTrustedLatrGatewayProxyUrl(config.gatewayUrl.trim());
 
   return {
     ...config,
@@ -146,13 +148,27 @@ function isLoopbackGatewayUrl(url: string): boolean {
   }
 }
 
-function isSameOriginGatewayProxyUrl(url: string): boolean {
-  if (typeof window === "undefined") return false;
+const TRUSTED_LATR_GATEWAY_PROXY_ORIGINS = new Set([
+  "https://latr.link",
+  "https://www.latr.link",
+  "https://testing.latr.link",
+]);
+
+/**
+ * Returns true only for the web app's gateway proxy. Store extensions use the
+ * Production URL cross-origin so the server, not the distributable, owns the
+ * official gateway credential.
+ */
+export function isTrustedLatrGatewayProxyUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
+    const normalizedPath = parsed.pathname.replace(/\/$/, "");
+    if (normalizedPath !== "/api/latr-gateway") return false;
+    if (TRUSTED_LATR_GATEWAY_PROXY_ORIGINS.has(parsed.origin)) return true;
+    if (typeof window === "undefined") return false;
     return (
       parsed.origin === window.location.origin &&
-      parsed.pathname.replace(/\/$/, "") === "/api/latr-gateway"
+      parsed.protocol === "https:"
     );
   } catch {
     return false;
@@ -231,7 +247,7 @@ export function assertLatrGatewayClientCredential(
   if (headers[LATR_OFFICIAL_CLIENT_HEADER]) return;
   const base = latrGatewayBaseUrl(resolved);
   if (isLoopbackGatewayUrl(base)) return;
-  if (isSameOriginGatewayProxyUrl(base)) return;
+  if (isTrustedLatrGatewayProxyUrl(base)) return;
 
   const bootstrap = readWindowGatewayBootstrap();
   const bootstrapClientId = Boolean(bootstrap?.clientId?.trim());

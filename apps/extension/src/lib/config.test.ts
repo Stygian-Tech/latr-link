@@ -29,6 +29,23 @@ describe("Extension Configuration", () => {
     ).toThrow("Requires Both");
   });
 
+  test("Builds a credential-free Production proxy configuration for stores", () => {
+    const config = extensionGatewayConfig({
+      MODE: "store",
+      VITE_LATR_GATEWAY_URL: "https://api.testing.latr.link",
+      VITE_LATR_GATEWAY_CLIENT_ID: "must-not-ship",
+      VITE_LATR_GATEWAY_API_KEY: "must-not-ship",
+    });
+
+    expect(config).toEqual({
+      gatewayUrl: "https://latr.link/api/latr-gateway",
+      appEnv: "prod",
+      clientId: undefined,
+      apiKey: undefined,
+    });
+    expect(latrGatewayClientHeaders(config)).toEqual({});
+  });
+
   test("Validates explicit OAuth endpoints", () => {
     const env = {
       VITE_ATPROTO_CLIENT_ID:

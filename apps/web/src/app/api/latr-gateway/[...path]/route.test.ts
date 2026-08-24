@@ -119,6 +119,55 @@ describe("/api/latr-gateway proxy", () => {
     );
   });
 
+  test("Accepts credential-free extension proxy requests and injects only the server key", async () => {
+    process.env.LATR_GATEWAY_CLIENT_ID = "latr-link-web";
+    process.env.LATR_GATEWAY_API_KEY = "lk_server";
+    process.env.NEXT_PUBLIC_LATR_GATEWAY_URL = "https://api.latr.link";
+
+    let target = "";
+    let headers = new Headers();
+    globalThis.fetch = (async (url, init) => {
+      target = String(url);
+      headers = new Headers(init?.headers);
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const req = new Request(
+      "https://latr.link/api/latr-gateway/v1/latr/saves",
+      {
+        method: "POST",
+        headers: {
+          Origin: "chrome-extension://reviewer-extension",
+          "Content-Type": "application/json",
+          "X-Latr-User-Authorization": "DPoP access",
+          "X-Latr-User-DPoP": "gateway-proof",
+          "X-ATProto-Upstream-DPoP": "upstream-proof",
+          "X-Forwarded-Host": "latr.link",
+          "X-Forwarded-Proto": "https",
+        },
+        body: JSON.stringify({ kind: "url", url: "https://example.com" }),
+      }
+    );
+
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    expect(target).toBe("https://api.latr.link/v1/latr/saves");
+    expect(headers.get("Authorization")).toBe("DPoP access");
+    expect(headers.get("DPoP")).toBe("gateway-proof");
+    expect(headers.get("X-ATProto-Upstream-DPoP")).toBe("upstream-proof");
+    expect(headers.get("X-Latr-Client-Id")).toBe("latr-link-web");
+    expect(headers.get("X-Latr-API-Key")).toBe("lk_server");
+    expect(headers.get("X-Latr-User-Authorization")).toBeNull();
+    expect(headers.get("X-Latr-User-DPoP")).toBeNull();
+    expect(headers.get("X-Original-URI")).toBe(
+      "/api/latr-gateway/v1/latr/saves"
+    );
+  });
+
   test("Forwards Request Bodies", async () => {
     process.env.LATR_GATEWAY_CLIENT_CREDENTIAL = "legacy-server-credential";
     process.env.NEXT_PUBLIC_LATR_GATEWAY_URL = "https://api.testing.latr.link";

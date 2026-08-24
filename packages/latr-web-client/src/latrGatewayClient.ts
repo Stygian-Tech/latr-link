@@ -17,8 +17,9 @@ import {
   latrGatewayBaseUrl,
   latrGatewayClientHeaders,
   LATR_OFFICIAL_CLIENT_HEADER,
+  isTrustedLatrGatewayProxyUrl,
   resolveLatrGatewayConfig,
-} from "./latrGatewayConfig";
+} from "latr-web-client/latrGatewayConfig";
 import { LATR_XRPC, latrXrpcPath } from "./xrpcMethods";
 
 export { LATR_OFFICIAL_CLIENT_HEADER, LATR_UPSTREAM_DPOP_HEADER };
@@ -109,24 +110,18 @@ async function buildGatewayUserAuthHeaders(
   };
 }
 
-function isSameOriginGatewayProxyUrl(url: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.origin === window.location.origin &&
-      parsed.pathname.startsWith("/api/latr-gateway/")
-    );
-  } catch {
-    return false;
-  }
-}
-
 function headersForGatewayHop(
   url: string,
   userAuthHeaders: Record<string, string>
 ): Record<string, string> {
-  if (!isSameOriginGatewayProxyUrl(url)) return userAuthHeaders;
+  const baseUrl = new URL(url);
+  if (!baseUrl.pathname.startsWith("/api/latr-gateway/")) {
+    return userAuthHeaders;
+  }
+  baseUrl.pathname = "/api/latr-gateway";
+  baseUrl.search = "";
+  baseUrl.hash = "";
+  if (!isTrustedLatrGatewayProxyUrl(baseUrl.href)) return userAuthHeaders;
 
   return {
     [LATR_PROXY_USER_AUTHORIZATION_HEADER]: userAuthHeaders.Authorization,

@@ -1,4 +1,4 @@
-import { getActiveTabUrl } from "../lib/browser";
+import { getActiveTabUrl, openExtensionSaveSurface } from "../lib/browser";
 import { extensionOAuthRedirectUri } from "../lib/config";
 import { extensionCallbackUrlForHostedUrl } from "../lib/oauthCallback";
 import { queuePendingSave } from "../lib/pendingSave";
@@ -12,23 +12,10 @@ export default defineBackground(() => {
     });
   });
 
-  async function openSaveSurface(): Promise<void> {
-    if (browser.action.openPopup) {
-      try {
-        await browser.action.openPopup();
-        return;
-      } catch {
-        // Some browser/version combinations only allow popup opening from a
-        // narrower set of user gestures. The extension tab works everywhere.
-      }
-    }
-    await browser.tabs.create({ url: browser.runtime.getURL("/popup.html") });
-  }
-
   async function queueActiveTab(): Promise<void> {
     const url = await getActiveTabUrl();
     if (!url || !(await queuePendingSave(url))) return;
-    await openSaveSurface();
+    await openExtensionSaveSurface();
   }
 
   browser.contextMenus.onClicked.addListener((info, tab) => {
@@ -40,7 +27,7 @@ export default defineBackground(() => {
         tab?.url?.trim() ||
         (await getActiveTabUrl());
       if (!url || !(await queuePendingSave(url))) return;
-      await openSaveSurface();
+      await openExtensionSaveSurface();
     })();
   });
 

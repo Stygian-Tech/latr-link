@@ -256,6 +256,14 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      <footer className="border-t border-border bg-card">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-6 text-sm text-muted-foreground sm:px-6 lg:px-8">
+          <span>© 2026 L@tr.link</span>
+          <Link className="hover:text-foreground" href="/privacy">Privacy</Link>
+          <Link className="hover:text-foreground" href="/support">Support</Link>
+        </div>
+      </footer>
     </main>
   );
 }
