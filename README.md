@@ -1,11 +1,9 @@
 # L@tr (latr.link)
 
-Read-later on your own ATProto repo. Saved state lives in `link.latr.saved.item` and `link.latr.saved.external` — no Stygian backend required for core functionality.
+Read-later on your own ATProto repo. Saved links live in `community.lexicon.bookmarks.bookmark`; reading state lives in `link.latr.bookmarks.metadata`. Web, extension, and native apps use the Swift gateway for bookmark operations with the signed-in user's OAuth/DPoP authorization.
 
-```
-Next.js (latr.link)  ── ATProto OAuth ──►  Your PDS
-                         XRPC            link.latr.saved.item
-                                         link.latr.saved.external
+```text
+Web / extension / native apps → L@tr.link proxy → Swift gateway → Your PDS
 ```
 
 ## Monorepo layout
@@ -29,7 +27,7 @@ latr-link/
 
 | Tool | Version |
 |------|---------|
-| [Bun](https://bun.sh) | ≥ 1.2 |
+| [Bun](https://bun.sh) | 1.3.14 |
 
 ## Quick start
 

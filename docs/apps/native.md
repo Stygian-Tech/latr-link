@@ -48,6 +48,8 @@ Current records are `community.lexicon.bookmarks.bookmark` plus `link.latr.bookm
 
 The public proxy receives a gateway-bound DPoP proof and the exact ordered PDS proof pool. Each retry requires fresh proof IDs and current nonce handling. Migration carries its larger pool in the request body. The state transport uses the deployed PATCH compatibility behavior until LTR-19 resolves canonical POST parity.
 
+LTR-26 tracks a pre-existing gateway mismatch for canonically equivalent Unicode tag spellings (for example, decomposed versus precomposed accented characters). Native clients preserve authored UTF-8 text; full server parity for that edge case requires the upstream LatrKit fix.
+
 Articles open in the external browser; other web links use the platform in-app browser. The apps do not extract or download article pages for offline reading. JSON export must exhaust pagination; filters and cache must not silently truncate it.
 
 ## Verification and release gates
@@ -60,7 +62,7 @@ bash scripts/ci-apple.sh       # macOS with Xcode + XcodeGen
 bash scripts/ci-android.sh     # JDK and Android SDK
 ```
 
-Native CI builds/tests source without publishing apps or accessing hosted user repositories. Contract fixtures exercise scope/proof parity and Unicode/exact-subject behavior. Platform suites cover native storage, auth state, queue and UI behavior.
+Native CI builds/tests source without publishing apps or accessing hosted user repositories. Apple simulator UI tests use ad-hoc signing so App Group/Keychain entitlements survive; the generic Release compile remains unsigned. Contract fixtures exercise scope/proof parity and Unicode/exact-subject behavior. Platform suites cover native storage, auth state, queue and UI behavior.
 
 Before authenticated acceptance, make the metadata available in Development through the normal reviewed deployment process. Then verify:
 
