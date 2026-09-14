@@ -80,7 +80,20 @@ final class LaunchTests: XCTestCase {
             // Safari's compact toolbar exposes Share inside More. Page Menu is
             // a separate formatting control and does not contain the share action.
             XCTAssertTrue(waitUntilHittable(menu, timeout: 5), safari.debugDescription)
-            menu.tap()
+            // Safari can report More as hittable while its accessibility tap
+            // resolves to {-1, -1}. Use its visible center in the main window.
+            let window = safari.windows.firstMatch
+            let windowFrame = window.frame
+            let visibleMenuFrame = menu.frame.intersection(windowFrame)
+            guard !visibleMenuFrame.isNull, !visibleMenuFrame.isEmpty else {
+                XCTFail("Safari More has no visible frame. \(safari.debugDescription)")
+                return
+            }
+            capture(safari, name: "Safari More toolbar control")
+            window.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
+                dx: visibleMenuFrame.midX - windowFrame.minX,
+                dy: visibleMenuFrame.midY - windowFrame.minY
+            )).tap()
         }
         // Safari exposes the button while a page is loading but keeps it
         // disabled. A tap at that point is ignored and no share sheet opens.
