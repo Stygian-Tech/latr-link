@@ -11,11 +11,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.auth.AuthTabIntent
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -240,7 +249,7 @@ class ShareActivity : MainActivity() {
 @Composable fun LoginScreen(model: LibraryViewModel, shareMode: Boolean, onClose: () -> Unit) {
     val context = LocalContext.current
     var handle by rememberSaveable { mutableStateOf("") }
-    Column(Modifier.safeDrawingPadding().widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight().padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(Modifier.safeDrawingPadding().imePadding().widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Text("L@tr.link", style = MaterialTheme.typography.headlineLarge)
         Text("Your links, on your account.")
         Text("Sign in with your AT Protocol handle to save and read across devices.")
@@ -249,7 +258,7 @@ class ShareActivity : MainActivity() {
             Text("Open L@tr.link to sign in, then confirm this saved draft.")
             Button(onClick = { context.startActivity(Intent(context, MainActivity::class.java)); onClose() }) { Text("Open L@tr.link") }
         } else {
-            OutlinedTextField(handle, { handle = it }, label = { Text("Handle or DID") }, placeholder = { Text("you.bsky.social") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !model.busy)
+            LoginHandleField(handle, { handle = it }, enabled = !model.busy)
             Text("L@tr.link requests bookmark access and migration permissions. Sending public feedback also uses User Input and image upload permissions.", style = MaterialTheme.typography.bodySmall)
             Button(onClick = { model.login(handle) { (context as MainActivity).launchLogin(it) } }, enabled = handle.isNotBlank() && !model.busy) { Text("Sign in") }
         }
@@ -287,11 +296,11 @@ class ShareActivity : MainActivity() {
     Row(Modifier.fillMaxSize()) {
     if (wide) NavigationRail(Modifier.safeDrawingPadding().fillMaxHeight()) {
         listOf("Unread", "Archive", "Tags", "Settings").forEach { tab ->
-            NavigationRailItem(selected = section == tab, onClick = { section = tab }, icon = { Text(when (tab) { "Unread" -> "▤"; "Archive" -> "▣"; "Tags" -> "#"; else -> "⚙" }) }, label = { Text(tab) })
+            NavigationRailItem(selected = section == tab, onClick = { section = tab }, icon = { Icon(when (tab) { "Unread" -> Icons.Default.Bookmarks; "Archive" -> Icons.Default.Archive; "Tags" -> Icons.Default.Tag; else -> Icons.Default.Settings }, contentDescription = null) }, label = { Text(tab) })
         }
     }
     Scaffold(modifier = Modifier.weight(1f), topBar = { TopAppBar(title = { Text(if (shareMode) "Save to L@tr.link" else "L@tr.link") }, actions = { if (shareMode) TextButton(onClick = onClose) { Text("Close") } else TextButton(onClick = model::foreground, enabled = !model.busy) { Text("Refresh") } }) }, bottomBar = {
-        if (!shareMode && !wide) NavigationBar { listOf("Unread", "Archive", "Tags", "Settings").forEach { tab -> NavigationBarItem(selected = section == tab, onClick = { section = tab }, icon = { Text(when (tab) { "Unread" -> "▤"; "Archive" -> "▣"; "Tags" -> "#"; else -> "⚙" }) }, label = { Text(tab) }) } }
+        if (!shareMode && !wide) NavigationBar { listOf("Unread", "Archive", "Tags", "Settings").forEach { tab -> NavigationBarItem(selected = section == tab, onClick = { section = tab }, icon = { Icon(when (tab) { "Unread" -> Icons.Default.Bookmarks; "Archive" -> Icons.Default.Archive; "Tags" -> Icons.Default.Tag; else -> Icons.Default.Settings }, contentDescription = null) }, label = { Text(tab) }) } }
     }) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 840.dp), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (model.busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -368,7 +377,7 @@ class ShareActivity : MainActivity() {
     }
     }
     }
-    remove?.let { row -> AlertDialog(onDismissRequest = { remove = null }, title = { Text("Remove saved item?") }, text = { Text("Archive moves this item out of Unread. Remove permanently deletes the bookmark.") }, confirmButton = { TextButton(onClick = { model.remove(row); remove = null }, enabled = !model.busy) { Text("Remove permanently") } }, dismissButton = { Row { if (!row.archived) TextButton(onClick = { model.state(row); remove = null }) { Text("Archive instead") }; TextButton(onClick = { remove = null }) { Text("Cancel") } } }) }
+    remove?.let { row -> AlertDialog(onDismissRequest = { remove = null }, title = { Text("Delete saved item?") }, text = { Text("Archive moves this item out of Unread. Delete permanently removes the bookmark.") }, confirmButton = { TextButton(onClick = { model.remove(row); remove = null }, enabled = !model.busy, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Icon(Icons.Default.DeleteOutline, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Delete permanently") } }, dismissButton = { Row { if (!row.archived) TextButton(onClick = { model.state(row); remove = null }) { Icon(Icons.Default.Archive, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Archive instead") }; TextButton(onClick = { remove = null }) { Text("Cancel") } } }) }
     edit?.let { row -> TextEditorDialog("Edit tags", row.tags.joinToString(", "), "Replace or clear this bookmark's tags.", !model.busy, dismiss = { edit = null }) { model.editTags(row, it) { edit = null } } }
     tagOperation?.let { (tag, rename) -> TextEditorDialog(if (rename) "Rename $tag" else "Remove $tag?", "", if (rename) "Changes this exact tag throughout your library. Retry resumes an interrupted batch." else "Removes this tag from every bookmark. Bookmarks are preserved.", !model.busy, showInput = rename, dismiss = { tagOperation = null }) { model.bulk(tag, if (rename) it else null) { tagOperation = null } } }
     editingPending?.let { item ->
@@ -400,7 +409,7 @@ class ShareActivity : MainActivity() {
             Column(Modifier.weight(1f)) { Text(row.title, style = MaterialTheme.typography.titleMedium); Text(row.site, style = MaterialTheme.typography.bodySmall); if (row.description.isNotEmpty()) Text(row.description, maxLines = 3); Text("${row.bucket} · ${row.createdAt.take(10)}", style = MaterialTheme.typography.labelSmall) }
         }
         if (row.tags.isNotEmpty()) Text(row.tags.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
-        Row { TextButton(onClick = archive, enabled = enabled) { Text(if (row.archived) "Restore" else "Archive") }; TextButton(onClick = tags, enabled = enabled) { Text("Tags") }; TextButton(onClick = remove, enabled = enabled) { Text("Remove") } }
+        BookmarkActions(row.archived, enabled, archive, tags, remove)
     } }
 }
 @Composable fun TextEditorDialog(title: String, initial: String, detail: String, enabled: Boolean, showInput: Boolean = true, dismiss: () -> Unit, submit: (String) -> Unit) {
@@ -449,4 +458,21 @@ fun openInAppBrowser(context: android.content.Context, url: String) {
             } catch (failure: Exception) { error = failure.message; throw failure }
         }
     }, enabled = title.isNotBlank() && !model.busy) { Text("Publish feedback") } }, dismissButton = { TextButton(onClick = dismiss, enabled = !model.busy) { Text("Cancel") } })
+}
+
+@Composable
+fun BookmarkActions(archived: Boolean, enabled: Boolean, archive: () -> Unit, tags: () -> Unit, delete: () -> Unit) {
+    Row {
+        TextButton(onClick = archive, enabled = enabled, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)) {
+            Icon(if (archived) Icons.Default.Unarchive else Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(if (archived) "Restore" else "Archive")
+        }
+        TextButton(onClick = tags, enabled = enabled) { Icon(Icons.Default.Tag, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("Tags") }
+        TextButton(onClick = delete, enabled = enabled, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+            Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Delete")
+        }
+    }
 }
