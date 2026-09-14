@@ -10,6 +10,7 @@ xcodegen generate --spec apps/apple/project.yml
 xcodebuild -project apps/apple/LatrLink.xcodeproj -scheme LatrLink -configuration Release \
   -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED_DATA" \
   CODE_SIGNING_ALLOWED=NO build
+python3 scripts/check-apple-icons.py "$DERIVED_DATA/Build/Products/Release-iphonesimulator/LatrLink.app"
 
 # Explicit destination overrides are useful for local and CI simulator matrices.
 if [ -n "${NATIVE_APPLE_DESTINATION:-}" ]; then

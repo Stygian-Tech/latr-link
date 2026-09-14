@@ -3,7 +3,11 @@ options:
   bundleIdPrefix: link.latr
   deploymentTarget:
     iOS: '18.0'
-  xcodeVersion: '16.0'
+  xcodeVersion: '26.0'
+  fileTypes:
+    icon:
+      file: true
+      buildPhase: resources
 packages:
   LatrNativeCore:
     path: .
@@ -46,6 +50,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(LATR_BASE_IDENTIFIER)
         PRODUCT_NAME: LatrLink
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_CFBundleDisplayName: L@tr.link
     info:
       path: config/App-Info.plist

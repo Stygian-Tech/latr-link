@@ -62,12 +62,14 @@ final class LaunchTests: XCTestCase {
         address.tap()
         safari.typeText("https://example.com/native-share-acceptance\n")
         let directShare = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "ShareButton", "Share")).firstMatch
-        if !directShare.waitForExistence(timeout: 3) {
-            let menu = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "MoreMenuButton", "Page Menu")).firstMatch
-            XCTAssertTrue(menu.waitForExistence(timeout: 5))
+        if !waitUntilHittable(directShare, timeout: 3) {
+            // Safari's compact toolbar exposes Share inside More. Page Menu is
+            // a separate formatting control and does not contain the share action.
+            let menu = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "MoreMenuButton", "More")).firstMatch
+            XCTAssertTrue(waitUntilHittable(menu, timeout: 5), safari.debugDescription)
             menu.tap()
         }
-        XCTAssertTrue(directShare.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntilHittable(directShare, timeout: 5), safari.debugDescription)
         directShare.tap()
         let extensionButton = safari.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR label == %@", "L@tr.link", "Save to L@tr.link")).firstMatch
         if !extensionButton.waitForExistence(timeout: 4) {
@@ -92,6 +94,13 @@ final class LaunchTests: XCTestCase {
         app.launchArguments = ["--ui-test-library"]
         app.launch()
         return app
+    }
+
+    @MainActor private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     @MainActor private func showSidebar(_ app: XCUIApplication) {

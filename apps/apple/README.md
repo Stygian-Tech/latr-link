@@ -4,7 +4,7 @@ Native SwiftUI app and “Save to L@tr.link” Share Extension, targeting iOS/iP
 
 ## Build
 
-Install Xcode with an iOS 18+ SDK and XcodeGen, then run from this directory:
+Install Xcode 26 or newer and XcodeGen, then run from this directory (the minimum supported OS remains iOS/iPadOS 18):
 
 ```sh
 xcodegen generate
@@ -17,6 +17,22 @@ swift test
 The repository `scripts/ci-apple.sh` also runs app UI tests on iPhone and iPad simulators. For real App Group and Keychain behavior in Simulator, omit `CODE_SIGNING_ALLOWED=NO` and pass `CODE_SIGN_IDENTITY=-` for an ad-hoc signed build; no Apple team credentials are needed for Simulator. Unsigned builds verify compilation but cannot use the real shared container. On this workstation use `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` when appropriate. The generated Xcode project is disposable; change `project.yml` and regenerate.
 
 Open `LatrLink.xcodeproj` for device builds. Supply `DEVELOPMENT_TEAM` from your local Xcode configuration or command line. Register the app and Share Extension identifiers, App Groups, and Keychain sharing with the same Apple team. Do not commit signing credentials or a team identifier.
+
+## Dynamic app icon
+
+`Resources/AppIcon.icon` is the native Icon Composer document, with a blue background and a separate vector L@tr.link foreground. The system supplies Liquid Glass lighting and default, dark, clear light/dark, and tinted light/dark appearances. Xcode generates compatible default/dark/tinted renditions for iOS/iPadOS 18; no pre-masked bitmap or duplicate AppIcon asset catalog is required. See [Apple's Icon Composer guidance](https://developer.apple.com/documentation/xcode/creating-your-app-icon-using-icon-composer).
+
+Edit the shared mark in `packages/native-brand/mark.svg` and run `swift packages/native-brand/export-apple-mark.swift` from the repository root before opening the document in Icon Composer. The exporter outlines the stroke so appearance overrides preserve the mark's interior. Keep Android's vector in sync as described in the shared brand README. In `project.yml`, the `.icon` file type must remain a single resource and `ASSETCATALOG_COMPILER_APPICON_NAME` must remain `AppIcon`; otherwise XcodeGen can copy the source files instead of compiling the layered icon.
+
+To review a rendered variant with the selected Xcode's native tool:
+
+```sh
+"$(xcode-select -p)/../Applications/Icon Composer.app/Contents/Executables/ictool" \
+  Resources/AppIcon.icon --export-image --output-file /tmp/latr-icon.png \
+  --platform iOS --rendition Dark --width 512 --height 512 --scale 1
+```
+
+Also preview `Default`, `ClearLight`, `ClearDark`, `TintedLight`, and `TintedDark`. Verify the installed app in Home Screen customization on both iPhone and iPad before release.
 
 | Configuration | App / extension | App Group | Shared Keychain suffix | Callback |
 | --- | --- | --- | --- | --- |
