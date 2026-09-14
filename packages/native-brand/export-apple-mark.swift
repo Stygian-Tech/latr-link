@@ -49,5 +49,7 @@ let svg = """
 </svg>
 
 """
-let destination = root.appendingPathComponent("../../apps/apple/Resources/AppIcon.icon/Assets/mark.svg")
+let destination = root.appendingPathComponent(
+    "../../apps/apple/Resources/AppIcon.icon/Assets/l-mark-outlined.svg"
+)
 try svg.write(to: destination, atomically: true, encoding: .utf8)
