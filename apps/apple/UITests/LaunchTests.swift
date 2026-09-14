@@ -61,6 +61,7 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(address.waitForExistence(timeout: 10))
         address.tap()
         safari.typeText("https://example.com/native-share-acceptance\n")
+        dismissSafariTipIfPresent(safari)
         let directShare = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "ShareButton", "Share")).firstMatch
         if !waitUntilHittable(directShare, timeout: 3) {
             // Safari's compact toolbar exposes Share inside More. Page Menu is
@@ -112,6 +113,13 @@ final class LaunchTests: XCTestCase {
             predicate: NSPredicate(format: "exists == true AND hittable == true AND enabled == true"), object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    @MainActor private func dismissSafariTipIfPresent(_ safari: XCUIApplication) {
+        let tip = safari.otherElements["TipView"]
+        guard tip.waitForExistence(timeout: 2) else { return }
+        let close = tip.buttons["Close"].firstMatch
+        if waitUntilHittable(close, timeout: 2) { close.tap() }
     }
 
     @MainActor private func showSidebar(_ app: XCUIApplication) {
