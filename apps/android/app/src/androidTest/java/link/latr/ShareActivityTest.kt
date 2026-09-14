@@ -1,6 +1,7 @@
 package link.latr
 
 import android.content.Intent
+import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -32,8 +33,20 @@ class ShareActivityTest {
                 val invalid = Intent(activity, ShareActivity::class.java).setAction(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "not a link").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 activity.startActivity(invalid)
             }
-            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-            scenario.onActivity { activity -> assertNull((activity.application as LatrApplication).auth.vault.get("share-draft")) }
+            // ActivityManager delivers SINGLE_TOP intents asynchronously. An idle
+            // main looper does not guarantee that onNewIntent has arrived yet.
+            val deadline = SystemClock.uptimeMillis() + 10_000
+            var delivered = false
+            while (!delivered && SystemClock.uptimeMillis() < deadline) {
+                scenario.onActivity { activity ->
+                    delivered = activity.intent.getStringExtra(Intent.EXTRA_TEXT) == "not a link"
+                }
+                if (!delivered) SystemClock.sleep(20)
+            }
+            assertTrue("The repeated share intent was not delivered", delivered)
+            scenario.onActivity { activity ->
+                assertNull((activity.application as LatrApplication).auth.vault.get("share-draft"))
+            }
         }
     }
 }

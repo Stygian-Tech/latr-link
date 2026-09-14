@@ -22,3 +22,7 @@ Room stores account-scoped cached bookmarks and pending saves. A save is persist
 Library requests fetch bounded pages, reconcile missing metadata best-effort, and offer additional pages while preserving opaque cursors. Export exhausts the entire library. Global tag changes and legacy migration use bounded, resumable server operations. Nonarticle reading opens Custom Tabs; articles open externally. Feedback publishes to the public User Input board only after the user taps Publish feedback.
 
 Tests load the shared native contract fixtures from `packages/native-contracts`; Android instrumentation covers share resolution, Room persistence/account isolation and platform Keystore/grapheme behavior. No test publishes feedback or writes to a real PDS.
+
+## Launcher icons
+
+Both environments use native adaptive launcher icons with a full-bleed gradient background and the shared cursive L@tr.link vector foreground from `packages/native-brand/mark.svg`. The same resource serves `android:icon` and `android:roundIcon`; the launcher supplies its own mask. The foreground stays within Android's central 66dp safe area on a 108dp canvas. Android 13+ resources provide the same foreground as a monochrome layer, allowing supported launchers to apply the user's wallpaper/theme colors when themed icons are enabled. Older supported Android versions retain the full-color adaptive icon. No runtime icon switching or launcher restart is needed.
