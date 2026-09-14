@@ -79,21 +79,7 @@ final class LaunchTests: XCTestCase {
         if !directShare.exists || !directShare.isHittable {
             // Safari's compact toolbar exposes Share inside More. Page Menu is
             // a separate formatting control and does not contain the share action.
-            XCTAssertTrue(waitUntilHittable(menu, timeout: 5), safari.debugDescription)
-            // Safari can report More as hittable while its accessibility tap
-            // resolves to {-1, -1}. Use its visible center in the main window.
-            let window = safari.windows.firstMatch
-            let windowFrame = window.frame
-            let visibleMenuFrame = menu.frame.intersection(windowFrame)
-            guard !visibleMenuFrame.isNull, !visibleMenuFrame.isEmpty else {
-                XCTFail("Safari More has no visible frame. \(safari.debugDescription)")
-                return
-            }
-            capture(safari, name: "Safari More toolbar control")
-            window.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
-                dx: visibleMenuFrame.midX - windowFrame.minX,
-                dy: visibleMenuFrame.midY - windowFrame.minY
-            )).tap()
+            guard tapVisibleCenter(menu, in: safari, timeout: 5, name: "Safari More toolbar control") else { return }
         }
         // Safari exposes the button while a page is loading but keeps it
         // disabled. A tap at that point is ignored and no share sheet opens.
@@ -109,7 +95,7 @@ final class LaunchTests: XCTestCase {
             more.tap()
         }
         XCTAssertTrue(extensionButton.waitForExistence(timeout: 10), safari.debugDescription)
-        extensionButton.tap()
+        guard tapVisibleCenter(extensionButton, in: safari, timeout: 10, name: "L@tr.link share activity") else { return }
         let saveDraft = safari.buttons["Save draft"]
         XCTAssertTrue(saveDraft.waitForExistence(timeout: 10), safari.debugDescription)
         saveDraft.tap()
@@ -131,6 +117,28 @@ final class LaunchTests: XCTestCase {
             predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    @MainActor private func tapVisibleCenter(_ element: XCUIElement, in app: XCUIApplication, timeout: TimeInterval, name: String, file: StaticString = #filePath, line: UInt = #line) -> Bool {
+        guard waitUntilHittable(element, timeout: timeout) else {
+            XCTFail("\(name) is not hittable. \(app.debugDescription)", file: file, line: line)
+            return false
+        }
+        // Safari controls and remote share cells can report a valid frame while
+        // their accessibility tap resolves outside it. Tap through the window.
+        let window = app.windows.firstMatch
+        let windowFrame = window.frame
+        let visibleFrame = element.frame.intersection(windowFrame)
+        guard !visibleFrame.isNull, !visibleFrame.isEmpty else {
+            XCTFail("\(name) has no visible frame. \(app.debugDescription)", file: file, line: line)
+            return false
+        }
+        capture(app, name: name)
+        window.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
+            dx: visibleFrame.midX - windowFrame.minX,
+            dy: visibleFrame.midY - windowFrame.minY
+        )).tap()
+        return true
     }
 
     @MainActor private func waitUntilActionable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
