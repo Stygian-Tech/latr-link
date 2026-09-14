@@ -1,0 +1,308 @@
+{
+  "version": 1,
+  "source": "github:Stygian-Tech/latr-packages#e959a47750a50de0f50a8b40820a027328ebf37d",
+  "scope": "atproto repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete include:link.latr.authFull repo:link.latr.saved.external?action=delete repo:link.latr.saved.item?action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete include:app.userinput.authFull blob:*/*",
+  "environments": [
+    {
+      "name": "development",
+      "applicationId": "link.latr.development",
+      "proxyBase": "https://testing.latr.link/api/latr-gateway",
+      "ios": {
+        "client_id": "https://testing.latr.link/oauth/ios-testing-client-metadata.json",
+        "application_type": "native",
+        "grant_types": [
+          "authorization_code",
+          "refresh_token"
+        ],
+        "response_types": [
+          "code"
+        ],
+        "redirect_uris": [
+          "link.latr.testing:/oauth/ios"
+        ],
+        "scope": "atproto repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete include:link.latr.authFull repo:link.latr.saved.external?action=delete repo:link.latr.saved.item?action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete include:app.userinput.authFull blob:*/*",
+        "token_endpoint_auth_method": "none",
+        "dpop_bound_access_tokens": true,
+        "client_name": "L@tr.link iOS Development",
+        "client_uri": "https://testing.latr.link",
+        "logo_uri": "https://testing.latr.link/icon.png"
+      },
+      "android": {
+        "client_id": "https://testing.latr.link/oauth/android-testing-client-metadata.json",
+        "application_type": "native",
+        "grant_types": [
+          "authorization_code",
+          "refresh_token"
+        ],
+        "response_types": [
+          "code"
+        ],
+        "redirect_uris": [
+          "link.latr.testing:/oauth/android"
+        ],
+        "scope": "atproto repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete include:link.latr.authFull repo:link.latr.saved.external?action=delete repo:link.latr.saved.item?action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete include:app.userinput.authFull blob:*/*",
+        "token_endpoint_auth_method": "none",
+        "dpop_bound_access_tokens": true,
+        "client_name": "L@tr.link Android Development",
+        "client_uri": "https://testing.latr.link",
+        "logo_uri": "https://testing.latr.link/icon.png"
+      }
+    },
+    {
+      "name": "production",
+      "applicationId": "link.latr",
+      "proxyBase": "https://latr.link/api/latr-gateway",
+      "ios": {
+        "client_id": "https://latr.link/oauth/ios-client-metadata.json",
+        "application_type": "native",
+        "grant_types": [
+          "authorization_code",
+          "refresh_token"
+        ],
+        "response_types": [
+          "code"
+        ],
+        "redirect_uris": [
+          "link.latr:/oauth/ios"
+        ],
+        "scope": "atproto repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete include:link.latr.authFull repo:link.latr.saved.external?action=delete repo:link.latr.saved.item?action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete include:app.userinput.authFull blob:*/*",
+        "token_endpoint_auth_method": "none",
+        "dpop_bound_access_tokens": true,
+        "client_name": "L@tr.link iOS",
+        "client_uri": "https://latr.link",
+        "logo_uri": "https://latr.link/icon.png"
+      },
+      "android": {
+        "client_id": "https://latr.link/oauth/android-client-metadata.json",
+        "application_type": "native",
+        "grant_types": [
+          "authorization_code",
+          "refresh_token"
+        ],
+        "response_types": [
+          "code"
+        ],
+        "redirect_uris": [
+          "link.latr:/oauth/android"
+        ],
+        "scope": "atproto repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete include:link.latr.authFull repo:link.latr.saved.external?action=delete repo:link.latr.saved.item?action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete include:app.userinput.authFull blob:*/*",
+        "token_endpoint_auth_method": "none",
+        "dpop_bound_access_tokens": true,
+        "client_name": "L@tr.link Android",
+        "client_uri": "https://latr.link",
+        "logo_uri": "https://latr.link/icon.png"
+      }
+    }
+  ],
+  "proofPlans": [
+    {
+      "nsid": "link.latr.bookmarks.listBookmarks",
+      "canonicalMethod": "GET",
+      "method": "GET",
+      "path": "/xrpc/link.latr.bookmarks.listBookmarks",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.listTags",
+      "canonicalMethod": "GET",
+      "method": "GET",
+      "path": "/xrpc/link.latr.bookmarks.listTags",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.getBookmark",
+      "canonicalMethod": "GET",
+      "method": "GET",
+      "path": "/xrpc/link.latr.bookmarks.getBookmark",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 8
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.getRecord",
+          "httpMethod": "GET",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.saveBookmark",
+      "canonicalMethod": "POST",
+      "method": "POST",
+      "path": "/xrpc/link.latr.bookmarks.saveBookmark",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 8
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.getRecord",
+          "httpMethod": "GET",
+          "count": 2
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.setTags",
+      "canonicalMethod": "POST",
+      "method": "POST",
+      "path": "/xrpc/link.latr.bookmarks.setTags",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.getRecord",
+          "httpMethod": "GET",
+          "count": 3
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.renameTag",
+      "canonicalMethod": "POST",
+      "method": "POST",
+      "path": "/xrpc/link.latr.bookmarks.renameTag",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 1
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.deleteTag",
+      "canonicalMethod": "POST",
+      "method": "POST",
+      "path": "/xrpc/link.latr.bookmarks.deleteTag",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 1
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.syncMetadata",
+      "canonicalMethod": "POST",
+      "method": "POST",
+      "path": "/xrpc/link.latr.bookmarks.syncMetadata",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 9
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.setState",
+      "canonicalMethod": "POST",
+      "method": "PATCH",
+      "path": "/xrpc/link.latr.bookmarks.setState",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.getRecord",
+          "httpMethod": "GET",
+          "count": 2
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.deleteBookmark",
+      "canonicalMethod": "POST",
+      "method": "POST",
+      "path": "/xrpc/link.latr.bookmarks.deleteBookmark",
+      "transport": "header",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.getRecord",
+          "httpMethod": "GET",
+          "count": 2
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "nsid": "link.latr.bookmarks.migrateLegacy",
+      "canonicalMethod": "POST",
+      "method": "POST",
+      "path": "/xrpc/link.latr.bookmarks.migrateLegacy",
+      "transport": "body",
+      "specs": [
+        {
+          "xrpcMethod": "com.atproto.repo.listRecords",
+          "httpMethod": "GET",
+          "count": 40
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.getRecord",
+          "httpMethod": "GET",
+          "count": 25
+        },
+        {
+          "xrpcMethod": "com.atproto.repo.applyWrites",
+          "httpMethod": "POST",
+          "count": 25
+        }
+      ]
+    }
+  ]
+}

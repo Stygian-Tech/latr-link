@@ -1,0 +1,20 @@
+{
+  "client_id": "https://testing.latr.link/oauth/android-testing-client-metadata.json",
+  "application_type": "native",
+  "grant_types": [
+    "authorization_code",
+    "refresh_token"
+  ],
+  "response_types": [
+    "code"
+  ],
+  "redirect_uris": [
+    "link.latr.testing:/oauth/android"
+  ],
+  "scope": "atproto repo:community.lexicon.bookmarks.bookmark?action=create&action=update&action=delete include:link.latr.authFull repo:link.latr.saved.external?action=delete repo:link.latr.saved.item?action=delete repo:com.latr.saved.external?action=delete repo:com.latr.saved.item?action=delete include:app.userinput.authFull blob:*/*",
+  "token_endpoint_auth_method": "none",
+  "dpop_bound_access_tokens": true,
+  "client_name": "L@tr.link Android Development",
+  "client_uri": "https://testing.latr.link",
+  "logo_uri": "https://testing.latr.link/icon.png"
+}
