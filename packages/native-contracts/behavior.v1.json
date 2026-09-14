@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "tagCases": [
+    {"name":"trim exact duplicates", "input":[" News ","News","news"], "expected":["News","news"]},
+    {"name":"preserve combining sequence", "input":["é","é"], "expected":["é","é"]},
+    {"name":"family emoji", "input":["👨‍👩‍👧‍👦"], "expected":["👨‍👩‍👧‍👦"]},
+    {"name":"blank rejected", "input":[" "], "error":true}
+  ],
+  "tagLimits":{"count":100,"graphemes":64,"utf8Bytes":640},
+  "subjectCases": [
+    {"input":" https://example.com/Path?x=1#section ","expected":["https://example.com/Path?x=1#section"]},
+    {"input":"Read https://example.com/a and https://example.com/b","expected":["https://example.com/a","https://example.com/b"]},
+    {"input":"at://did:plc:example/app.bsky.feed.post/abc","expected":["at://did:plc:example/app.bsky.feed.post/abc"]},
+    {"input":"javascript:alert(1)","expected":[]},
+    {"input":"file:///private/example","expected":[]}
+  ],
+  "bookmarkPage":{
+    "bookmarks":[{
+      "uri":"at://did:plc:example/community.lexicon.bookmarks.bookmark/abc",
+      "cid":"bafyfixture",
+      "value":{"$type":"community.lexicon.bookmarks.bookmark","subject":"https://example.com/Path?x=1#section","createdAt":"2026-09-14T00:00:00Z","tags":["News","news"]},
+      "metadataRecord":{"uri":"at://did:plc:example/link.latr.bookmarks.metadata/abc","cid":"bafymetadata","value":{"$type":"link.latr.bookmarks.metadata","bookmarkUri":"at://did:plc:example/community.lexicon.bookmarks.bookmark/abc","subject":"https://example.com/Path?x=1#section","state":"archived"}},
+      "preview":{"title":"A saved article","description":"Fixture preview","image":"https://example.com/image.png","author":"Example"}
+    }],
+    "cursor":"opaque-next-page"
+  }
+}

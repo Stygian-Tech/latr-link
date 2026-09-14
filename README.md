@@ -1,11 +1,9 @@
 # L@tr (latr.link)
 
-Read-later on your own ATProto repo. Saved state lives in `link.latr.saved.item` and `link.latr.saved.external` — no Stygian backend required for core functionality.
+Read-later on your own ATProto repo. Saved links live in `community.lexicon.bookmarks.bookmark`; reading state lives in `link.latr.bookmarks.metadata`. Web, extension, and native apps use the Swift gateway for bookmark operations with the signed-in user's OAuth/DPoP authorization.
 
-```
-Next.js (latr.link)  ── ATProto OAuth ──►  Your PDS
-                         XRPC            link.latr.saved.item
-                                         link.latr.saved.external
+```text
+Web / extension / native apps → L@tr.link proxy → Swift gateway → Your PDS
 ```
 
 ## Monorepo layout
@@ -13,6 +11,8 @@ Next.js (latr.link)  ── ATProto OAuth ──►  Your PDS
 ```
 latr-link/
   apps/
+    apple/         # SwiftUI iPhone/iPad app and Share Extension
+    android/       # Kotlin/Compose app and Android share target
     web/           # Next.js web client (Bun)
     latrkit-dev/   # LatrKit developer console (Bun)
   packages/
@@ -27,7 +27,7 @@ latr-link/
 
 | Tool | Version |
 |------|---------|
-| [Bun](https://bun.sh) | ≥ 1.2 |
+| [Bun](https://bun.sh) | 1.3.14 |
 
 ## Quick start
 
@@ -71,6 +71,9 @@ If the console shows `WebSocket connection to .../_next/webpack-hmr` failures, h
 ## Architecture
 
 See [docs/architecture/overview.md](docs/architecture/overview.md).
+
+Native app setup, OAuth identities, share behavior, and verification gates are in
+[docs/apps/native.md](docs/apps/native.md).
 
 Deployment and database cutover procedures live in
 [docs/deployment/railway.md](docs/deployment/railway.md).

@@ -6,5 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 bun install --frozen-lockfile
+bun scripts/native-contracts.ts --check
+bun test scripts/native-contracts.test.ts
 bun run turbo run typecheck lint test build --filter=web... --filter=latrkit-dev... --filter=extension...
 bun --cwd node_modules/latr-packages test
