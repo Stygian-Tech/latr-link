@@ -80,6 +80,11 @@ final class LaunchTests: XCTestCase {
             // Safari's compact toolbar exposes Share inside More. Page Menu is
             // a separate formatting control and does not contain the share action.
             guard tapVisibleCenter(menu, in: safari, timeout: 5, name: "Safari More toolbar control") else { return }
+            // First-use guidance can consume the initial More tap rather than
+            // opening its menu. Dismiss it, then make the intended tap once more.
+            if dismissSafariTipIfPresent(safari) {
+                guard tapVisibleCenter(menu, in: safari, timeout: 5, name: "Safari More after guidance") else { return }
+            }
         }
         // Safari exposes the button while a page is loading but keeps it
         // disabled. A tap at that point is ignored and no share sheet opens.
@@ -148,11 +153,15 @@ final class LaunchTests: XCTestCase {
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    @MainActor private func dismissSafariTipIfPresent(_ safari: XCUIApplication) {
+    @discardableResult
+    @MainActor private func dismissSafariTipIfPresent(_ safari: XCUIApplication) -> Bool {
         let tip = safari.otherElements["TipView"]
-        guard tip.waitForExistence(timeout: 2) else { return }
+        guard tip.waitForExistence(timeout: 2) else { return false }
         let close = tip.buttons["Close"].firstMatch
-        if waitUntilHittable(close, timeout: 2) { close.tap() }
+        guard tapVisibleCenter(close, in: safari, timeout: 2, name: "Safari guidance close") else { return false }
+        let dismissed = tip.waitForNonExistence(timeout: 3)
+        XCTAssertTrue(dismissed, safari.debugDescription)
+        return dismissed
     }
 
     @MainActor private func showSidebar(_ app: XCUIApplication) {
