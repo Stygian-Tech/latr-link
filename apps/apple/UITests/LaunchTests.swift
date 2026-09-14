@@ -63,10 +63,22 @@ final class LaunchTests: XCTestCase {
         safari.typeText("https://example.com/native-share-acceptance\n")
         dismissSafariTipIfPresent(safari)
         let directShare = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "ShareButton", "Share")).firstMatch
+        let menu = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "MoreMenuButton", "More")).firstMatch
         if !waitUntilHittable(directShare, timeout: 3) {
+            if !menu.exists || !menu.isHittable {
+                // Navigation can leave Safari's toolbar minimized, removing both
+                // actions from accessibility. Scroll toward the top to reveal it.
+                let page = safari.webViews.firstMatch
+                XCTAssertTrue(page.waitForExistence(timeout: 10), safari.debugDescription)
+                for _ in 0..<2 {
+                    page.swipeDown()
+                    if waitUntilHittable(directShare, timeout: 2) || waitUntilHittable(menu, timeout: 2) { break }
+                }
+            }
+        }
+        if !directShare.exists || !directShare.isHittable {
             // Safari's compact toolbar exposes Share inside More. Page Menu is
             // a separate formatting control and does not contain the share action.
-            let menu = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "MoreMenuButton", "More")).firstMatch
             XCTAssertTrue(waitUntilHittable(menu, timeout: 5), safari.debugDescription)
             menu.tap()
         }
