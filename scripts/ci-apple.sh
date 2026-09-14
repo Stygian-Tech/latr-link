@@ -30,5 +30,5 @@ fi
 for destination in "${destinations[@]}"; do
   xcodebuild -project apps/apple/LatrLink.xcodeproj -scheme LatrLink -configuration Debug \
     -destination "$destination" -derivedDataPath "$DERIVED_DATA" \
-    -parallel-testing-enabled NO CODE_SIGN_IDENTITY=- test
+    -parallel-testing-enabled NO -collect-test-diagnostics never CODE_SIGN_IDENTITY=- test
 done

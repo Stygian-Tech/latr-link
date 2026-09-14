@@ -187,7 +187,8 @@ private actor GatewayFixtureHTTP: NativeHTTPClient {
     var tagMutationCalls = 0
     var tagVerificationPasses = 0
     var challengeGateway: Bool
-    init(failSave: Bool = false, challengeGateway: Bool = false) throws { self.failSave = failSave; self.challengeGateway = challengeGateway; page = try JSONEncoder().encode(JSONDecoder().decode(BehaviorFixture.self, from: fixture("behavior")).bookmarkPage.bookmarks[0]) }
+    let cycleTagCursor: Bool
+    init(failSave: Bool = false, challengeGateway: Bool = false, cycleTagCursor: Bool = false) throws { self.failSave = failSave; self.challengeGateway = challengeGateway; self.cycleTagCursor = cycleTagCursor; page = try JSONEncoder().encode(JSONDecoder().decode(BehaviorFixture.self, from: fixture("behavior")).bookmarkPage.bookmarks[0]) }
     func setFailSave(_ value: Bool) { failSave = value }
     func send(_ request: URLRequest) throws -> HTTPResult {
         requests.append(request)
@@ -211,6 +212,7 @@ private actor GatewayFixtureHTTP: NativeHTTPClient {
         }
         if request.url!.lastPathComponent == "link.latr.bookmarks.renameTag" {
             tagMutationCalls += 1
+            if cycleTagCursor { return try response(request,["ok":true,"scanned":1,"matched":1,"updated":1,"cursor":tagMutationCalls % 2 == 1 ? "one":"two"]) }
             if tagMutationCalls == 1 { return try response(request, ["error":"Conflict","message":"Concurrent edit"], status:409) }
             return try response(request, ["ok":true,"scanned":1,"matched":1,"updated":1])
         }
@@ -327,10 +329,84 @@ private func testLibrary(directory: URL, vault: MemorySessionVault, http: Gatewa
     let directory = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: directory) }
     let http = try GatewayFixtureHTTP(), vault = MemorySessionVault(session: NativeRuntime.previewSession())
     let library = try testLibrary(directory: directory, vault: vault, http: http)
-    try await library.renameTag("old", replacement: "new")
+    let progress = ProgressRecorder()
+    try await library.renameTag("old", replacement: "new", progress: { count in await progress.record(count) })
     #expect(await http.tagMutationCalls == 3)
     #expect(await http.tagVerificationPasses == 2)
+    #expect(await progress.values == [1,2])
 }
+private actor ProgressRecorder { var values:[Int] = []; func record(_ value:Int) { values.append(value) } }
+@Test func globalTagJobStopsAlternatingCursorCycle() async throws {
+    let directory = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: directory) }
+    let vault = MemorySessionVault(session:NativeRuntime.previewSession()), http = try GatewayFixtureHTTP(cycleTagCursor:true)
+    let library = try testLibrary(directory:directory,vault:vault,http:http)
+    await #expect(throws:NativeError.invalidResponse) { try await library.renameTag("old",replacement:"new") }
+    #expect(await http.tagMutationCalls == 3)
+}
+private actor FeedbackFixtureHTTP: NativeHTTPClient {
+    let invalidBoard: Bool
+    var requests:[URLRequest] = []
+    init(invalidBoard:Bool) { self.invalidBoard = invalidBoard }
+    func send(_ request:URLRequest) throws -> HTTPResult {
+        requests.append(request)
+        if request.url!.host == "userinput.app" {
+            return try response(request,["board":["uri":invalidBoard ? "at://wrong/board/id":"at://did:plc:qy5pluw2bsuq2x6albsgkvx3/app.userinput.space/3msgeiqdplp2m","cid":"board-cid","value":["tags":[["label":"Bug","value":"bug"]]]]])
+        }
+        switch request.url!.lastPathComponent {
+        case "com.atproto.repo.uploadBlob":
+            return try response(request,["blob":["$type":"blob","ref":["$link":"image-cid"],"mimeType":"image/jpeg","size":3]])
+        case "com.atproto.repo.createRecord":
+            return try response(request,["uri":"at://did:plc:nativepreview/app.userinput.discussion/abc","cid":"discussion-cid"])
+        case "com.atproto.repo.putRecord": return try response(request,["error":"Unavailable"],status:503)
+        default: throw NativeError.invalidResponse
+        }
+    }
+}
+@Test(arguments:[false,true]) func feedbackValidatesBoardAndWritesNativeRecord(invalidBoard:Bool) async throws {
+    let directory = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: directory) }
+    let vault = MemorySessionVault(session:NativeRuntime.previewSession()), http = FeedbackFixtureHTTP(invalidBoard:invalidBoard)
+    let oauth = OAuthClient(configuration:configuration,vault:vault,http:http,directory:directory)
+    let library = try NativeLibrary(configuration:configuration,oauth:oauth,store:NativeStore(directory:directory),http:http,directory:directory)
+    let photos = [FeedbackPhoto(data:Data([1,2,3]),mimeType:"image/jpeg",alt:"A screenshot")]
+    if invalidBoard {
+        await #expect(throws:NativeError.invalidResponse) { try await library.submitFeedback(title:" Bug ",body:" Details ",tags:["bug"],photos:photos) }
+        #expect(await http.requests.count == 1)
+        return
+    }
+    let destination = try await library.submitFeedback(title:" Bug ",body:" Details ",tags:["bug"],photos:photos)
+    #expect(destination.host == "userinput.app")
+    let requests = await http.requests
+    let upload = try #require(requests.first { $0.url!.lastPathComponent == "com.atproto.repo.uploadBlob" })
+    #expect(upload.httpBody == Data([1,2,3]))
+    #expect(upload.value(forHTTPHeaderField:"Content-Type") == "image/jpeg")
+    let write = try #require(requests.first { $0.url!.lastPathComponent == "com.atproto.repo.createRecord" })
+    let body = try #require(JSONSerialization.jsonObject(with:write.httpBody!) as? [String:Any])
+    #expect(body["repo"] as? String == "did:plc:nativepreview")
+    #expect(body["collection"] as? String == "app.userinput.discussion")
+    let record = try #require(body["record"] as? [String:Any])
+    #expect(record["title"] as? String == "Bug")
+    #expect(record["body"] as? String == "Details")
+    #expect(record["tags"] as? [String] == ["bug"])
+    #expect((record["space"] as? [String:String])?["cid"] == "board-cid")
+    #expect((record["images"] as? [[String:Any]])?.first?["alt"] as? String == "A screenshot")
+    #expect(requests.last?.url?.lastPathComponent == "com.atproto.repo.putRecord")
+}
+#if os(macOS)
+@Test func processLockExcludesAnotherProcess() async throws {
+    let directory = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: directory) }
+    let path = directory.appending(path:"process.lock")
+    try await ProcessLock(file:path).withLock {
+        let status: Int32 = try await withCheckedThrowingContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath:"/usr/bin/python3")
+            process.arguments = ["-c", "import fcntl,sys\nf=open(sys.argv[1],'a')\ntry:\n fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)\n sys.exit(1)\nexcept BlockingIOError:\n sys.exit(0)",path.path]
+            process.terminationHandler = { child in continuation.resume(returning:child.terminationStatus) }
+            do { try process.run() } catch { continuation.resume(throwing:error) }
+        }
+        #expect(status == 0)
+    }
+}
+#endif
 @Test func queueEditCannotOverwriteInFlightPayload() async throws {
     let directory = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: directory) }
     let store = try NativeStore(directory: directory)
@@ -401,11 +477,17 @@ private func testLibrary(directory: URL, vault: MemorySessionVault, http: Gatewa
         BookmarkView(record:RepositoryRecord(uri:"at://did:plc:test/community.lexicon.bookmarks.bookmark/id",cid:"test",value:CommunityBookmark(subject:subject,createdAt:"2026-09-14T00:00:00Z")),preview:OpenGraphPreview(title:title,description:description,author:author))
     }
     #expect(row("https://bsky.app/profile/test/post/abc").nativeContentKind == .social)
+    #expect(row("https://staging.bsky.app/profile/test/post/abc").nativeContentKind == .social)
+    #expect(row("https://example.com/app.bsky.feed.post/abc").nativeContentKind != .social)
+    #expect(row("https://bsky.app/post/abc").nativeContentKind != .social)
     #expect(row("at://did:plc:test/site.standard.document/abc").nativeContentKind == .article)
     #expect(row("https://example.com/two/segments").nativeContentKind == .article)
     #expect(row("https://example.com/",author:"Author").nativeContentKind == .article)
     #expect(row("https://example.com/long-title-with-hyphens",title:"Saved from example.com").nativeContentKind == .other)
     #expect(row("https://example.com/").nativeContentKind == .other)
+    #expect(row("https://example.com/",author:"  ").nativeContentKind == .other)
+    #expect(row("https://example.com/long-title-with-hyphens",title:"  ").nativeContentKind == .other)
+    #expect(row("at://did:plc:test/example.unknown.record/abc",author:"Author").nativeContentKind == .other)
     #expect(row("https://example.com/",title:"a").estimatedReadingMinutes == 2)
     #expect(row("https://example.com/",title:String(repeating:"😀",count:100)).estimatedReadingMinutes == 3)
     #expect(row("https://example.com/",description:String(repeating:"long ",count:1000)).estimatedReadingMinutes == 12)

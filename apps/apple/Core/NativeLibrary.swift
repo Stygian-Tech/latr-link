@@ -136,36 +136,40 @@ public actor NativeLibrary {
     private static func validateOwner(_ uri: String, did: String) throws {
         guard uri.hasPrefix("at://\(did)/community.lexicon.bookmarks.bookmark/") else { throw NativeError.invalidIdentity }
     }
-    public func renameTag(_ tag: String, replacement: String) async throws {
+    public func renameTag(_ tag: String, replacement: String, progress: (@Sendable (Int) async -> Void)? = nil) async throws {
         let tag = try TagValidation.normalize(tag), replacement = try TagValidation.normalize(replacement)
         guard Data(tag.utf8) != Data(replacement.utf8) else { return }
         let did = try await accountDID()
         let transport = NativeGatewayTransport(oauth: oauth, configuration: configuration, http: http, expectedDID: did)
         let name = try JSONEncoder().encode(["rename", tag, replacement]).base64URL
-        try await runTagJob(name: name, source: tag, did: did) { cursor in
+        try await runTagJob(name: name, source: tag, did: did, onProgress: progress) { cursor in
             let input = LatrRenameBookmarkTagInput(tag: tag, replacement: replacement, limit: 25, cursor: cursor)
             return try await JSONDecoder().decode(BookmarkTagMutationSummary.self, from: transport.send(method: .renameBookmarkTag, parameters: [], body: JSONEncoder().encode(input)))
         }
     }
-    public func deleteTag(_ tag: String) async throws {
+    public func deleteTag(_ tag: String, progress: (@Sendable (Int) async -> Void)? = nil) async throws {
         let tag = try TagValidation.normalize(tag)
         let did = try await accountDID(), client = client(for: did)
-        try await runTagJob(name: "delete:\(tag)", source: tag, did: did) { cursor in
+        try await runTagJob(name: "delete:\(tag)", source: tag, did: did, onProgress: progress) { cursor in
             try await client.deleteBookmarkTag(.init(tag: tag, limit: 25, cursor: cursor))
         }
     }
-    private struct Progress: Codable, Sendable { var cursor: String?; var conflicts: Int = 0 }
-    private func runTagJob(name: String, source: String, did: String, operation: @Sendable (String?) async throws -> BookmarkTagMutationSummary) async throws {
+    private struct Progress: Codable, Sendable { var cursor: String?; var conflicts: Int = 0; var updated: Int? }
+    private func runTagJob(name: String, source: String, did: String, onProgress: (@Sendable (Int) async -> Void)?, operation: @Sendable (String?) async throws -> BookmarkTagMutationSummary) async throws {
         let key = cacheKey("tagjob:\(Data(name.utf8).base64URL)", did: did)
         var progress = try await store.value(Progress.self, for: key) ?? Progress()
         for _ in 0..<3 {
+            var seen = Set(progress.cursor.map { [$0] } ?? [])
             repeat {
                 try Task.checkCancellation()
                 let page: BookmarkTagMutationSummary
                 do { page = try await operation(progress.cursor) }
                 catch NativeError.http(let status, _) where status == 409 { page = try await operation(progress.cursor) }
-                guard page.ok, page.cursor == nil || page.cursor != progress.cursor else { throw NativeError.invalidResponse }
-                progress.cursor = page.cursor; try await store.set(progress, for: key)
+                guard page.ok else { throw NativeError.invalidResponse }
+                if let cursor = page.cursor, !seen.insert(cursor).inserted { throw NativeError.invalidResponse }
+                progress.cursor = page.cursor; progress.updated = (progress.updated ?? 0) + page.updated
+                try await store.set(progress, for: key)
+                await onProgress?(progress.updated ?? 0)
             } while progress.cursor != nil
             let remaining = try await listTags(did: did).contains { Data($0.tag.utf8) == Data(source.utf8) && $0.count > 0 }
             if !remaining { try await store.remove(key); _ = try await listBookmarks(tag: nil, did: did); return }
@@ -176,10 +180,12 @@ public actor NativeLibrary {
         let did = try await accountDID(), client = client(for: did)
         let key = cacheKey("migration", did: did)
         var progress = try await store.value(Progress.self, for: key) ?? Progress()
+        var seen = Set(progress.cursor.map { [$0] } ?? [])
         repeat {
             try Task.checkCancellation()
             let page = try await client.migrateBookmarks(.init(limit: 25, cursor: progress.cursor))
             guard page.ok, page.cursor == nil || page.cursor != progress.cursor else { throw NativeError.invalidResponse }
+            if let cursor = page.cursor, !seen.insert(cursor).inserted { throw NativeError.invalidResponse }
             progress.cursor = page.cursor; progress.conflicts += page.skippedConflict; try await store.set(progress, for: key)
         } while progress.cursor != nil
         try await store.remove(key)
@@ -193,10 +199,12 @@ public actor NativeLibrary {
         let did = try await accountDID(), client = client(for: did)
         let key = cacheKey("metadataSync", did: did)
         var progress = try await store.value(Progress.self, for: key) ?? Progress()
+        var seen = Set(progress.cursor.map { [$0] } ?? [])
         repeat {
             try Task.checkCancellation()
             let page = try await client.syncBookmarkMetadata(.init(limit: 25, cursor: progress.cursor))
             guard page.ok, page.cursor == nil || page.cursor != progress.cursor else { throw NativeError.invalidResponse }
+            if let cursor = page.cursor, !seen.insert(cursor).inserted { throw NativeError.invalidResponse }
             progress.cursor = page.cursor; progress.conflicts += page.skippedConflict; try await store.set(progress, for: key)
         } while progress.cursor != nil
         try await store.remove(key)

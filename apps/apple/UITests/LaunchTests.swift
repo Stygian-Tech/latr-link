@@ -60,7 +60,7 @@ final class LaunchTests: XCTestCase {
         let address = safari.textFields.matching(NSPredicate(format: "label == %@ OR identifier == %@ OR identifier == %@", "Address", "URL", "TabBarItemTitle")).firstMatch
         XCTAssertTrue(address.waitForExistence(timeout: 10))
         address.tap()
-        address.typeText("https://example.com/native-share-acceptance\n")
+        safari.typeText("https://example.com/native-share-acceptance\n")
         let directShare = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "ShareButton", "Share")).firstMatch
         if !directShare.waitForExistence(timeout: 3) {
             let menu = safari.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "MoreMenuButton", "Page Menu")).firstMatch

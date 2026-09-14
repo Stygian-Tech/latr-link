@@ -161,8 +161,9 @@ final class AppModel {
             let saves = try await runtime.library.pendingSaves()
             guard generation == accountGeneration else { return true }
             pending = saves.filter { $0.did == nil || $0.did == session?.did }
-            notice = pending.contains(where: { $0.id == queued.id }) ? "Pending — saved on this device and will retry when you open L@tr.link." : "Saved to L@tr.link."
-            await refresh()
+            let remainsPending = pending.contains(where: { $0.id == queued.id })
+            notice = remainsPending ? "Pending — saved on this device and will retry when you open L@tr.link." : "Saved to L@tr.link."
+            if !remainsPending { await refresh() }
             return true
         } catch { self.error = error.localizedDescription; return false }
     }
@@ -171,6 +172,8 @@ final class AppModel {
         do { try await action(); await refresh() }
         catch { self.error = error.localizedDescription }
     }
+
+    func reportTagProgress(_ count: Int) { tagProgress = "Updated \(count) bookmarks…" }
 
     func migrate() async {
         guard let runtime else { return }

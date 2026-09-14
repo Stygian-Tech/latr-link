@@ -219,12 +219,13 @@ struct TagsView: View {
     }
     private func change(delete: Bool) {
         guard let tag = selected, let runtime = model.runtime else { return }
+        let appModel = model
         busy = true
         model.tagProgress = "Updating bookmarks with \(tag)…"
         Task {
             do {
-                if delete { try await runtime.library.deleteTag(tag) }
-                else { try await runtime.library.renameTag(tag, replacement: replacement) }
+                if delete { try await runtime.library.deleteTag(tag, progress: { count in await appModel.reportTagProgress(count) }) }
+                else { try await runtime.library.renameTag(tag, replacement: replacement, progress: { count in await appModel.reportTagProgress(count) }) }
                 model.tagProgress = "Tag update complete"
                 await model.refresh(); await load()
             } catch { model.tagProgress = "Update paused. Retry the same action to continue: \(error.localizedDescription)" }

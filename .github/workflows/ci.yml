@@ -57,6 +57,14 @@ jobs:
         run: brew install xcodegen
       - name: Run native Apple checks
         run: bash scripts/ci-apple.sh
+      - name: Upload Apple test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-apple-test-results
+          path: apps/apple/DerivedData/Logs/Test/
+          if-no-files-found: ignore
+          retention-days: 7
 
   ci-android:
     name: Android test, lint, and build
@@ -82,6 +90,14 @@ jobs:
           arch: x86_64
           profile: pixel_6
           script: cd apps/android && ./gradlew --no-daemon connectedDevelopmentDebugAndroidTest
+      - name: Upload Android test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-android-test-results
+          path: apps/android/app/build/reports/
+          if-no-files-found: ignore
+          retention-days: 7
 
   required:
     name: CI — Required
