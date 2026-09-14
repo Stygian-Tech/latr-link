@@ -69,13 +69,17 @@ final class LaunchTests: XCTestCase {
             XCTAssertTrue(waitUntilHittable(menu, timeout: 5), safari.debugDescription)
             menu.tap()
         }
-        XCTAssertTrue(waitUntilHittable(directShare, timeout: 5), safari.debugDescription)
+        // Safari exposes the button while a page is loading but keeps it
+        // disabled. A tap at that point is ignored and no share sheet opens.
+        XCTAssertTrue(waitUntilActionable(directShare, timeout: 30), safari.debugDescription)
         directShare.tap()
         let extensionButton = safari.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR label == %@", "L@tr.link", "Save to L@tr.link")).firstMatch
         if !extensionButton.waitForExistence(timeout: 4) {
+            let activities = safari.collectionViews["activityCollectionView"]
+            XCTAssertTrue(activities.waitForExistence(timeout: 10), safari.debugDescription)
             let more = safari.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "More")).firstMatch
-            if !more.isHittable { safari.collectionViews["activityCollectionView"].swipeLeft() }
-            XCTAssertTrue(more.waitForExistence(timeout: 5), safari.debugDescription)
+            if !more.exists || !more.isHittable { activities.swipeLeft() }
+            XCTAssertTrue(waitUntilHittable(more, timeout: 5), safari.debugDescription)
             more.tap()
         }
         XCTAssertTrue(extensionButton.waitForExistence(timeout: 10), safari.debugDescription)
@@ -99,6 +103,13 @@ final class LaunchTests: XCTestCase {
     @MainActor private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    @MainActor private func waitUntilActionable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND hittable == true AND enabled == true"), object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
