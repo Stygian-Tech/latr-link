@@ -13,6 +13,8 @@ Next.js (latr.link)  ── ATProto OAuth ──►  Your PDS
 ```
 latr-link/
   apps/
+    apple/         # SwiftUI iPhone/iPad app and Share Extension
+    android/       # Kotlin/Compose app and Android share target
     web/           # Next.js web client (Bun)
     latrkit-dev/   # LatrKit developer console (Bun)
   packages/
@@ -71,6 +73,9 @@ If the console shows `WebSocket connection to .../_next/webpack-hmr` failures, h
 ## Architecture
 
 See [docs/architecture/overview.md](docs/architecture/overview.md).
+
+Native app setup, OAuth identities, share behavior, and verification gates are in
+[docs/apps/native.md](docs/apps/native.md).
 
 Deployment and database cutover procedures live in
 [docs/deployment/railway.md](docs/deployment/railway.md).
