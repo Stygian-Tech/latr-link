@@ -12,11 +12,12 @@ object Contracts {
     const val boardURL = "https://userinput.app/s/$boardDid/$boardKey?lang=en"
     fun subject(input: String): String {
         val value = input.trim()
-        require(value.length <= 16_384) { "This link is too long." }
+        require(value.toByteArray(Charsets.UTF_8).size <= 8192) { "This link is too long." }
         val uri = runCatching { URI(value) }.getOrNull()
         require(uri != null && when (uri.scheme?.lowercase()) {
             "http", "https" -> !uri.host.isNullOrBlank() && uri.userInfo == null
-            "at" -> !uri.rawAuthority.isNullOrBlank() && uri.path.split('/').filter(String::isNotEmpty).size == 2
+            "at" -> !uri.rawAuthority.isNullOrBlank() && uri.rawQuery == null && uri.rawFragment == null &&
+                uri.path.split('/').let { it.size == 3 && it[0].isEmpty() && it[1].isNotEmpty() && it[2].isNotEmpty() }
             else -> false
         }) { "Enter an HTTP(S) link or AT URI." }
         return value
@@ -86,10 +87,14 @@ data class Bookmark(val json: String) {
     val author get() = preview.text("author")
     val site get() = preview.text("siteName") ?: runCatching { URI(subject).host }.getOrNull().orEmpty()
     val bucket get(): String {
-        if (subject.contains("/app.bsky.feed.post/") || Regex("https?://(?:www\\.)?bsky.app/profile/[^/]+/post/[^/]+").containsMatchIn(subject)) return "Social"
-        val path = runCatching { URI(subject).path.orEmpty() }.getOrDefault("")
-        if (listOf("standard.site", "site.standard", "whtwnd.blog", "blog.entry", ".article/").any(subject::contains)) return "Articles"
-        if (title != subject && !title.lowercase().startsWith("saved from ") && (author != null || path.split('/').filter(String::isNotEmpty).size > 1 || path.substringAfterLast('/').let { '-' in it || it.length > 18 })) return "Articles"
+        val parsed = runCatching { URI(subject) }.getOrNull()
+        val parts = parsed?.path.orEmpty().split('/').filter(String::isNotEmpty)
+        val collection = if (parsed?.scheme == "at") parts.firstOrNull().orEmpty().lowercase() else ""
+        val socialURL = parsed?.host?.lowercase() in listOf("bsky.app", "www.bsky.app") && parts.size == 4 && parts[0] == "profile" && parts[2] == "post"
+        if (collection == "app.bsky.feed.post" || socialURL) return "Social"
+        if (listOf("standard.site", "site.standard", "whtwnd.blog", "blog.entry").any(collection::contains) || collection.endsWith(".article")) return "Articles"
+        val last = parts.lastOrNull().orEmpty()
+        if (parsed?.scheme in listOf("http", "https") && title.isNotBlank() && !title.lowercase().startsWith("saved from ") && (author != null || parts.size > 1 || '-' in last || last.length > 18)) return "Articles"
         return "Other"
     }
 }

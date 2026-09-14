@@ -72,4 +72,19 @@ class ContractsTest {
         assertFalse(feedbackScopeAllowed("repo:app.userinput.discussion?action=delete", false))
         assertFalse(feedbackScopeAllowed("include:app.userinput.authFull", true))
     }
+    @Test fun subjectValidationUsesUtf8LimitAndExactATPath() {
+        listOf("at://did:plc:fixture/collection/key?query=1", "at://did:plc:fixture/collection/key#fragment", "at://did:plc:fixture//key", "at://did:plc:fixture/collection/key/extra", "https://example.com/" + "é".repeat(4096)).forEach { value ->
+            assertThrows(value.take(80), IllegalArgumentException::class.java) { Contracts.subject(value) }
+        }
+        assertEquals("https://example.com/Path#fragment", Contracts.subject("https://example.com/Path#fragment"))
+    }
+    @Test fun tokenResponseRequiresUsableInitialAndRotatedCredentials() {
+        val valid = JSONObject().put("access_token", "access").put("refresh_token", "refresh").put("expires_in", 3600)
+        validateTokenResponse(valid, true)
+        listOf(JSONObject(valid.toString()).put("access_token", " "), JSONObject(valid.toString()).put("expires_in", 0), JSONObject(valid.toString()).apply { remove("refresh_token") }).forEach { response ->
+            assertThrows(IllegalArgumentException::class.java) { validateTokenResponse(response, true) }
+        }
+        validateTokenResponse(JSONObject(valid.toString()).apply { remove("refresh_token") }, false)
+        assertThrows(IllegalArgumentException::class.java) { validateTokenResponse(JSONObject(valid.toString()).put("refresh_token", ""), false) }
+    }
 }

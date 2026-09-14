@@ -149,4 +149,79 @@ class TransportIntegrationTest {
             assertTrue(requests.any { it.url.encodedPath.endsWith("putRecord") })
         } finally { auth.signOut(); db.close() }
     }
+    @Test fun proxyNonceChallengeRegeneratesProofWithoutRefreshingToken() = runBlocking {
+        var calls = 0
+        var issuedNonce: String? = null
+        val requests = mutableListOf<okhttp3.Request>()
+        val auth = seededAuth(OkHttpClient.Builder().addInterceptor { chain ->
+            val request = chain.request()
+            requests += request
+            if (request.url.host == "pds.example") response(request, """{"records":[]}""")
+            else if (calls++ == 0) response(request, """{"error":"use_dpop_nonce"}""", 401).also { issuedNonce = it.header("DPoP-Nonce") }
+            else {
+                val proof = request.header("X-Latr-User-DPoP")!!
+                val claim = JSONObject(String(java.util.Base64.getUrlDecoder().decode(proof.split('.')[1])))
+                assertEquals(issuedNonce, claim.getString("nonce"))
+                response(request, """{"tagCounts":[]}""")
+            }
+        }.build())
+        try {
+            auth.gateway("listTags")
+            assertEquals(2, calls)
+            assertTrue(requests.none { it.url.encodedPath == "/token" })
+        } finally { auth.signOut() }
+    }
+    @Test fun migrationConflictsRemainRetryableInsteadOfBeingMarkedComplete() = runBlocking {
+        val namespace = "migration-test-${UUID.randomUUID()}"
+        val vault = SecureVault(context, namespace)
+        vault.put("session", JSONObject().put("did", "did:plc:fixture").put("key", vault.createSigningKey()))
+        var conflicts = 1
+        val auth = object : OAuthClient(context, vaultNamespace = namespace) {
+            override suspend fun gateway(operation: String, method: String, input: JSONObject?, query: Map<String, String>): JSONObject {
+                assertEquals("migrateLegacy", operation)
+                return JSONObject().put("skippedConflict", conflicts)
+            }
+        }
+        val db = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java).build()
+        try {
+            val repo = LibraryRepository(auth, db.library())
+            try { repo.migrate {}; fail("Expected retryable conflict") } catch (_: IllegalArgumentException) { }
+            assertFalse(vault.get("migration-did:plc:fixture")!!.getBoolean("complete"))
+            conflicts = 0
+            repo.migrate {}
+            assertTrue(vault.get("migration-did:plc:fixture")!!.getBoolean("complete"))
+        } finally { auth.signOut(); db.close() }
+    }
+    @Test fun cancellationClearsOnlyTheMatchingPendingTransactionAndPreservesDraft() {
+        val auth = seededAuth(OkHttpClient())
+        val pendingKey = auth.vault.createSigningKey()
+        auth.vault.put("pending-auth", JSONObject().put("state", "pending-state").put("key", pendingKey))
+        auth.vault.put("share-draft", JSONObject().put("subject", "https://example.com").put("tags", "News"))
+        try {
+            auth.cancelPendingLogin("other-state")
+            assertNotNull(auth.vault.get("pending-auth"))
+            auth.cancelPendingLogin("pending-state")
+            assertNull(auth.vault.get("pending-auth"))
+            assertEquals("News", auth.vault.get("share-draft")!!.getString("tags"))
+        } finally { auth.signOut(); auth.vault.put("share-draft", null) }
+    }
+    @Test fun feedbackRejectsAccountChangeBeforeUploadingAnything() = runBlocking {
+        var calls = 0
+        val auth = seededAuth(OkHttpClient.Builder().addInterceptor { calls++; error("No request is allowed after the account changes") }.build())
+        val db = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java).build()
+        try {
+            try {
+                LibraryRepository(auth, db.library()).feedback("Draft", "Written for another account", emptyList(), listOf(FeedbackPhoto(byteArrayOf(1), "image/png", "Photo")), "did:plc:previous")
+                fail("Expected account mismatch")
+            } catch (_: IllegalArgumentException) { }
+            assertEquals(0, calls)
+        } finally { auth.signOut(); db.close() }
+    }
+    @Test fun refreshMustIncludeTheAccountSubject() = runBlocking {
+        val auth = seededAuth(OkHttpClient.Builder().addInterceptor { chain -> response(chain.request(), """{"access_token":"rotated","refresh_token":"rotated","expires_in":3600,"token_type":"DPoP"}""") }.build())
+        try {
+            try { auth.currentSession(true); fail("Expected missing-sub rejection") } catch (_: org.json.JSONException) { }
+            assertEquals("fixture-access-token", auth.vault.get("session")!!.getString("accessToken"))
+        } finally { auth.signOut() }
+    }
 }

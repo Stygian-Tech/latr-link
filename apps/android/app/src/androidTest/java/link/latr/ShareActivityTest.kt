@@ -24,4 +24,16 @@ class ShareActivityTest {
             }
         }
     }
+    @Test fun invalidRepeatedShareClearsThePreviousDraft() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val valid = Intent(context, ShareActivity::class.java).setAction(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "https://example.com/previous")
+        ActivityScenario.launch<ShareActivity>(valid).use { scenario ->
+            scenario.onActivity { activity ->
+                val invalid = Intent(activity, ShareActivity::class.java).setAction(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "not a link").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                activity.startActivity(invalid)
+            }
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity -> assertNull((activity.application as LatrApplication).auth.vault.get("share-draft")) }
+        }
+    }
 }

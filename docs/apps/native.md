@@ -64,6 +64,10 @@ bash scripts/ci-android.sh     # JDK and Android SDK
 
 Native CI builds/tests source without publishing apps or accessing hosted user repositories. Apple simulator UI tests use ad-hoc signing so App Group/Keychain entitlements survive; the generic Release compile remains unsigned. Contract fixtures exercise scope/proof parity and Unicode/exact-subject behavior. Platform suites cover native storage, auth state, queue and UI behavior.
 
+The initial Apple implementation was verified with 28 core tests (33 parameterized scenarios), warnings treated as errors, and four UI tests each on iPhone and iPad. The Safari tests exercise the installed Share Extension and persist an unassigned draft in the real shared SQLite container. Core tests include an independent child process holding the account lock and mocked public-feedback serialization; they do not establish signed-in app/extension acceptance. GitHub CI retains native test reports as artifacts for review.
+
+Android verification includes 13 JVM contract tests, 19 API 35 emulator tests, lint, Development debug APK assembly, and unsigned Production release APK assembly. The device suite exercises Room/Keystore, replacement share intents and recreation, token rotation, account isolation, migration conflicts, mocked feedback uploads, proxy nonce retry, and a Compose library fixture. Existing gateway and Bun workspace checks also pass locally; PR #75 records CI status separately.
+
 Before authenticated acceptance, make the metadata available in Development through the normal reviewed deployment process. Then verify:
 
 1. Sign in with the same authorized test account on web and mobile. Verify cancellation and restart restoration.

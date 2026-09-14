@@ -78,7 +78,7 @@ class SecureVault(context: Context, namespace: String = "oauth-encrypted") {
 }
 class APIError(val status: Int, val code: String, message: String) : Exception(message)
 data class HttpResult(val json: JSONObject, val nonce: String?, val status: Int)
-class OAuthClient(
+open class OAuthClient(
     context: Context,
     private val http: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).callTimeout(java.time.Duration.ofSeconds(40)).build(),
     vaultNamespace: String = "oauth-encrypted",
@@ -184,6 +184,7 @@ class OAuthClient(
         val verifiedPds = resolvePDS(token.getString("sub"))
         require(authority(verifiedPds).first == pending.getString("issuer")) { "Authorized account issuer mismatch." }
         require(token.getString("scope").split(' ').contains("atproto") && token.optString("token_type").equals("DPoP", true)) { "Invalid OAuth token response." }
+        validateTokenResponse(token, initial = true)
         val previous = session?.text("key")
         val established = JSONObject(pending.toString()).removeSecrets().put("pds", verifiedPds)
         storeTokens(established, token)
@@ -192,7 +193,8 @@ class OAuthClient(
         if (previous != null && previous != established.getString("key")) vault.deleteKey(previous)
     }
     private fun JSONObject.removeSecrets(): JSONObject { remove("verifier"); remove("state"); remove("createdAt"); return this }
-    private fun storeTokens(target: JSONObject, response: JSONObject) {
+    private fun storeTokens(previous: JSONObject, response: JSONObject) {
+        val target = JSONObject(previous.toString())
         target.put("accessToken", response.getString("access_token")).put("expiresAt", System.currentTimeMillis() + response.getLong("expires_in") * 1000)
         response.text("refresh_token")?.let { target.put("refreshToken", it) }
         response.text("scope")?.let { target.put("scope", it) }
@@ -204,9 +206,10 @@ class OAuthClient(
             val refresh = current.text("refreshToken") ?: error("Your session expired. Sign in again.")
             val form = FormBody.Builder().add("grant_type", "refresh_token").add("client_id", BuildConfig.CLIENT_METADATA).add("refresh_token", refresh).build()
             val response = checked(dpopRequest(current.getString("key"), current.getString("tokenEndpoint"), "POST", form))
-            require(response.optString("sub", current.getString("did")) == current.getString("did")) { "Refreshed account identity mismatch." }
+            require(response.getString("sub") == current.getString("did")) { "Refreshed account identity mismatch." }
             require(response.optString("token_type").equals("DPoP", true)) { "Invalid refreshed token type." }
             require(response.optString("scope", current.optString("scope")).split(' ').contains("atproto")) { "Refresh removed required ATProto permission." }
+            validateTokenResponse(response, initial = false)
             storeTokens(current, response)
         }
         return session!!
@@ -221,7 +224,7 @@ class OAuthClient(
         checked(response)
         return response
     }
-    suspend fun gateway(operation: String, method: String = "GET", input: JSONObject? = null, query: Map<String, String> = emptyMap()): JSONObject {
+    open suspend fun gateway(operation: String, method: String = "GET", input: JSONObject? = null, query: Map<String, String> = emptyMap()): JSONObject {
         repeat(2) { attempt ->
             val current = currentSession()
             val url = Uri.parse(BuildConfig.WEB_ORIGIN + "/api/latr-gateway/xrpc/link.latr.bookmarks.$operation").buildUpon().apply { query.forEach { (key, value) -> appendQueryParameter(key, value) } }.build().toString()
@@ -247,6 +250,7 @@ class OAuthClient(
             val payload = JSONObject(input?.toString() ?: "{}")
             val headers = mutableMapOf("X-Latr-User-Authorization" to "DPoP ${current.getString("accessToken")}", "X-Latr-User-DPoP" to vault.proof(current.getString("key"), method, url, current.getString("accessToken"), synchronized(nonces) { nonces[origin(url)] }))
             if (operation == "migrateLegacy") payload.put("upstreamDpopProof", proofs) else if (proofs.isNotEmpty()) headers["X-ATProto-Upstream-DPoP"] = proofs
+            if (session?.text("accessToken") != current.text("accessToken")) return@repeat
             val response = request(url, method, if (method == "GET") null else payload.toString().toRequestBody("application/json".toMediaType()), headers)
             if (attempt == 0 && response.status == 401) {
                 if (response.json.optString("error") != "use_dpop_nonce" || response.nonce == null) currentSession(true)
@@ -257,6 +261,12 @@ class OAuthClient(
             return checked(response)
         }
         error("Your session could not be refreshed. Sign in again.")
+    }
+    fun cancelPendingLogin(expectedState: String) {
+        val pending = vault.get("pending-auth") ?: return
+        if (pending.text("state") != expectedState) return
+        pending.text("key")?.let(vault::deleteKey)
+        vault.put("pending-auth", null)
     }
     fun signOut() {
         session?.text("key")?.let(vault::deleteKey)

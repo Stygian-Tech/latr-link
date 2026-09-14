@@ -36,3 +36,9 @@ fun feedbackScopeAllowed(scope: String, photos: Boolean): Boolean {
     }
     return tokens.any(::canCreate) && (!photos || tokens.any(::canUpload))
 }
+
+fun validateTokenResponse(response: org.json.JSONObject, initial: Boolean) {
+    require(!response.text("access_token").isNullOrBlank()) { "Authorization server returned an empty access token." }
+    require(response.optLong("expires_in", 0) > 0) { "Authorization server returned an invalid token lifetime." }
+    if (initial || response.has("refresh_token")) require(!response.text("refresh_token").isNullOrBlank()) { "Authorization server returned an empty refresh token." }
+}

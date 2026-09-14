@@ -17,10 +17,10 @@ if [ -n "${NATIVE_APPLE_DESTINATION:-}" ]; then
 else
   devices="$(xcrun simctl list devices available --json)"
   ids="$(printf '%s' "$devices" | python3 -c '
-import json,sys
+import json,re,sys
 all_devices=json.load(sys.stdin)["devices"]
 for family in ("iPhone", "iPad"):
-    matches=[d for runtime, ds in all_devices.items() if "iOS" in runtime for d in ds if d.get("isAvailable") and family in d["name"]]
+    matches=[d for runtime, ds in all_devices.items() if (version := re.search(r"iOS-(\d+)", runtime)) and int(version.group(1)) >= 18 for d in ds if d.get("isAvailable") and family in d["name"]]
     if not matches: raise SystemExit("No available " + family + " simulator")
     print(matches[-1]["udid"])
 ')"

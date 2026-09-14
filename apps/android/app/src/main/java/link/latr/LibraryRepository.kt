@@ -34,7 +34,7 @@ class LibraryRepository(val auth: OAuthClient, private val dao: LibraryDao) {
         require(collision == null || collision.id == item.id) { "This link is already queued. Edit that pending save instead." }
         dao.update(item.copy(subject = exact, tags = JSONArray(tags).toString(), error = null))
     }
-    suspend fun discard(id: String) { dao.discard(id, did()) }
+    suspend fun discard(id: String) = mutex.withLock { dao.discard(id, did()) }
     suspend fun drainQueue(onProgress: suspend () -> Unit = {}) = mutex.withLock {
         val account = did()
         for (item in dao.pending(account)) {
@@ -101,7 +101,11 @@ class LibraryRepository(val auth: OAuthClient, private val dao: LibraryDao) {
         } while (cursor != null)
         return counts.toSortedMap().map { TagCount(it.key, it.value) }
     }
+    private fun requireOwnBookmark(bookmark: Bookmark) {
+        require(java.net.URI(bookmark.uri).rawAuthority == did()) { "The account changed. Reload the library before editing this bookmark." }
+    }
     suspend fun changeState(bookmark: Bookmark) = mutex.withLock {
+        requireOwnBookmark(bookmark)
         val updated = auth.gateway("setState", "PATCH", JSONObject().put("bookmarkUri", bookmark.uri).put("state", if (bookmark.archived) "unread" else "archived"))
         val key = "archive-times-${did()}"
         val times = auth.vault.get(key) ?: JSONObject()
@@ -110,14 +114,17 @@ class LibraryRepository(val auth: OAuthClient, private val dao: LibraryDao) {
         if (updated.has("uri")) dao.cache(listOf(CachedBookmark(did(), bookmark.uri, updated.toString())))
     }
     suspend fun setTags(bookmark: Bookmark, tags: List<String>) = mutex.withLock {
+        requireOwnBookmark(bookmark)
         val updated = auth.gateway("setTags", "POST", JSONObject().put("bookmarkUri", bookmark.uri).put("tags", JSONArray(tags)))
         dao.cache(listOf(CachedBookmark(did(), bookmark.uri, updated.toString())))
     }
     suspend fun remove(bookmark: Bookmark) = mutex.withLock {
+        requireOwnBookmark(bookmark)
         auth.gateway("deleteBookmark", "POST", JSONObject().put("bookmarkUri", bookmark.uri))
         dao.remove(did(), bookmark.uri)
     }
-    suspend fun bulkTag(tag: String, replacement: String?, progress: (String) -> Unit) = mutex.withLock {
+    suspend fun bulkTag(tag: String, replacement: String?, expectedDID: String = did(), progress: (String) -> Unit) = mutex.withLock {
+        require(expectedDID == did()) { "The account changed. Review this tag operation again." }
         val key = "bulk-tag-${did()}"
         val prior = auth.vault.get(key)
         var state = if (prior?.text("tag") == tag && prior.text("replacement") == replacement) prior else JSONObject().put("tag", tag).apply { replacement?.let { put("replacement", it) } }.put("updated", 0).put("pass", 1)
@@ -142,7 +149,8 @@ class LibraryRepository(val auth: OAuthClient, private val dao: LibraryDao) {
         state.put("pass", 1); auth.vault.put(key, state)
         error("Concurrent changes reintroduced this tag. Retry when edits have settled.")
     }
-    suspend fun migrate(progress: (String) -> Unit) = mutex.withLock {
+    suspend fun migrate(expectedDID: String = did(), progress: (String) -> Unit) = mutex.withLock {
+        require(expectedDID == did()) { "The account changed. Review migration again." }
         val key = "migration-${did()}"
         var state = auth.vault.get(key) ?: JSONObject()
         var cursor = state.text("cursor")
@@ -160,12 +168,28 @@ class LibraryRepository(val auth: OAuthClient, private val dao: LibraryDao) {
         } while (cursor != null)
         require(conflicts == 0) { "Migration retained $conflicts conflicting records. Run migration again after concurrent edits settle." }
     }
-    suspend fun clearCache() { dao.clearCache(did()) }
+    suspend fun clearCache() = mutex.withLock { dao.clearCache(did()) }
     suspend fun exportJSON(): String {
         val (account, rows) = allPages()
         return JSONObject().put("exportedAt", Instant.now().toString()).put("did", account).put("savedItems", JSONArray(rows.map { val item = JSONObject(it.json); JSONObject().put("uri", item.getString("uri")).put("cid", item.getString("cid")).put("value", item.getJSONObject("value")) })).toString(2)
     }
-    suspend fun feedback(title: String, body: String, tags: List<String>, photos: List<FeedbackPhoto>): String = mutex.withLock {
+    fun needsMigration() = auth.did?.let { auth.vault.get("migration-$it")?.optBoolean("complete") != true } ?: false
+    suspend fun resolveReadingURL(subject: String): String? {
+        if (subject.startsWith("https://") || subject.startsWith("http://")) return subject
+        val uri = java.net.URI(Contracts.subject(subject))
+        val parts = uri.path.split('/')
+        val owner = auth.resolveDID(uri.rawAuthority)
+        if (parts[1] == "app.bsky.feed.post") return "https://bsky.app/profile/$owner/post/${parts[2]}"
+        val pds = auth.resolvePDS(owner)
+        val record = auth.publicJSON("$pds/xrpc/com.atproto.repo.getRecord?repo=${Uri.encode(owner)}&collection=${Uri.encode(parts[1])}&rkey=${Uri.encode(parts[2])}").getJSONObject("value")
+        if (record.optString("\$type") in listOf("link.latr.saved.external", "com.latr.saved.external")) {
+            val link = record.text("normalizedUrl") ?: record.text("url") ?: return null
+            if (runCatching { Contracts.subject(link) }.isSuccess && (link.startsWith("https://") || link.startsWith("http://"))) return link
+        }
+        return null
+    }
+    suspend fun feedback(title: String, body: String, tags: List<String>, photos: List<FeedbackPhoto>, expectedDID: String = did()): String = mutex.withLock {
+        require(expectedDID == did()) { "The signed-in account changed. Review your public feedback again." }
         require(title.trim().isNotEmpty() && title.length <= 200 && body.length <= 10_000 && photos.size <= 4) { "Feedback requires a title up to 200 characters, details up to 10,000 characters, and at most four photos." }
         val scope = auth.currentSession().optString("scope")
         require(feedbackScopeAllowed(scope, photos.isNotEmpty())) { "Sign in again to grant feedback permissions." }

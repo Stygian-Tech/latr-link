@@ -31,72 +31,97 @@ import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONArray
 
-class LibraryViewModel(application: android.app.Application) : AndroidViewModel(application) {
+class LibraryViewModel(application: android.app.Application, val repository: LibraryRepository) : AndroidViewModel(application) {
+    constructor(application: android.app.Application) : this(application, (application as LatrApplication).repository)
     val app = application as LatrApplication
-    val repository = app.repository
-    var did by mutableStateOf(app.auth.did); private set
+    var did by mutableStateOf(repository.auth.did); private set
     var rows by mutableStateOf<List<Bookmark>>(emptyList()); private set
     var pending by mutableStateOf<List<PendingSave>>(emptyList()); private set
     var tags by mutableStateOf<List<TagCount>>(emptyList()); private set
     var busy by mutableStateOf(false); private set
     var message by mutableStateOf<String?>(null)
-    var shared by mutableStateOf(app.auth.vault.get("share-draft")?.text("subject").orEmpty())
-    var draftTags by mutableStateOf(app.auth.vault.get("share-draft")?.text("tags").orEmpty())
-    var candidates by mutableStateOf(app.auth.vault.get("share-draft")?.optJSONArray("candidates")?.strings().orEmpty())
+    var shared by mutableStateOf(repository.auth.vault.get("share-draft")?.text("subject").orEmpty())
+    var draftTags by mutableStateOf(repository.auth.vault.get("share-draft")?.text("tags").orEmpty())
+    var candidates by mutableStateOf(repository.auth.vault.get("share-draft")?.optJSONArray("candidates")?.strings().orEmpty())
     var nextCursor by mutableStateOf<String?>(null); private set
     private val pageCursors = mutableSetOf<String>()
+    private val attemptedMigrations = mutableSetOf<String>()
+    private suspend fun migrateAfterLibrary() {
+        val account = repository.auth.did ?: return
+        if (!repository.needsMigration() || !attemptedMigrations.add(account)) return
+        try {
+            message = "Checking legacy bookmarks…"
+            repository.migrate(account) { message = it }
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            message = "Legacy migration needs a retry in Settings: ${error.message}"
+        }
+    }
+    fun cancelLogin() {
+        val state = repository.auth.vault.get("pending-auth")?.text("state") ?: return
+        viewModelScope.launch {
+            // Give the Custom Tabs fallback's delivered Intent a chance to claim its transaction.
+            delay(400)
+            repository.mutex.withLock { repository.auth.cancelPendingLogin(state) }
+            if (repository.auth.did == null) message = "Sign in canceled. Your draft is preserved."
+        }
+    }
     fun action(block: suspend () -> Unit) {
         if (busy) return
         viewModelScope.launch {
             busy = true
             message = null
-            try { block() } catch (error: Exception) {
+            try {
+                require(did == repository.auth.did) { "The signed-in account changed. Reload this screen and review the action again." }
+                block()
+            } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 message = error.message ?: "The operation failed. Please retry."
             } finally {
-                if (did != app.auth.did) { rows = emptyList(); pending = emptyList(); tags = emptyList(); nextCursor = null }
-                did = app.auth.did
+                if (did != repository.auth.did) { rows = emptyList(); pending = emptyList(); tags = emptyList(); nextCursor = null }
+                did = repository.auth.did
                 busy = false
             }
         }
     }
     private suspend fun local() {
-        val account = app.auth.did
+        val account = repository.auth.did
         val cached = repository.cached()
         val queued = repository.pending()
-        if (app.auth.did == account) { rows = cached; pending = queued; did = account }
+        if (repository.auth.did == account) { rows = cached; pending = queued; did = account }
     }
     fun updateDraft(subject: String, tags: String) {
         shared = subject
         draftTags = tags
-        app.auth.vault.put("share-draft", JSONObject().put("subject", subject).put("tags", tags).put("candidates", JSONArray(candidates)))
+        repository.auth.vault.put("share-draft", JSONObject().put("subject", subject).put("tags", tags).put("candidates", JSONArray(candidates)))
     }
     private suspend fun refresh() {
-        val account = app.auth.did
+        val account = repository.auth.did
         local()
-        if (app.auth.did == null) return
-        repository.drainQueue { if (account == app.auth.did) pending = repository.pending() }
-        if (account != app.auth.did) return
+        if (repository.auth.did == null) return
+        repository.drainQueue { if (account == repository.auth.did) pending = repository.pending() }
+        if (account != repository.auth.did) return
         pending = repository.pending()
         val page = repository.page()
-        if (account != app.auth.did) return
+        if (account != repository.auth.did) return
         rows = page.first
         nextCursor = page.second
         pageCursors.clear()
         page.second?.let(pageCursors::add)
         val inventory = repository.tags()
-        if (account == app.auth.did) tags = inventory
+        if (account == repository.auth.did) tags = inventory
     }
     fun more() = action {
-        val account = app.auth.did
+        val account = repository.auth.did
         val cursor = nextCursor ?: return@action
         val page = repository.page(cursor)
-        if (account != app.auth.did) return@action
+        if (account != repository.auth.did) return@action
         require(page.second == null || pageCursors.add(page.second!!)) { "The server repeated a library cursor." }
         rows = (rows + page.first).distinctBy { it.uri }
         nextCursor = page.second
@@ -105,11 +130,11 @@ class LibraryViewModel(application: android.app.Application) : AndroidViewModel(
         repository.editPending(item, subject, Contracts.authoredTags(tags)); pending = repository.pending(); done()
     }
     fun shareForeground() {
-        if (app.auth.did != null && !busy) action { local(); repository.drainQueue { pending = repository.pending() }; local() }
+        if (repository.auth.did != null && !busy) action { local(); repository.drainQueue { pending = repository.pending() }; local() }
     }
-    fun foreground() { if (app.auth.did != null && !busy && app.auth.vault.get("pending-auth") == null) action { refresh() } }
+    fun foreground() { if (repository.auth.did != null && !busy && repository.auth.vault.get("pending-auth") == null) action { refresh(); migrateAfterLibrary() } }
     fun login(handle: String, open: (String) -> Unit) = action {
-        val url = repository.mutex.withLock { app.auth.beginLogin(handle) }
+        val url = repository.mutex.withLock { repository.auth.beginLogin(handle) }
         open(url)
     }
     fun callback(uri: Uri) {
@@ -117,11 +142,12 @@ class LibraryViewModel(application: android.app.Application) : AndroidViewModel(
         viewModelScope.launch {
             busy = true
             try {
-                repository.mutex.withLock { app.auth.completeLogin(uri) }
-                did = app.auth.did
-                shared = app.auth.vault.get("share-draft")?.text("subject").orEmpty()
-                draftTags = app.auth.vault.get("share-draft")?.text("tags").orEmpty()
+                repository.mutex.withLock { repository.auth.completeLogin(uri) }
+                did = repository.auth.did
+                shared = repository.auth.vault.get("share-draft")?.text("subject").orEmpty()
+                draftTags = repository.auth.vault.get("share-draft")?.text("tags").orEmpty()
                 refresh()
+                migrateAfterLibrary()
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 message = error.message
@@ -131,7 +157,7 @@ class LibraryViewModel(application: android.app.Application) : AndroidViewModel(
     fun save(subject: String, authoredTags: String, success: () -> Unit) = action {
         repository.enqueue(subject, Contracts.authoredTags(authoredTags), did ?: error("Sign in to continue."))
         shared = ""
-        app.auth.vault.put("share-draft", null)
+        repository.auth.vault.put("share-draft", null)
         pending = repository.pending()
         repository.drainQueue { pending = repository.pending() }
         local()
@@ -139,7 +165,7 @@ class LibraryViewModel(application: android.app.Application) : AndroidViewModel(
         success()
     }
     fun signOut() = action {
-        repository.mutex.withLock { app.auth.signOut() }
+        repository.mutex.withLock { repository.auth.signOut() }
         did = null; rows = emptyList(); pending = emptyList(); tags = emptyList()
         message = "Signed out. Pending saves remain assigned to their original account."
     }
@@ -148,10 +174,10 @@ class LibraryViewModel(application: android.app.Application) : AndroidViewModel(
     fun editTags(row: Bookmark, value: String, done: () -> Unit) = action { repository.setTags(row, Contracts.authoredTags(value)); refresh(); done() }
     fun bulk(tag: String, replacement: String?, done: () -> Unit) = action {
         replacement?.let { require(Contracts.authoredTags(it).size == 1 && it.trim() != tag) { "Enter one different replacement tag." } }
-        repository.bulkTag(tag, replacement?.trim()) { message = it }; refresh(); done()
+        repository.bulkTag(tag, replacement?.trim(), did ?: error("Sign in to continue.")) { message = it }; refresh(); done()
     }
     fun discard(item: PendingSave) = action { repository.discard(item.id); pending = repository.pending() }
-    fun migrate() = action { repository.migrate { message = it }; refresh(); message = "Migration complete." }
+    fun migrate() = action { repository.migrate(did ?: error("Sign in to continue.")) { message = it }; refresh(); message = "Migration complete." }
     fun clearCache() = action { repository.clearCache(); rows = emptyList(); message = "Local library cache cleared. Pending saves are preserved." }
     fun appearance(value: Appearance) { viewModelScope.launch { app.settings.set(value) } }
 }
@@ -160,7 +186,8 @@ open class MainActivity : ComponentActivity() {
     protected open val shareMode = false
     private val authLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
         if (result.resultCode == AuthTabIntent.RESULT_OK) result.resultUri?.let(model::callback)
-        else if (!model.busy && model.app.auth.did == null) model.message = "Sign in was not completed. Your draft is preserved."
+        else if (result.resultCode == AuthTabIntent.RESULT_CANCELED) model.cancelLogin()
+        else model.message = "Browser verification did not complete. Retry sign in."
     }
     fun launchLogin(url: String) {
         AuthTabIntent.Builder().build().launch(authLauncher, Uri.parse(url), Uri.parse(BuildConfig.REDIRECT_URI).scheme!!)
@@ -180,13 +207,17 @@ open class MainActivity : ComponentActivity() {
 class ShareActivity : MainActivity() {
     override val shareMode = true
     override fun readIntent(intent: Intent) {
+        model.shared = ""
+        model.draftTags = ""
+        model.candidates = emptyList()
+        model.repository.auth.vault.put("share-draft", null)
         if (intent.action != Intent.ACTION_SEND || intent.type != "text/plain") { model.message = "Share one text link to L@tr.link."; return }
         try {
             val raw = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString() ?: error("No text was shared.")
             model.candidates = Contracts.sharedCandidates(raw)
             require(model.candidates.isNotEmpty()) { "No supported link was shared." }
             model.shared = model.candidates.singleOrNull().orEmpty()
-            model.app.auth.vault.put("share-draft", JSONObject().put("subject", model.shared).put("candidates", JSONArray(model.candidates)))
+            model.repository.auth.vault.put("share-draft", JSONObject().put("subject", model.shared).put("candidates", JSONArray(model.candidates)))
         } catch (error: Exception) { model.message = error.message }
     }
 }
@@ -239,6 +270,7 @@ class ShareActivity : MainActivity() {
     var edit by remember { mutableStateOf<Bookmark?>(null) }
     var tagOperation by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
     var feedback by remember { mutableStateOf(false) }
+    var unavailable by remember { mutableStateOf<Bookmark?>(null) }
     var editingPending by remember { mutableStateOf<PendingSave?>(null) }
     val context = LocalContext.current
     LaunchedEffect(model.shared, model.draftTags) { subject = model.shared; authoredTags = model.draftTags }
@@ -249,15 +281,26 @@ class ShareActivity : MainActivity() {
             model.message = "JSON exported."
         }
     }
-    val visible = model.rows.filter { it.archived == (section == "Archive") && (bucket == "All" || it.bucket == bucket) && (selectedTag == null || selectedTag in it.tags) }.let { rows -> when (sort) { "Oldest" -> rows.sortedBy { it.createdAt }; "Title" -> rows.sortedBy { it.title.lowercase() }; else -> rows.sortedByDescending { if (section == "Archive") it.archivedAt ?: it.createdAt else it.createdAt } } }
-    Scaffold(topBar = { TopAppBar(title = { Text(if (shareMode) "Save to L@tr.link" else "L@tr.link") }, actions = { if (shareMode) TextButton(onClick = onClose) { Text("Close") } else TextButton(onClick = model::foreground, enabled = !model.busy) { Text("Refresh") } }) }, bottomBar = {
-        if (!shareMode) NavigationBar { listOf("Unread", "Archive", "Tags", "Settings").forEach { tab -> NavigationBarItem(selected = section == tab, onClick = { section = tab }, icon = { Text(when (tab) { "Unread" -> "▤"; "Archive" -> "▣"; "Tags" -> "#"; else -> "⚙" }) }, label = { Text(tab) }) } }
+    val visible = model.rows.filter { it.archived == (section == "Archive") && (bucket == "All" || it.bucket == bucket) && (selectedTag == null || selectedTag in it.tags) }.let { rows -> when (sort) { "Oldest" -> rows.sortedBy { it.createdAt }; "Title" -> rows.sortedBy { it.title.lowercase() }; "Recently archived" -> rows.sortedByDescending { it.archivedAt ?: it.createdAt }; else -> rows.sortedByDescending { it.createdAt } } }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val wide = maxWidth >= 600.dp && !shareMode
+    Row(Modifier.fillMaxSize()) {
+    if (wide) NavigationRail(Modifier.safeDrawingPadding().fillMaxHeight()) {
+        listOf("Unread", "Archive", "Tags", "Settings").forEach { tab ->
+            NavigationRailItem(selected = section == tab, onClick = { section = tab }, icon = { Text(when (tab) { "Unread" -> "▤"; "Archive" -> "▣"; "Tags" -> "#"; else -> "⚙" }) }, label = { Text(tab) })
+        }
+    }
+    Scaffold(modifier = Modifier.weight(1f), topBar = { TopAppBar(title = { Text(if (shareMode) "Save to L@tr.link" else "L@tr.link") }, actions = { if (shareMode) TextButton(onClick = onClose) { Text("Close") } else TextButton(onClick = model::foreground, enabled = !model.busy) { Text("Refresh") } }) }, bottomBar = {
+        if (!shareMode && !wide) NavigationBar { listOf("Unread", "Archive", "Tags", "Settings").forEach { tab -> NavigationBarItem(selected = section == tab, onClick = { section = tab }, icon = { Text(when (tab) { "Unread" -> "▤"; "Archive" -> "▣"; "Tags" -> "#"; else -> "⚙" }) }, label = { Text(tab) }) } }
     }) { padding ->
-        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.padding(padding).fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 840.dp), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (model.busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             model.message?.let { item { Text(it); TextButton(onClick = { model.message = null }) { Text("Dismiss") } } }
             if (section == "Unread" || shareMode) item {
                 Text("Save link or AT URI", style = MaterialTheme.typography.titleMedium)
+                Text("Saving as ${model.repository.auth.handle}", style = MaterialTheme.typography.bodyMedium)
+                Text(model.did.orEmpty(), style = MaterialTheme.typography.bodySmall)
+                if (shareMode) TextButton(onClick = onClose) { Text("Cancel") }
                 if (model.candidates.size > 1) {
                     Text("Choose a shared link")
                     model.candidates.forEach { candidate -> TextButton(onClick = { subject = candidate; model.updateDraft(candidate, authoredTags) }) { Text(candidate, maxLines = 2) } }
@@ -276,7 +319,7 @@ class ShareActivity : MainActivity() {
                     item {
                         Text(section, style = MaterialTheme.typography.headlineMedium)
                         Choice("Content", listOf("All", "Articles", "Social", "Other"), bucket) { bucket = it }
-                        Choice("Sort", listOf("Newest", "Oldest", "Title"), sort) { sort = it }
+                        Choice("Sort", listOf("Newest", "Oldest", "Title", "Recently archived"), sort) { sort = it }
                         selectedTag?.let { tag -> TextButton(onClick = { selectedTag = null }) { Text("Tag: $tag · Clear") } }
                         Text("${visible.size} loaded items · ${visible.sumOf { it.readingMinutes }} min reading", style = MaterialTheme.typography.labelMedium)
                     }
@@ -289,7 +332,11 @@ class ShareActivity : MainActivity() {
                         } else if (link.contains("/app.bsky.feed.post/")) {
                             val parts = link.removePrefix("at://").split('/')
                             openInAppBrowser(context, "https://bsky.app/profile/${parts[0]}/post/${parts.last()}")
-                        } else model.message = "This AT record has no web reading link. Its original AT URI remains saved."
+                        } else model.action {
+                            val resolved = runCatching { model.repository.resolveReadingURL(link) }.getOrNull()
+                            if (resolved == null) unavailable = row
+                            else if (row.bucket == "Articles") openExternal(context, resolved) else openInAppBrowser(context, resolved)
+                        }
                     }, archive = { model.state(row) }, tags = { edit = row }, remove = { remove = row }) }
                 }
                 "Tags" -> {
@@ -299,7 +346,7 @@ class ShareActivity : MainActivity() {
                 "Settings" -> {
                     item {
                         Text("Settings", style = MaterialTheme.typography.headlineMedium)
-                        Text(model.app.auth.handle)
+                        Text(model.repository.auth.handle)
                         Text(model.did.orEmpty(), style = MaterialTheme.typography.bodySmall)
                         Choice("Theme", listOf("System", "Light", "Dark"), appearance.theme) { model.appearance(appearance.copy(theme = it)) }
                         Choice("Font", listOf("Sans", "Serif", "Mono"), appearance.font) { model.appearance(appearance.copy(font = it)) }
@@ -319,6 +366,8 @@ class ShareActivity : MainActivity() {
             }
         }
     }
+    }
+    }
     remove?.let { row -> AlertDialog(onDismissRequest = { remove = null }, title = { Text("Remove saved item?") }, text = { Text("Archive moves this item out of Unread. Remove permanently deletes the bookmark.") }, confirmButton = { TextButton(onClick = { model.remove(row); remove = null }, enabled = !model.busy) { Text("Remove permanently") } }, dismissButton = { Row { if (!row.archived) TextButton(onClick = { model.state(row); remove = null }) { Text("Archive instead") }; TextButton(onClick = { remove = null }) { Text("Cancel") } } }) }
     edit?.let { row -> TextEditorDialog("Edit tags", row.tags.joinToString(", "), "Replace or clear this bookmark's tags.", !model.busy, dismiss = { edit = null }) { model.editTags(row, it) { edit = null } } }
     tagOperation?.let { (tag, rename) -> TextEditorDialog(if (rename) "Rename $tag" else "Remove $tag?", "", if (rename) "Changes this exact tag throughout your library. Retry resumes an interrupted batch." else "Removes this tag from every bookmark. Bookmarks are preserved.", !model.busy, showInput = rename, dismiss = { tagOperation = null }) { model.bulk(tag, if (rename) it else null) { tagOperation = null } } }
@@ -330,6 +379,14 @@ class ShareActivity : MainActivity() {
             OutlinedTextField(editedTags, { editedTags = it }, label = { Text("Tags") })
         } }, confirmButton = { TextButton(onClick = { model.editPending(item, editedSubject, editedTags) { editingPending = null } }, enabled = !model.busy) { Text("Save changes") } }, dismissButton = { TextButton(onClick = { editingPending = null }) { Text("Cancel") } })
     }
+    unavailable?.let { row -> AlertDialog(onDismissRequest = { unavailable = null }, title = { Text("Reading link unavailable") }, text = { Text("This AT record has no supported web reading link. The original URI remains saved.") }, confirmButton = { TextButton(onClick = { model.action {
+        val link = runCatching { model.repository.resolveReadingURL(row.subject) }.getOrNull()
+        if (link != null) { unavailable = null; if (row.bucket == "Articles") openExternal(context, link) else openInAppBrowser(context, link) }
+        else model.message = "No reading link was found."
+    } }, enabled = !model.busy) { Text("Retry") } }, dismissButton = { Row {
+        TextButton(onClick = { (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("AT URI", row.subject)) }) { Text("Copy URI") }
+        TextButton(onClick = { unavailable = null }) { Text("Close") }
+    } }) }
     if (feedback) FeedbackDialog(model) { feedback = false }
 }
 @Composable fun Choice(label: String, choices: List<String>, selected: String, select: (String) -> Unit) {
@@ -368,7 +425,7 @@ fun openInAppBrowser(context: android.content.Context, url: String) {
     var error by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(4)) { photos = it.take(4) }
-    LaunchedEffect(Unit) { try { val board = model.app.auth.publicJSON("https://userinput.app/api/board/${Contracts.boardDid}/${Contracts.boardKey}"); available = board.getJSONObject("board").getJSONObject("value").optJSONArray("tags")?.objects()?.map { it.getString("value") to it.getString("label") }.orEmpty() } catch (failure: Exception) { error = failure.message } }
+    LaunchedEffect(Unit) { try { val board = model.repository.auth.publicJSON("https://userinput.app/api/board/${Contracts.boardDid}/${Contracts.boardKey}"); available = board.getJSONObject("board").getJSONObject("value").optJSONArray("tags")?.objects()?.map { it.getString("value") to it.getString("label") }.orEmpty() } catch (failure: Exception) { error = failure.message } }
     AlertDialog(onDismissRequest = { if (!model.busy) dismiss() }, title = { Text("Public feedback") }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Feedback and photos are published publicly to your AT Protocol account and the L@tr.link User Input board.")
         OutlinedTextField(title, { title = it.take(200) }, label = { Text("Title") }, enabled = !model.busy)
@@ -381,12 +438,13 @@ fun openInAppBrowser(context: android.content.Context, url: String) {
     } }, confirmButton = { TextButton(onClick = {
         model.action {
             try {
+                val expectedDID = model.did ?: error("Sign in to publish feedback.")
                 val attachments = withContext(Dispatchers.IO) { photos.mapIndexed { index, uri ->
                     val mime = context.contentResolver.getType(uri) ?: error("The selected photo has no image type.")
                     val bytes = context.contentResolver.openInputStream(uri)?.use { stream -> readBounded(stream, 5 * 1024 * 1024) } ?: error("Could not read the selected photo.")
                     FeedbackPhoto(bytes, mime, "Feedback photo ${index + 1}")
                 } }
-                model.repository.feedback(title, body, selected, attachments)
+                model.repository.feedback(title, body, selected, attachments, expectedDID)
                 model.message = "Public feedback sent."; dismiss()
             } catch (failure: Exception) { error = failure.message; throw failure }
         }
