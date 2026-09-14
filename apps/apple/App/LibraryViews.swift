@@ -89,9 +89,7 @@ private struct LoginView: View {
                     Image("Brand").resizable().scaledToFit().frame(width: 76, height: 76).accessibilityHidden(true)
                     Text("Make time for what matters.").font(.largeTitle.bold())
                     Text("Save links from your favorite apps. Read them later on your phone, iPad, or the web.").foregroundStyle(.secondary)
-                    TextField("AT Protocol handle", text: $handle)
-                        .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .keyboardType(.URL).textFieldStyle(.roundedBorder).onSubmit { login() }
+                    LoginHandleField(handle: $handle, signingIn: model.signingIn, submit: login)
                     Button(action: login) {
                         HStack { if model.signingIn { ProgressView() }; Text(model.signingIn ? "Signing in…" : "Sign in") }.frame(maxWidth: .infinity)
                     }.buttonStyle(.borderedProminent).controlSize(.large).disabled(handle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.signingIn)
@@ -152,16 +150,25 @@ struct LibraryView: View {
             ForEach(Array(filtered.prefix(visibleCount)), id: \.uri) { bookmark in
                 Button { open(bookmark) } label: { BookmarkRow(bookmark: bookmark) }.buttonStyle(.plain)
                     .contextMenu {
-                        Button(archived ? "Move to unread" : "Archive", systemImage: archived ? "tray" : "archivebox") { changeState(bookmark) }
+                        Button(archived ? "Move to unread" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox") { changeState(bookmark) }
                         Button("Edit tags", systemImage: "tag") { editing = BookmarkSelection(bookmark: bookmark) }
                         ShareLink(item: bookmark.value.subject)
                         Button("Delete", systemImage: "trash", role: .destructive) { deleting = BookmarkSelection(bookmark: bookmark) }
                     }
                     .swipeActions(edge: .trailing) {
-                        Button("Delete", role: .destructive) { deleting = BookmarkSelection(bookmark: bookmark) }
-                        Button(archived ? "Unread" : "Archive") { changeState(bookmark) }.tint(.blue)
+                        Button("Delete", systemImage: "trash", role: .destructive) { deleting = BookmarkSelection(bookmark: bookmark) }
+                            .tint(.red)
+                            .labelStyle(.titleAndIcon)
+                        Button(archived ? "Restore to unread" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox") { changeState(bookmark) }
+                            .tint(.indigo)
+                            .labelStyle(.titleAndIcon)
                     }
-                    .swipeActions(edge: .leading) { Button("Tags") { editing = BookmarkSelection(bookmark: bookmark) }.tint(.orange) }
+                    .swipeActions(edge: .leading) {
+                        Button("Tags", systemImage: "tag") { editing = BookmarkSelection(bookmark: bookmark) }
+                            .tint(.orange)
+                            .labelStyle(.titleAndIcon)
+                            .accessibilityIdentifier("bookmark-tags-action")
+                    }
             }
             if visibleCount < filtered.count || model.cursor != nil {
                 Button(model.loadingMore ? "Loading…" : "Load more") {
