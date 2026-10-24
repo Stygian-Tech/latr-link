@@ -44,6 +44,12 @@ afterEach(() => {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem("latr.link.saved-preview.v7");
   }
+  // Later server-component imports must not mistake this localStorage mock for a browser.
+  if (originalWindow) {
+    Object.defineProperty(globalThis, "window", originalWindow);
+  } else {
+    Reflect.deleteProperty(globalThis, "window");
+  }
 });
 
 describe("Saved Item Has Protocol Preview", () => {
