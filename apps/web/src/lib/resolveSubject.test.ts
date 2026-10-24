@@ -16,6 +16,8 @@ import {
   writeCachedSubjectPreview,
 } from "@/lib/savedPreviewCache";
 
+const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+
 const externalSubject =
   "at://did:plc:viewer/link.latr.saved.external/3abc";
 
@@ -294,5 +296,11 @@ describe("Saved Preview Cache", () => {
     expect(
       readCachedSubjectPreview(rec.value.subjectUri, "stale-fingerprint")
     ).toBeNull();
+  });
+
+  test("Restores the Browser Global after the Storage Fixture", () => {
+    expect(Object.getOwnPropertyDescriptor(globalThis, "window")).toEqual(
+      originalWindow
+    );
   });
 });
