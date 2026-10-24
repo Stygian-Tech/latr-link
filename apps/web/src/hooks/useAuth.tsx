@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleSignOut = useCallback(async () => {
     if (demoMode) {
       setSession({ did: DEMO_DID });
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Sign-out needs a full reload to reset in-memory session and query state.
       window.location.assign("/");
       return;
     }
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authSignOut(session.did);
       oauthSessionRef.current = null;
       setSession(null);
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Sign-out needs a full reload to reset in-memory session and query state.
       window.location.assign("/");
     }
   }, [demoMode, session]);
