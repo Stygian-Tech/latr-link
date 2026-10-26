@@ -303,4 +303,10 @@ describe("Saved Preview Cache", () => {
       readCachedSubjectPreview(rec.value.subjectUri, "stale-fingerprint")
     ).toBeNull();
   });
+
+  test("Restores the Browser Global after the Storage Fixture", () => {
+    expect(Object.getOwnPropertyDescriptor(globalThis, "window")).toEqual(
+      originalWindow
+    );
+  });
 });
