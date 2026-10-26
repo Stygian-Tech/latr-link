@@ -92,9 +92,9 @@ export function extensionOAuthRedirectUri(
   return value;
 }
 
-export function extensionWebAppUrl(): string {
+export function extensionWebAppUrl(env: ExtensionEnv = import.meta.env): string {
   return (
-    import.meta.env.VITE_LATR_WEB_URL?.trim()?.replace(/\/$/, "") ??
+    trimmed(env.VITE_LATR_WEB_URL)?.replace(/\/$/, "") ??
     "https://latr.link"
   );
 }

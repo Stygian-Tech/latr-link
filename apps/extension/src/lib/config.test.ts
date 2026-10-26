@@ -5,9 +5,23 @@ import {
   extensionGatewayConfig,
   extensionOAuthClientId,
   extensionOAuthRedirectUri,
+  extensionWebAppUrl,
 } from "./config";
 
 describe("Extension Configuration", () => {
+  test("Uses the hosted website for missing or blank web URL settings", () => {
+    for (const value of [undefined, "", "   "]) {
+      const base = extensionWebAppUrl({ VITE_LATR_WEB_URL: value });
+      expect(new URL(`${base}/library`, "chrome-extension://test/popup.html").href)
+        .toBe("https://latr.link/library");
+    }
+  });
+
+  test("Preserves a configured website and removes its trailing slash", () => {
+    expect(extensionWebAppUrl({ VITE_LATR_WEB_URL: " https://testing.latr.link/ " }))
+      .toBe("https://testing.latr.link");
+  });
+
   test("Builds split gateway authentication headers", () => {
     const config = extensionGatewayConfig({
       VITE_LATR_APP_ENV: "test",

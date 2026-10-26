@@ -120,6 +120,7 @@ try {
       const bounds = selector => document.querySelector(selector).getBoundingClientRect().toJSON();
       return {
         url: location.href, title: document.title, innerWidth, innerHeight,
+        openLibraryHref: document.querySelector('#open-library').href,
         rootWidth: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
         bodyWidth: document.body.getBoundingClientRect().width,
@@ -138,6 +139,7 @@ try {
   console.log(JSON.stringify({ bundle, evidence, metrics }, null, 2));
   assert.equal(metrics.url, popupURL);
   assert.equal(metrics.title, "L@tr.link");
+  assert.equal(metrics.openLibraryHref, "https://latr.link/library", "Library link must open the hosted website");
   assert.equal(metrics.signedOut, true);
   assert.equal(metrics.signedIn, false);
   assert.ok(metrics.innerWidth >= 360, "Native popup must be at least 360 CSS pixels wide");
