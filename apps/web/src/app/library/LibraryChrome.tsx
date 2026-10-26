@@ -11,16 +11,15 @@ import {
   LogOut,
   Menu,
   MessageSquarePlus,
-  Pencil,
   RefreshCw,
   Settings,
   Tag,
-  Trash2,
   X,
   type LucideIcon,
 } from "lucide-react";
 
 import { BrandLockup } from "@/components/BrandLockup";
+import { BookmarkTagMenu } from "@/components/BookmarkTagMenu";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -220,7 +219,12 @@ function SidebarTags({
               </Button>
             </div>
           ) : null}
-          <div className={cn("overflow-y-auto", mobile ? "max-h-64" : "max-h-52")}>
+          <div
+            className={cn("overflow-y-auto", mobile ? "max-h-64" : "max-h-52")}
+            onScroll={(event) => {
+              event.currentTarget.querySelectorAll("[data-tag-actions] details[open]").forEach((menu) => menu.removeAttribute("open"));
+            }}
+          >
           <Link
             href={libraryHrefWithTag(pathname, searchParams, undefined)}
             onClick={onNavigate}
@@ -250,30 +254,11 @@ function SidebarTags({
                 <span className="text-xs tabular-nums">{count}</span>
               </Link>
               {bulk.canMutate ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0"
-                    aria-label={`Rename ${tag}`}
-                    title={`Rename ${tag}`}
-                    onClick={() => openDialog({ kind: "rename", tag })}
-                  >
-                    <Pencil className="size-3.5" aria-hidden />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-destructive hover:text-destructive"
-                    aria-label={`Delete tag ${tag}`}
-                    title={`Delete tag ${tag}`}
-                    onClick={() => openDialog({ kind: "delete", tag })}
-                  >
-                    <Trash2 className="size-3.5" aria-hidden />
-                  </Button>
-                </>
+                <BookmarkTagMenu
+                  tag={tag}
+                  onRename={() => openDialog({ kind: "rename", tag })}
+                  onDelete={() => openDialog({ kind: "delete", tag })}
+                />
               ) : null}
             </div>
           ))}
