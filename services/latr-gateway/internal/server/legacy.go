@@ -78,6 +78,7 @@ func (s *Server) saveLegacy(ctx context.Context, l latr.Library, subject, web st
 }
 func (s *Server) migrateBookmarks(ctx context.Context, l latr.Library, limit int, cursor string) (any, error) {
 	cached := 0
+	wrapperSubjects := map[string]string{}
 	for _, collection := range []string{latr.External, latr.LegacyExternal, latr.SavedItem, latr.LegacySavedItem} {
 		next := ""
 		seen := map[string]bool{}
@@ -93,18 +94,28 @@ func (s *Server) migrateBookmarks(ctx context.Context, l latr.Library, limit int
 				subject := ""
 				if collection == latr.External || collection == latr.LegacyExternal {
 					f = preview.Fields{Title: get("title"), Description: get("excerpt"), Image: get("image"), SiteName: get("site"), Author: get("author")}
-					subject = get("url")
+					subject = strings.TrimSpace(get("url"))
 					if !strings.HasPrefix(subject, "http://") && !strings.HasPrefix(subject, "https://") {
 						subject = get("normalizedUrl")
 					}
+					wrapperSubjects[record.URI] = subject
 				} else {
 					f = preview.Fields{Title: get("previewTitle"), Description: get("previewExcerpt"), Image: get("previewImage"), SiteName: get("previewSite"), Author: get("previewAuthor")}
-					subject = get("linkedWebUrl")
-					if !strings.HasPrefix(subject, "http://") && !strings.HasPrefix(subject, "https://") {
-						subject = get("subjectUri")
+					if wrapperSubject, ok := wrapperSubjects[get("subjectUri")]; ok {
+						// Match the migration's exact bookmark subject, including the
+						// original wrapper URL rather than a normalized linked URL.
+						subject = wrapperSubject
+					} else {
+						subject = strings.TrimSpace(get("linkedWebUrl"))
+						if !strings.HasPrefix(subject, "http://") && !strings.HasPrefix(subject, "https://") {
+							subject = get("subjectUri")
+						}
 					}
 				}
-				if f.HasContent() && s.cache(ctx, subject, f) == nil {
+				if hasPreviewSnapshotContent(f) {
+					if err := s.durablyCacheMigrationPreview(ctx, subject, f); err != nil {
+						return nil, err
+					}
 					cached++
 				}
 			}

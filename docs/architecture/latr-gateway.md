@@ -96,7 +96,7 @@ Tag calls use the immutable proof plans published by `latr-packages`: `listTags`
 
 Developer management routes are listed above.
 
-Record mutations are implemented in the gateway’s Go `internal/latr` package, ported from the pinned Swift **LatrKit** `SavedLibrary` contract. `community.lexicon.bookmarks.bookmark` is authoritative, `link.latr.bookmarks.metadata` stores user state, and Open Graph previews are service-derived cache data rather than PDS record fields. See [the migration contract](community-bookmark-migration.md).
+Record mutations are implemented in the gateway’s Go `internal/latr` package, ported from the pinned Swift **LatrKit** `SavedLibrary` contract. `community.lexicon.bookmarks.bookmark` is authoritative, `link.latr.bookmarks.metadata` stores user state, and Open Graph previews are service-derived snapshots rather than PDS record fields. Postgres snapshots remain readable after their seven-day freshness deadline while a background refresh runs; partial or failed refreshes preserve previously saved fields. Library pages batch snapshot reads, and saves do not await publisher metadata after the PDS write. See [the migration contract](community-bookmark-migration.md).
 
 **Client read path:** best-effort reconcile the requested page through **`POST /xrpc/link.latr.bookmarks.syncMetadata`**, then list it through **`GET /xrpc/link.latr.bookmarks.listBookmarks`**. Clients do not join community and metadata collections themselves, and a reconciliation failure does not hide community bookmarks.
 

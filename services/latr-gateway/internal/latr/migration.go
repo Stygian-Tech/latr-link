@@ -120,7 +120,9 @@ func (l Library) MigrateBookmarks(ctx context.Context, limit int, cursor string)
 			unknown = unknown || hasUnknown(v, "$type subjectUri savedAt state note tags lastOpenedAt linkedWebUrl previewTitle previewExcerpt previewImage previewSite previewAuthor")
 			if wrapper, ok := byURI[text(v, "subjectUri")]; ok {
 				wrappers[wrapper.record.URI] = wrapper
-				unknown = unknown || hasUnknown(wrapper.record.Value, "$type url normalizedUrl fingerprint createdAt title excerpt image site language publishedAt author")
+				// language and publishedAt have no destination in the current
+				// bookmark or preview schema. Preserve those source records.
+				unknown = unknown || hasUnknown(wrapper.record.Value, "$type url normalizedUrl fingerprint createdAt title excerpt image site author")
 			}
 		}
 		if createdAt == "" {

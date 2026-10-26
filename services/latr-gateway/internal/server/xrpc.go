@@ -167,8 +167,8 @@ func (s *Server) operation(ctx context.Context, nsid string, a auth.Context, rep
 		if e != nil {
 			return nil, e
 		}
-		for i := range p.Records {
-			s.enrichView(ctx, &p.Records[i])
+		if err := s.enrichViews(ctx, p.Records); err != nil {
+			return nil, err
 		}
 		out := map[string]any{"bookmarks": p.Records}
 		if p.Cursor != "" {
@@ -190,7 +190,9 @@ func (s *Server) operation(ctx context.Context, nsid string, a auth.Context, rep
 		if e != nil {
 			return nil, e
 		}
-		s.enrichView(ctx, v)
+		if err := s.enrichViewChecked(ctx, v); err != nil {
+			return nil, err
+		}
 		out := map[string]any{}
 		if v != nil {
 			out["bookmark"] = v

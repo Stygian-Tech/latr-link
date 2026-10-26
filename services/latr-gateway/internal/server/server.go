@@ -29,7 +29,8 @@ type Server struct {
 	HTTP          *http.Client
 	Repository    func(auth.Context) Repository
 	mu            sync.RWMutex
-	previews      map[string]preview.Fields
+	previews      map[string]previewSnapshot
+	snapshotStore previewSnapshotStore
 	previewOnce   sync.Once
 	previewJobs   chan string
 	previewCancel context.CancelFunc
@@ -45,7 +46,10 @@ func New(cfg config.Config, store *developer.Store, pool *pgxpool.Pool, client *
 	if client == nil {
 		client = &http.Client{}
 	}
-	s := &Server{Config: cfg, Store: store, Pool: pool, HTTP: client, previews: map[string]preview.Fields{}, previewJobs: make(chan string, 64), queued: map[string]bool{}}
+	s := &Server{Config: cfg, Store: store, Pool: pool, HTTP: client, previews: map[string]previewSnapshot{}, previewJobs: make(chan string, 64), queued: map[string]bool{}}
+	if pool != nil {
+		s.snapshotStore = postgresPreviewSnapshots{pool: pool}
+	}
 	s.Auth = auth.New(cfg, store, client)
 	s.Preview = preview.New(nil, cfg.PLCURL, cfg.AppViewBaseURLs, cfg.IdentityBaseURL)
 	s.Repository = func(a auth.Context) Repository {
@@ -100,49 +104,6 @@ func (s *Server) protected(r *http.Request, developerRoute bool, upstream string
 	}
 	return a, repo, e
 }
-func (s *Server) cached(ctx context.Context, subject string) *preview.Fields {
-	if s.Pool != nil {
-		var f preview.Fields
-		var t, d, i, n, a *string
-		e := s.Pool.QueryRow(ctx, `SELECT title, description, image_url, site_name, author FROM bookmark_previews WHERE subject_hash= $1 AND expires_at>NOW()`, latr.Fingerprint(subject)).Scan(&t, &d, &i, &n, &a)
-		if e != nil {
-			return nil
-		}
-		if t != nil {
-			f.Title = *t
-		}
-		if d != nil {
-			f.Description = *d
-		}
-		if i != nil {
-			f.Image = *i
-		}
-		if n != nil {
-			f.SiteName = *n
-		}
-		if a != nil {
-			f.Author = *a
-		}
-		return &f
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	f, ok := s.previews[subject]
-	if !ok {
-		return nil
-	}
-	return &f
-}
-func (s *Server) cache(ctx context.Context, subject string, f preview.Fields) error {
-	if s.Pool != nil {
-		_, e := s.Pool.Exec(ctx, `INSERT INTO bookmark_previews(subject_hash,subject,title,description,image_url,site_name,author,updated_at,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,NOW(),NOW()+INTERVAL '7 days') ON CONFLICT(subject_hash) DO UPDATE SET subject=EXCLUDED.subject,title=EXCLUDED.title,description=EXCLUDED.description,image_url=EXCLUDED.image_url,site_name=EXCLUDED.site_name,author=EXCLUDED.author,updated_at=NOW(),expires_at=NOW()+INTERVAL '7 days'`, latr.Fingerprint(subject), subject, f.Title, f.Description, f.Image, f.SiteName, f.Author)
-		return e
-	}
-	s.mu.Lock()
-	s.previews[subject] = f
-	s.mu.Unlock()
-	return nil
-}
 func fieldsMap(f *preview.Fields) map[string]any {
 	if f == nil {
 		return nil
@@ -153,19 +114,10 @@ func fieldsMap(f *preview.Fields) map[string]any {
 	return out
 }
 
-// Previews are derived cache data. A successful save never waits for public
+// Preview freshness controls refresh scheduling, never snapshot visibility.
+// A successful save never waits for public
 // metadata providers after its atomic PDS write has been acknowledged.
-func (s *Server) enrichView(ctx context.Context, v *latr.View) {
-	if v == nil {
-		return
-	}
-	subject, _ := v.Value["subject"].(string)
-	f := s.cached(ctx, subject)
-	v.Preview = fieldsMap(f)
-	if f == nil {
-		s.queuePreview(subject)
-	}
-}
+func (s *Server) enrichView(ctx context.Context, v *latr.View) { _ = s.enrichViewChecked(ctx, v) }
 func (s *Server) queuePreview(subject string) {
 	if !strings.HasPrefix(subject, "http://") && !strings.HasPrefix(subject, "https://") {
 		return
@@ -182,7 +134,7 @@ func (s *Server) queuePreview(subject string) {
 					case subject := <-s.previewJobs:
 						job, cancel := context.WithTimeout(ctx, 35*time.Second)
 						f := s.Preview.Resolve(job, subject)
-						if f != nil {
+						if f != nil && job.Err() == nil {
 							_ = s.cache(job, subject, *f)
 						}
 						cancel()
