@@ -75,7 +75,7 @@ export function BookmarkTagMenu({
     <div ref={container} data-tag-actions className="shrink-0">
       <DropdownMenu>
         <DropdownMenuTrigger
-          className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "size-8 cursor-pointer")}
+          className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "size-8 cursor-pointer text-inherit hover:bg-transparent hover:text-inherit")}
           aria-label={`Actions for tag ${tag}`}
           title={`Actions for tag ${tag}`}
           onClick={(event) => {

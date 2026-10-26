@@ -239,16 +239,16 @@ function SidebarTags({
             <span className="flex-1 truncate">All tags</span>
           </Link>
           {inventory.tags.map(({ tag, count }) => (
-            <div key={tag} className="group flex items-center gap-0.5">
+            <div key={tag} className={cn(
+              "group flex items-center gap-0.5 rounded-md transition-colors focus-within:bg-accent/70",
+              activeTag === tag
+                ? "bg-accent font-medium text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground"
+            )}>
               <Link
                 href={libraryHrefWithTag(pathname, searchParams, tag)}
                 onClick={onNavigate}
-                className={cn(
-                  "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-sm transition-colors",
-                  activeTag === tag
-                    ? "bg-accent font-medium text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground"
-                )}
+                className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-sm"
               >
                 <span className="min-w-0 flex-1 truncate">{tag}</span>
                 <span className="text-xs tabular-nums">{count}</span>
