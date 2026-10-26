@@ -1,0 +1,17 @@
+# L@tr.link Extension
+
+The toolbar action opens the quick-save popup. Keyboard and context-menu entry points try the native action popup first and fall back to a floating extension window. OAuth returns to an independent floating window before closing its callback tab.
+
+Signed-out users see the login prompt. Signed-in users see page title, description, site name, a shortened URL, tags, and Save to Library. The original full URL is saved. The settings page contains account sign-out, the privacy explanation, support, and library links.
+
+Page previews read metadata from the explicitly selected tab using the active-tab grant. They do not fetch remote preview images or send browsing metadata to preview providers before a save. Restricted pages and expired grants fall back to URL/title only.
+
+From the monorepo root:
+
+```sh
+bun run --cwd apps/extension test
+bun run --cwd apps/extension typecheck
+bun run --cwd apps/extension build
+```
+
+The actual browser APIs and OAuth/PDS behavior still need authenticated acceptance in both Chrome and Firefox when testing unpacked artifacts. See [extension operations and packaging](../../docs/apps/extension.md).

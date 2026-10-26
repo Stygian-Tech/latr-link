@@ -1,9 +1,9 @@
 # L@tr (latr.link)
 
-Read-later on your own ATProto repo. Saved links live in `community.lexicon.bookmarks.bookmark`; reading state lives in `link.latr.bookmarks.metadata`. Web, extension, and native apps use the Swift gateway for bookmark operations with the signed-in user's OAuth/DPoP authorization.
+Read-later on your own ATProto repo. Saved links live in `community.lexicon.bookmarks.bookmark`; reading state lives in `link.latr.bookmarks.metadata`. Web, extension, and native apps use the Go gateway for bookmark operations with the signed-in user's OAuth/DPoP authorization.
 
 ```text
-Web / extension / native apps → L@tr.link proxy → Swift gateway → Your PDS
+Web / extension / native apps → L@tr.link proxy → Go gateway → Your PDS
 ```
 
 ## Monorepo layout
@@ -18,7 +18,7 @@ latr-link/
   packages/
     latr-web-client/  # shared save/gateway client (Bun)
   services/
-    latr-gateway/     # Swift/Hummingbird gateway (LatrKit via GitHub SwiftPM)
+    latr-gateway/     # Go gateway (portable repository, trust, and preview packages)
   docs/
     architecture/
 ```
