@@ -15,3 +15,16 @@ bun run --cwd apps/extension build
 ```
 
 The actual browser APIs and OAuth/PDS behavior still need authenticated acceptance in both Chrome and Firefox when testing unpacked artifacts. See [extension operations and packaging](../../docs/apps/extension.md).
+
+## Native Popup Layout Check
+
+Run `node apps/extension/scripts/check-native-popup.mjs` from the monorepo root
+after building store packages. This optional check needs Playwright and its full
+Chromium browser; the script header shows how to install them outside the repo
+and set `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` when needed.
+
+The check loads the actual extension in a temporary browser profile and opens
+its toolbar action without setting a viewport. It asserts a readable popup
+width, no horizontal overflow, and visible header/login controls, then saves
+metrics and a screenshot outside the repository. A fixed-width browser tab
+cannot catch Chrome's intrinsic popup sizing regressions. No account is used.
