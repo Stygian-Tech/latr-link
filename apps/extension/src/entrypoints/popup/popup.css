@@ -24,7 +24,11 @@
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; width: 360px; max-width: 100vw; background: var(--background); color: var(--foreground); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+/* Chrome sizes action popups from their intrinsic content. A viewport-width
+   cap here feeds its initial narrow viewport back into that measurement. */
+.save-popup { min-width: 360px; }
+body { margin: 0; background: var(--background); color: var(--foreground); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.save-popup body { width: 360px; min-width: 360px; }
 .header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
 a { color: var(--primary); text-decoration: none; }
 .brand { display: flex; align-items: center; gap: 9px; color: var(--foreground); font-size: 18px; font-weight: 700; letter-spacing: -.6px; }
@@ -59,7 +63,7 @@ button:disabled { opacity: .6; cursor: default; }
 .status:empty { display: none; }
 .error { color: #dc4545; font-size: 12px; margin: 10px 0 0; }
 .library-link { display: block; text-align: center; font-size: 12px; margin-top: 18px; }
-.settings-page { width: 440px; margin: 0 auto; }
+.settings-page { width: 440px; max-width: 100%; margin: 0 auto; }
 .settings-page h1 { font-size: 20px; margin-bottom: 16px; }
 .settings-page h2 { font-size: 14px; margin: 24px 0 8px; }
 .settings-page p { color: var(--muted-foreground); }
