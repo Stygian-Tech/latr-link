@@ -12,6 +12,7 @@ import {
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { assertRootManifest } from "./extension-archive.mjs";
 
 const extensionRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(extensionRoot, "../..");
@@ -145,6 +146,8 @@ function validateSourceArchive(path) {
     "apps/extension/.env.store",
     "apps/extension/store/env/README.md",
     "apps/extension/store/BUILD.md",
+    "apps/extension/scripts/extension-archive.mjs",
+    "apps/extension/scripts/extension-archive.test.mjs",
     "packages/latr-web-client/package.json",
     "packages/latr-web-client/src/latrGatewayClient.ts",
   ]) {
@@ -181,6 +184,23 @@ validateBundle(chromeDirectory, "Chrome");
 validateBundle(firefoxDirectory, "Firefox");
 validateSourceArchive(firefoxSources);
 
+for (const [path, browserName] of [[chromeZip, "Chrome"], [firefoxZip, "Firefox"]]) {
+  const entries = output("unzip", ["-Z1", path]).split("\n");
+  assertRootManifest(entries, browserName);
+  const manifest = JSON.parse(output("unzip", ["-p", path, "manifest.json"]));
+  validateManifest(manifest, browserName);
+  const required = [
+    manifest.action?.default_popup,
+    manifest.browser_action?.default_popup,
+    manifest.background?.service_worker,
+    ...(manifest.background?.scripts ?? []),
+    ...Object.values(manifest.icons ?? {}),
+  ].filter(Boolean);
+  for (const file of required) {
+    assert(entries.includes(file.replace(/^\/+/, "")), `${browserName} ZIP is missing manifest asset ${file}`);
+  }
+}
+
 for (const zip of [chromeZip, firefoxZip, firefoxSources]) {
   run("unzip", ["-tqq", zip]);
 }
@@ -216,6 +236,12 @@ const submissionFiles = [
 for (const item of submissionFiles) {
   copyFileSync(item.source, join(storeOutput, item.destination));
 }
+
+writeFileSync(join(storeOutput, "UPLOAD-README.txt"),
+  `Firefox Add-ons website: upload latr-link-${version}-firefox-store.zip directly as the add-on package. Keep this ZIP intact: manifest.json is already at its root.\n` +
+  `Firefox reviewer source code: upload latr-link-${version}-firefox-sources.zip only in the separate source-code field.\n` +
+  `Chrome Web Store: upload latr-link-${version}-chrome-store.zip.\n`
+);
 
 let sourceRevision = null;
 try {

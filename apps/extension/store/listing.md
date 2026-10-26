@@ -63,6 +63,14 @@ Save the user-selected current page, with optional user-authored tags, to the si
 - Categories: `Bookmarks`, `Tabs`
 - License: All Rights Reserved until the repository owner selects a public license
 
+### Release notes for 0.3.0
+
+- Refresh the floating quick-save popup with a focused sign-in screen and separate settings.
+- Show a compact URL, page preview, and optional tags with clearer spacing.
+- Reduce save preparation network requests while preserving request-bound authentication proofs.
+- Correct Open Library and Settings links in store builds.
+- Fix narrow native Chrome popup sizing.
+
 ### Release notes for 0.2.0
 
 - Add optional tags when saving pages.

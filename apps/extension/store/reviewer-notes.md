@@ -10,13 +10,13 @@
 
 1. Install the submitted package.
 2. Open the extension popup on an HTTP or HTTPS page.
-3. Review the data-use disclosure displayed above the sign-in controls.
+3. Open Settings to review the account, data-use disclosure, privacy, and support links, then return to the popup.
 4. Enter the handle for the reviewer’s AT Protocol account and select **Sign In**.
 5. Complete the authorization flow in the newly opened tab.
-6. Reopen the extension popup. Add an optional tag and select **Save Current Tab**.
+6. Return to the extension save popup. Review the shortened URL and page preview, add an optional tag, and select **Save to Library**. If authorization completes an already queued save, its success message appears automatically.
 7. Select **Open Library**. Confirm the saved item appears with the URL, tag, and resolved page preview.
 8. Open the saved item and confirm it opens in a normal browser tab.
-9. Select **Sign Out** in the extension when finished.
+9. Open the extension's Settings page and select **Sign Out** when finished.
 
 ## Permission review
 
@@ -24,6 +24,7 @@
 - `activeTab` reads the active page URL only after an explicit toolbar or command invocation.
 - `contextMenus` provides the explicit save action.
 - `storage` holds the OAuth session and short-lived pending save.
+- `scripting` extracts the selected page's title and Open Graph metadata after an explicit save invocation; it does not run as a background browsing-history collector.
 - HTTPS host access is required because the selected page, AT Protocol authorization server, Personal Data Server, and L@tr.link proxy can be on different HTTPS hosts.
 - Private browsing is disabled with `incognito: not_allowed`.
 

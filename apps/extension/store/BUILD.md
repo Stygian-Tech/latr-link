@@ -21,14 +21,16 @@ bun run --cwd apps/extension package:stores
 
 The command writes the submission artifacts, release manifest, and checksums under `apps/extension/.output/store/`.
 
+Upload `latr-link-<version>-firefox-store.zip` directly in the Firefox Add-ons website's add-on package field. This ZIP contains `manifest.json` at its root. Upload `latr-link-<version>-firefox-sources.zip` only in the separate reviewer source-code field; it is not an installable extension. The generated `UPLOAD-README.txt` identifies the exact filenames for this release.
+
 ## Focused checks
 
 ```sh
 bun run --cwd apps/extension prepare:store
 bun run --cwd apps/extension typecheck
 bun run --cwd apps/extension test
-bunx wxt zip -b chrome -m store
-bunx wxt zip -b firefox -m store
+(cd apps/extension && bunx wxt zip -b chrome -m store)
+(cd apps/extension && bunx wxt zip -b firefox -m store)
 ```
 
 The extension version comes from `apps/extension/package.json`. `wxt.config.ts` uses that version for both browser manifests.
