@@ -55,7 +55,7 @@ button:disabled { opacity: .6; cursor: default; }
 .description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin: 8px 0; color: var(--muted-foreground); font-size: 12px; }
 .url-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 10px 0 0; color: var(--muted-foreground); font-size: 11px; }
 .tag-field { margin-top: 20px; }
-.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
 .tag-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 8px; border-radius: 6px; background: var(--muted); font-size: 12px; }
 .tag-chip span { overflow: hidden; text-overflow: ellipsis; }
 .tag-chip button { border: 0; padding: 0 2px; background: transparent; color: var(--muted-foreground); }
