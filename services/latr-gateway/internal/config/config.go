@@ -19,6 +19,7 @@ type Config struct {
 	OAuthPublicOrigin         string
 	OAuthLatrkitPublicOrigin  string
 	DatabaseURL               string
+	PostgresMaxConnections    int32
 	DeveloperStorePath        string
 	AppViewBaseURLs           []string
 	IdentityBaseURL           string
@@ -48,6 +49,13 @@ func FromEnv(get func(string) string) Config {
 	if err != nil {
 		port = 8080
 	}
+	maxConnections, err := strconv.ParseInt(value("POSTGRES_MAX_CONNECTIONS", "8"), 10, 32)
+	if err != nil {
+		maxConnections = 8
+	}
+	if maxConnections < 1 {
+		maxConnections = 1
+	}
 	appviews := strings.FieldsFunc(get("LATR_GATEWAY_APPVIEW_URLS"), func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' || r == '\r' })
 	for i := range appviews {
 		appviews[i] = strings.TrimRight(appviews[i], "/")
@@ -55,7 +63,7 @@ func FromEnv(get func(string) string) Config {
 	if len(appviews) == 0 {
 		appviews = []string{"https://public.api.bsky.app"}
 	}
-	return Config{Port: port, AppEnv: env, PLCURL: strings.TrimRight(value("PLC_URL", "https://plc.directory"), "/"), OAuthRequireKnownClient: policy("OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT"), RequireClientAPIKey: policy("LATR_GATEWAY_REQUIRE_CLIENT_API_KEY"), OfficialClientCredentials: ParseOfficialCredentials(get("LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS")), ClientRegistryPath: value("LATR_GATEWAY_CLIENT_REGISTRY_PATH", "data/client-registry.json"), ClientRegistrationSecret: strings.TrimSpace(get("LATR_GATEWAY_CLIENT_REGISTRATION_SECRET")), OAuthPublicOrigin: strings.TrimSpace(get("OAUTH_PUBLIC_ORIGIN")), OAuthLatrkitPublicOrigin: strings.TrimSpace(get("OAUTH_LATRKIT_PUBLIC_ORIGIN")), DatabaseURL: strings.TrimSpace(get("DATABASE_URL")), DeveloperStorePath: value("LATR_GATEWAY_DEVELOPER_STORE_PATH", "data/developer-store.json"), AppViewBaseURLs: appviews, IdentityBaseURL: strings.TrimRight(value("LATR_GATEWAY_IDENTITY_URL", "https://bsky.social"), "/")}
+	return Config{Port: port, AppEnv: env, PLCURL: strings.TrimRight(value("PLC_URL", "https://plc.directory"), "/"), OAuthRequireKnownClient: policy("OAUTH_GATEWAY_REQUIRE_KNOWN_CLIENT"), RequireClientAPIKey: policy("LATR_GATEWAY_REQUIRE_CLIENT_API_KEY"), OfficialClientCredentials: ParseOfficialCredentials(get("LATR_GATEWAY_OFFICIAL_CLIENT_CREDENTIALS")), ClientRegistryPath: value("LATR_GATEWAY_CLIENT_REGISTRY_PATH", "data/client-registry.json"), ClientRegistrationSecret: strings.TrimSpace(get("LATR_GATEWAY_CLIENT_REGISTRATION_SECRET")), OAuthPublicOrigin: strings.TrimSpace(get("OAUTH_PUBLIC_ORIGIN")), OAuthLatrkitPublicOrigin: strings.TrimSpace(get("OAUTH_LATRKIT_PUBLIC_ORIGIN")), DatabaseURL: strings.TrimSpace(get("DATABASE_URL")), PostgresMaxConnections: int32(maxConnections), DeveloperStorePath: value("LATR_GATEWAY_DEVELOPER_STORE_PATH", "data/developer-store.json"), AppViewBaseURLs: appviews, IdentityBaseURL: strings.TrimRight(value("LATR_GATEWAY_IDENTITY_URL", "https://bsky.social"), "/")}
 }
 func ParseBool(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {

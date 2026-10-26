@@ -27,3 +27,22 @@ func TestEnvironmentOverrides(t *testing.T) {
 		t.Fatalf("bad environment parse: %+v", cfg)
 	}
 }
+
+func TestPostgresConnectionLimitPreservesDeploymentContract(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  int32
+	}{{"", 8}, {"3", 3}, {"0", 1}, {"-2", 1}, {"invalid", 8}, {"999999999999999999", 8}} {
+		t.Run(tc.value, func(t *testing.T) {
+			cfg := FromEnv(func(key string) string {
+				if key == "POSTGRES_MAX_CONNECTIONS" {
+					return tc.value
+				}
+				return ""
+			})
+			if cfg.PostgresMaxConnections != tc.want {
+				t.Fatalf("got %d, want %d", cfg.PostgresMaxConnections, tc.want)
+			}
+		})
+	}
+}

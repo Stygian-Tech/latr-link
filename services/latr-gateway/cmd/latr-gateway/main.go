@@ -29,7 +29,12 @@ func run() error {
 	var pool *pgxpool.Pool
 	var e error
 	if cfg.DatabaseURL != "" && cfg.AppEnv != "test" {
-		pool, e = pgxpool.New(ctx, cfg.DatabaseURL)
+		poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+		if err != nil {
+			return fmt.Errorf("configure database: %w", err)
+		}
+		poolConfig.MaxConns = cfg.PostgresMaxConnections
+		pool, e = pgxpool.NewWithConfig(ctx, poolConfig)
 		if e != nil {
 			return fmt.Errorf("configure database: %w", e)
 		}
