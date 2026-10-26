@@ -220,7 +220,7 @@ function SidebarTags({
             </div>
           ) : null}
           <div
-            className={cn("overflow-y-auto", mobile ? "max-h-64" : "max-h-52")}
+            className={cn("space-y-1 overflow-y-auto", mobile ? "max-h-64" : "max-h-52")}
             onScroll={(event) => {
               event.currentTarget.querySelectorAll("[data-tag-actions] details[open]").forEach((menu) => menu.removeAttribute("open"));
             }}
