@@ -1,4 +1,5 @@
 import { handleExtensionOAuthCallback } from "../../lib/auth";
+import { openExtensionSaveWindow } from "../../lib/browser";
 import { getPendingSave } from "../../lib/pendingSave";
 
 void (async () => {
@@ -6,7 +7,8 @@ void (async () => {
   try {
     await handleExtensionOAuthCallback();
     if (await getPendingSave()) {
-      window.location.replace(browser.runtime.getURL("/popup.html"));
+      await openExtensionSaveWindow();
+      window.close();
       return;
     }
     if (status) status.textContent = "Signed In. You Can Close This Tab.";

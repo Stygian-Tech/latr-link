@@ -95,6 +95,7 @@ export default defineConfig({
       icons,
       permissions: [
         "activeTab",
+        "scripting",
         "storage",
         "contextMenus",
         ...(isStore ? [] : ["tabs"]),
