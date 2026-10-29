@@ -1,9 +1,8 @@
 import {
   createExtensionAuthorizationUrl,
   getExtensionSession,
-  signOutExtension,
 } from "../../lib/auth";
-import { getActiveTabUrl } from "../../lib/browser";
+import { getPagePreview, shortenPageUrl } from "../../lib/pagePreview";
 import { extensionWebAppUrl } from "../../lib/config";
 import { saveTabUrl } from "../../lib/save";
 import {
@@ -21,7 +20,10 @@ const signedOut = document.getElementById("signed-out")!;
 const signedIn = document.getElementById("signed-in")!;
 const handleInput = document.getElementById("handle") as HTMLInputElement;
 const signInBtn = document.getElementById("sign-in") as HTMLButtonElement;
-const signOutBtn = document.getElementById("sign-out") as HTMLButtonElement;
+const loading = document.getElementById("loading")!;
+const saveHeading = document.getElementById("save-heading")!;
+const description = document.getElementById("page-description")!;
+const siteName = document.getElementById("site-name")!;
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const tabUrlEl = document.getElementById("tab-url")!;
 const tagInput = document.getElementById("save-tags") as HTMLInputElement;
@@ -30,21 +32,24 @@ const tagError = document.getElementById("tag-error")!;
 const saveStatus = document.getElementById("save-status")!;
 const authError = document.getElementById("auth-error")!;
 const openLibrary = document.getElementById("open-library") as HTMLAnchorElement;
-const privacyPolicy = document.getElementById("privacy-policy") as HTMLAnchorElement;
-const support = document.getElementById("support") as HTMLAnchorElement;
+const settings = document.getElementById("settings") as HTMLAnchorElement;
+let activeSession: OAuthSession | null = null;
 let selectedUrl: string | null = null;
 let selectedTags: string[] = [];
 
 openLibrary.href = `${extensionWebAppUrl()}/library`;
-privacyPolicy.href = `${extensionWebAppUrl()}/privacy`;
-support.href = `${extensionWebAppUrl()}/support`;
+settings.href = browser.runtime.getURL("/settings.html");
+settings.target = "_blank";
+settings.rel = "noopener";
 
 function showSignedOut(): void {
+  loading.classList.add("hidden");
   signedOut.classList.remove("hidden");
   signedIn.classList.add("hidden");
 }
 
 function showSignedIn(): void {
+  loading.classList.add("hidden");
   signedOut.classList.add("hidden");
   signedIn.classList.remove("hidden");
 }
@@ -107,10 +112,16 @@ function commitTagInput(): string[] | null {
 }
 
 async function refreshTabPreview(preferredUrl?: string): Promise<string | null> {
-  const url = preferredUrl ?? selectedUrl ?? (await getActiveTabUrl());
-  selectedUrl = url;
-  tabUrlEl.textContent = url ?? "No Active Tab URL.";
-  return url;
+  const preview = await getPagePreview(preferredUrl ?? selectedUrl ?? undefined);
+  selectedUrl = preview?.url ?? null;
+  tabUrlEl.textContent = preview ? shortenPageUrl(preview.url) : "No page selected";
+  saveHeading.textContent = preview?.title || "Save This Page";
+  description.textContent = preview?.description ?? "";
+  description.classList.toggle("hidden", !preview?.description);
+  siteName.textContent = preview?.siteName ?? "";
+  siteName.classList.toggle("hidden", !preview?.siteName);
+  saveBtn.disabled = !selectedUrl;
+  return selectedUrl;
 }
 
 async function performSave(
@@ -124,7 +135,7 @@ async function performSave(
   try {
     const result = await saveTabUrl(url, session, tags);
     if (result.ok) {
-      setSaveStatus("Saved Link.");
+      setSaveStatus("Saved to your library.");
       selectedTags = [];
       renderTags();
       return true;
@@ -135,7 +146,7 @@ async function performSave(
     }
   } catch (error) {
     setSaveStatus(
-      error instanceof Error ? error.message : "Could Not Save This Link."
+      error instanceof Error ? error.message : "Could not save this link."
     );
     await queuePendingSave(url, tags);
     return false;
@@ -146,20 +157,22 @@ async function performSave(
 }
 
 async function bootstrap(): Promise<void> {
+  // Restore OAuth and read local state concurrently; metadata never blocks login.
+  const sessionPromise = getExtensionSession();
   const pending = await getPendingSave();
   selectedTags = pending?.tags ?? [];
   renderTags();
-  const url = await refreshTabPreview(pending?.url);
-  const session = await getExtensionSession();
-  if (!session) {
+  const previewPromise = refreshTabPreview(pending?.url);
+  activeSession = await sessionPromise;
+  if (!activeSession) {
     showSignedOut();
+    await previewPromise;
     return;
   }
   showSignedIn();
-  if (pending && url) {
-    if (await performSave(url, session, pending.tags)) {
-      await takePendingSave();
-    }
+  const url = await previewPromise;
+  if (pending && url && await performSave(url, activeSession, pending.tags)) {
+    await takePendingSave();
   }
 }
 
@@ -174,51 +187,43 @@ tagInput.addEventListener("blur", () => {
   if (tagInput.value.trim()) commitTagInput();
 });
 
-signInBtn.addEventListener("click", () => {
+document.getElementById("login-form")!.addEventListener("submit", (event) => {
+  event.preventDefault();
   void (async () => {
     setAuthError(null);
     const handle = handleInput.value.trim();
     if (!handle) {
-      setAuthError("Enter Your Bluesky Handle.");
+      setAuthError("Enter your Bluesky handle.");
       return;
     }
     const tags = commitTagInput();
     if (!tags) return;
     signInBtn.disabled = true;
     try {
-      const url = await refreshTabPreview();
+      const url = selectedUrl ?? await refreshTabPreview();
       if (url) await queuePendingSave(url, tags);
       const authorizationUrl = await createExtensionAuthorizationUrl(handle);
       await browser.tabs.create({ url: authorizationUrl });
       window.close();
     } catch (err) {
       setAuthError(
-        err instanceof Error ? err.message : "Could Not Start Sign-In."
+        err instanceof Error ? err.message : "Could not start sign-in."
       );
       signInBtn.disabled = false;
     }
   })();
 });
 
-signOutBtn.addEventListener("click", () => {
-  void (async () => {
-    await signOutExtension();
-    await takePendingSave();
-    showSignedOut();
-    setSaveStatus("");
-  })();
-});
-
 saveBtn.addEventListener("click", () => {
   void (async () => {
-    const session = await getExtensionSession();
+    const session = activeSession;
     if (!session) {
       showSignedOut();
       return;
     }
-    const url = await refreshTabPreview();
+    const url = selectedUrl;
     if (!url) {
-      setSaveStatus("No URL to Save on This Tab.");
+      setSaveStatus("No URL to save on this tab.");
       return;
     }
     const tags = commitTagInput();
@@ -227,4 +232,7 @@ saveBtn.addEventListener("click", () => {
   })();
 });
 
-void bootstrap();
+void bootstrap().catch((error) => {
+  showSignedOut();
+  setAuthError(error instanceof Error ? error.message : "Could not open the extension. Try again.");
+});

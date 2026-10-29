@@ -1,6 +1,6 @@
 # L@tr gateway
 
-Server-side L@tr API (Swift/Hummingbird). Clients authenticate in two layers:
+Server-side L@tr API (Go, using net/http). Clients authenticate in two layers:
 
 1. **Application credential** — split headers `X-Latr-Client-Id` + `X-Latr-API-Key` (developer-issued keys from [latrkit.dev](../apps/latrkit-dev.md)), or legacy internal `X-Latr-Official-Client` for env-mapped first-party apps during migration.
 2. **User OAuth** — ATProto access token + RFC 9449 DPoP for the signed-in viewer; forwarded to the PDS for `com.atproto.repo.*` mutations.
@@ -96,7 +96,7 @@ Tag calls use the immutable proof plans published by `latr-packages`: `listTags`
 
 Developer management routes are listed above.
 
-Record mutations are implemented in Swift **LatrKit** (`SavedLibrary`). `community.lexicon.bookmarks.bookmark` is authoritative, `link.latr.bookmarks.metadata` stores user state, and Open Graph previews are service-derived cache data rather than PDS record fields. See [the migration contract](community-bookmark-migration.md).
+Record mutations are implemented in the gateway’s Go `internal/latr` package, ported from the pinned Swift **LatrKit** `SavedLibrary` contract. `community.lexicon.bookmarks.bookmark` is authoritative, `link.latr.bookmarks.metadata` stores user state, and Open Graph previews are service-derived snapshots rather than PDS record fields. Postgres snapshots remain readable after their seven-day freshness deadline while a background refresh runs; partial or failed refreshes preserve previously saved fields. Library pages batch snapshot reads, and saves do not await publisher metadata after the PDS write. See [the migration contract](community-bookmark-migration.md).
 
 **Client read path:** best-effort reconcile the requested page through **`POST /xrpc/link.latr.bookmarks.syncMetadata`**, then list it through **`GET /xrpc/link.latr.bookmarks.listBookmarks`**. Clients do not join community and metadata collections themselves, and a reconciliation failure does not hide community bookmarks.
 
@@ -150,7 +150,7 @@ identities continue to use the public custom domains.
 
 ```bash
 # Terminal 1 — gateway
-cd services/latr-gateway && swift run LatrGateway
+cd services/latr-gateway && go run ./cmd/latr-gateway
 
 # Terminal 2 — latrkit.dev console
 cd apps/latrkit-dev && bun run dev
@@ -171,3 +171,11 @@ Railway builds Gateway from `/railway/gateway.json`. Its pre-deploy command
 applies migrations through the private `DATABASE_URL` reference before starting
 the new release. GitHub Actions runs tests only and never mutates hosted data.
 See [the Railway runbook](../deployment/railway.md).
+
+## Go Runtime
+
+The gateway builds with Go 1.27.1 and uses `cmd/latr-gateway` as its entry point. `internal/latr` contains the server-side repository domain, `internal/pds` supplies authenticated XRPC transport, and `internal/auth`, `internal/developer`, and `internal/preview` preserve trust, storage, and preview behavior. No sibling checkouts or Swift toolchain are required at runtime.
+
+Run `bash scripts/ci-gateway.sh` from the monorepo root after `bun install --frozen-lockfile` (the Go key-vector test reads the installed canonical `latr-packages` fixture). For an isolated Postgres integration test, supply `LATR_GATEWAY_TEST_DATABASE_URL`; the test creates and removes its own schema and does not read hosted `DATABASE_URL`. Existing migrations and Railway pre-deploy behavior are unchanged.
+
+See [migration evidence and acceptance limits](../../services/latr-gateway/README.md).

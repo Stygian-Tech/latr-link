@@ -1,0 +1,128 @@
+name: LatrLink
+options:
+  bundleIdPrefix: link.latr
+  deploymentTarget:
+    iOS: '18.0'
+  xcodeVersion: '26.0'
+  fileTypes:
+    icon:
+      file: true
+      buildPhase: resources
+packages:
+  LatrNativeCore:
+    path: .
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    TARGETED_DEVICE_FAMILY: '1,2'
+    IPHONEOS_DEPLOYMENT_TARGET: '18.0'
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: '1.0.0'
+    CURRENT_PROJECT_VERSION: '1'
+  configs:
+    Debug:
+      LATR_BASE_IDENTIFIER: link.latr.development
+      LATR_ENVIRONMENT: testing
+      LATR_APP_GROUP: group.link.latr.testing
+      LATR_KEYCHAIN_GROUP: $(AppIdentifierPrefix)link.latr.testing.shared
+      LATR_CALLBACK_SCHEME: link.latr.testing
+    Release:
+      LATR_BASE_IDENTIFIER: link.latr
+      LATR_ENVIRONMENT: production
+      LATR_APP_GROUP: group.link.latr
+      LATR_KEYCHAIN_GROUP: $(AppIdentifierPrefix)link.latr.shared
+      LATR_CALLBACK_SCHEME: link.latr
+targets:
+  LatrLink:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Resources
+    dependencies:
+      - package: LatrNativeCore
+      - target: SaveToLatr
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(LATR_BASE_IDENTIFIER)
+        PRODUCT_NAME: LatrLink
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: L@tr.link
+    info:
+      path: config/App-Info.plist
+      properties:
+        CFBundleDisplayName: L@tr.link
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        LATR_ENVIRONMENT: $(LATR_ENVIRONMENT)
+        LATR_APP_GROUP: $(LATR_APP_GROUP)
+        LATR_KEYCHAIN_GROUP: $(LATR_KEYCHAIN_GROUP)
+        CFBundleURLTypes:
+          - CFBundleURLName: OAuth callback
+            CFBundleURLSchemes: [$(LATR_CALLBACK_SCHEME)]
+    entitlements:
+      path: config/App.entitlements
+      properties:
+        com.apple.security.application-groups: [$(LATR_APP_GROUP)]
+        keychain-access-groups: [$(LATR_KEYCHAIN_GROUP)]
+  SaveToLatr:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ShareExtension
+      - path: App/RuntimeConfiguration.swift
+      - path: App/TagIdentity.swift
+    dependencies:
+      - package: LatrNativeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(LATR_BASE_IDENTIFIER).share
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: config/Share-Info.plist
+      properties:
+        CFBundleDisplayName: Save to L@tr.link
+        LATR_ENVIRONMENT: $(LATR_ENVIRONMENT)
+        LATR_APP_GROUP: $(LATR_APP_GROUP)
+        LATR_KEYCHAIN_GROUP: $(LATR_KEYCHAIN_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 10
+    entitlements:
+      path: config/Share.entitlements
+      properties:
+        com.apple.security.application-groups: [$(LATR_APP_GROUP)]
+        keychain-access-groups: [$(LATR_KEYCHAIN_GROUP)]
+  LatrLinkUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: LatrLink
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  LatrLink:
+    build:
+      targets:
+        LatrLink: all
+        SaveToLatr: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [LatrLinkUITests]
+    archive:
+      config: Release

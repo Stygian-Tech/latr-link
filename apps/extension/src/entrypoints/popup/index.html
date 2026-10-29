@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="save-popup">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,59 +8,40 @@
   </head>
   <body>
     <header class="header">
-      <h1>L@tr.link</h1>
-      <p class="subtitle">Save This Page to Your Library</p>
+      <a class="brand" href="#" aria-label="L@tr.link"><img src="/icon/32.png" alt="" width="28" height="28" />L@tr.link</a>
+      <a id="settings" class="icon-button" href="#" aria-label="Settings">⚙</a>
     </header>
-
-    <section class="panel composer" aria-labelledby="save-heading">
-      <h2 id="save-heading" class="visually-hidden">Bookmark details</h2>
-      <p id="tab-url" class="url-preview"></p>
-      <div class="tag-field">
-        <label for="save-tags">Tags <span>(optional)</span></label>
-        <div id="tag-chips" class="tag-chips hidden" aria-label="Tags to save"></div>
-        <input
-          id="save-tags"
-          type="text"
-          placeholder="Add a tag, then press Enter or comma"
-          autocomplete="off"
-        />
-        <p class="field-hint">Tags may contain spaces. Matching is exact and case-sensitive.</p>
-        <p id="tag-error" class="error hidden" role="alert"></p>
-      </div>
-    </section>
-
-    <section class="privacy-disclosure" aria-label="Privacy disclosure">
-      <p>
-        When you choose Sign In or Save, L@tr.link sends your account
-        authorization, this page URL, and any tags you add to L@tr.link to save
-        the item and build its preview. The extension does not collect browsing
-        history in the background.
-      </p>
-      <p>
-        <a id="privacy-policy" href="#" target="_blank" rel="noopener">Privacy Policy</a>
-        <span aria-hidden="true">·</span>
-        <a id="support" href="#" target="_blank" rel="noopener">Support</a>
-      </p>
-    </section>
-
-    <section id="signed-out" class="panel hidden">
-      <label for="handle">Bluesky Handle</label>
-      <div class="row">
-        <input id="handle" type="text" placeholder="@you.bsky.social" autocomplete="username" />
-        <button id="sign-in" type="button">Sign In</button>
-      </div>
-      <p id="auth-error" class="error hidden" role="alert"></p>
-    </section>
-
-    <section id="signed-in" class="panel hidden">
-      <button id="save" type="button" class="primary">Save Current Tab</button>
-      <p id="save-status" class="status" role="status"></p>
-      <div class="footer">
-        <a id="open-library" href="#" target="_blank" rel="noopener">Open Library</a>
-        <button id="sign-out" type="button" class="link">Sign Out</button>
-      </div>
-    </section>
-
+    <main>
+      <p id="loading" class="loading" role="status">Opening your library…</p>
+      <section id="signed-out" class="panel hidden" aria-labelledby="login-heading">
+        <div class="login-mark" aria-hidden="true">↗</div>
+        <h1 id="login-heading">Keep It for L@tr.</h1>
+        <p class="subtitle">Sign in to save to your library.</p>
+        <form id="login-form">
+          <label for="handle">Bluesky Handle</label>
+          <input id="handle" type="text" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+          <button id="sign-in" type="submit" class="primary">Sign In →</button>
+        </form>
+        <p id="auth-error" class="error hidden" role="alert"></p>
+      </section>
+      <section id="signed-in" class="panel hidden" aria-labelledby="save-heading">
+        <article class="preview">
+          <p id="site-name" class="site-name hidden"></p>
+          <h1 id="save-heading">Save This Page</h1>
+          <p id="page-description" class="description hidden"></p>
+          <p id="tab-url" class="url-preview"></p>
+        </article>
+        <div class="tag-field">
+          <label for="save-tags">Tags <span>optional</span></label>
+          <div id="tag-chips" class="tag-chips hidden" aria-label="Tags to save"></div>
+          <input id="save-tags" type="text" placeholder="Add a tag…" autocomplete="off" />
+          <p id="tag-error" class="error hidden" role="alert"></p>
+        </div>
+        <button id="save" type="button" disabled class="primary">Save to Library</button>
+        <p id="save-status" class="status" role="status" aria-live="polite"></p>
+        <a id="open-library" class="library-link" href="#" target="_blank" rel="noopener">Open Library ↗</a>
+      </section>
+    </main>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

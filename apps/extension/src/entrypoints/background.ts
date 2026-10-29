@@ -1,4 +1,4 @@
-import { getActiveTabUrl, openExtensionSaveSurface } from "../lib/browser";
+import { getActiveTabUrl, isSupportedExtensionSaveUrl, openExtensionSaveSurface } from "../lib/browser";
 import { extensionOAuthRedirectUri } from "../lib/config";
 import { extensionCallbackUrlForHostedUrl } from "../lib/oauthCallback";
 import { queuePendingSave } from "../lib/pendingSave";
@@ -14,8 +14,8 @@ export default defineBackground(() => {
 
   async function queueActiveTab(): Promise<void> {
     const url = await getActiveTabUrl();
-    if (!url || !(await queuePendingSave(url))) return;
-    await openExtensionSaveSurface();
+    if (!url || !isSupportedExtensionSaveUrl(url)) return;
+    await Promise.all([queuePendingSave(url), openExtensionSaveSurface()]);
   }
 
   browser.contextMenus.onClicked.addListener((info, tab) => {
@@ -26,8 +26,8 @@ export default defineBackground(() => {
         info.pageUrl?.trim() ||
         tab?.url?.trim() ||
         (await getActiveTabUrl());
-      if (!url || !(await queuePendingSave(url))) return;
-      await openExtensionSaveSurface();
+      if (!url || !isSupportedExtensionSaveUrl(url)) return;
+      await Promise.all([queuePendingSave(url), openExtensionSaveSurface()]);
     })();
   });
 

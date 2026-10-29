@@ -1,21 +1,22 @@
 # syntax=docker/dockerfile:1
-# Build context: monorepo root (LatrKit resolves from GitHub via SwiftPM).
+# Build context: monorepo root. No Swift toolchain or sibling packages required.
 
-FROM swift:6.1-jammy AS builder
-
-WORKDIR /src
-COPY services/latr-gateway/ ./services/latr-gateway/
+FROM golang:1.27.1-bookworm AS builder
 
 WORKDIR /src/services/latr-gateway
-RUN swift build -c release --static-swift-stdlib
+COPY services/latr-gateway/go.mod services/latr-gateway/go.sum ./
+RUN go mod download
+COPY services/latr-gateway/cmd ./cmd
+COPY services/latr-gateway/internal ./internal
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/latr-gateway ./cmd/latr-gateway
 
-FROM ubuntu:22.04
+FROM debian:bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libcurl4 postgresql-client \
+    && apt-get install -y --no-install-recommends ca-certificates postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /src/services/latr-gateway/.build/release/LatrGateway /usr/local/bin/latr-gateway
+COPY --from=builder /out/latr-gateway /usr/local/bin/latr-gateway
 COPY services/latr-gateway/migrations /app/database/migrations
 COPY scripts/apply-database-migrations.sh /usr/local/bin/apply-database-migrations
 

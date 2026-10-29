@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared CI entrypoint (GitHub Actions: .github/workflows/ci.yml).
-# Runs gateway Swift checks and JS monorepo checks in parallel when possible.
+# Runs gateway Go checks and JS monorepo checks in parallel when possible.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

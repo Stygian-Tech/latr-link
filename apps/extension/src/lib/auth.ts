@@ -9,6 +9,7 @@ import {
 } from "./config";
 
 let clientPromise: Promise<BrowserOAuthClient> | null = null;
+let sessionPromise: Promise<OAuthSession | null> | null = null;
 
 function createFetchWithDeadline(
   timeoutMs: number,
@@ -43,7 +44,7 @@ function createFetchWithDeadline(
   return wrapped as typeof fetch;
 }
 
-const OAUTH_FETCH_DEADLINE_MS = 90_000;
+const OAUTH_FETCH_DEADLINE_MS = 20_000;
 
 export async function getExtensionOAuthClient(): Promise<BrowserOAuthClient> {
   if (!clientPromise) {
@@ -52,6 +53,9 @@ export async function getExtensionOAuthClient(): Promise<BrowserOAuthClient> {
       handleResolver: BSKY_APPVIEW_PUBLIC,
       fetch: createFetchWithDeadline(OAUTH_FETCH_DEADLINE_MS),
       responseMode: "query",
+    }).catch((error) => {
+      clientPromise = null;
+      throw error;
     });
   }
   return clientPromise;
@@ -100,23 +104,30 @@ export async function handleExtensionOAuthCallback(): Promise<OAuthSession> {
   return session;
 }
 
-export async function getExtensionSession(): Promise<OAuthSession | null> {
-  try {
-    const client = await getExtensionOAuthClient();
-    const result = await client.initRestore();
-    return result?.session ?? null;
-  } catch {
-    return null;
-  }
+export function getExtensionSession(): Promise<OAuthSession | null> {
+  // One restore per extension document, including saves and account settings.
+  sessionPromise ??= (async () => {
+    try {
+      const client = await getExtensionOAuthClient();
+      const result = await client.initRestore();
+      return result?.session ?? null;
+    } catch {
+      sessionPromise = null;
+      return null;
+    }
+  })();
+  return sessionPromise;
 }
 
 export async function signOutExtension(): Promise<void> {
   const session = await getExtensionSession();
   if (!session?.did) {
     clientPromise = null;
+    sessionPromise = null;
     return;
   }
   const client = await getExtensionOAuthClient();
   await client.revoke(session.did);
   clientPromise = null;
+  sessionPromise = null;
 }

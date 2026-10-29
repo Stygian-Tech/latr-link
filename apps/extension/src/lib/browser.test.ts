@@ -22,7 +22,7 @@ describe("Extension Save URL Guards", () => {
     await openExtensionSaveSurface({
       browserAction: { openPopup: async () => { calls.push("popup"); } },
       runtime: { getURL: (path) => `moz-extension://test${path}` },
-      tabs: { create: async ({ url }) => { calls.push(url); } },
+      windows: { create: async ({ url }) => { calls.push(url); } },
     });
     expect(calls).toEqual(["popup"]);
   });
@@ -33,17 +33,27 @@ describe("Extension Save URL Guards", () => {
       action: { openPopup: async () => { calls.push("action"); } },
       browserAction: { openPopup: async () => { calls.push("browserAction"); } },
       runtime: { getURL: (path) => `chrome-extension://test${path}` },
-      tabs: { create: async ({ url }) => { calls.push(url); } },
+      windows: { create: async ({ url }) => { calls.push(url); } },
     });
     expect(calls).toEqual(["action"]);
   });
 
-  test("Falls back to an extension tab when popup opening is unavailable", async () => {
+  test("Falls back to a floating window when popup opening is unavailable", async () => {
     const calls: string[] = [];
     await openExtensionSaveSurface({
       runtime: { getURL: (path) => `moz-extension://test${path}` },
-      tabs: { create: async ({ url }) => { calls.push(url); } },
+      windows: { create: async ({ url }) => { calls.push(url); } },
     });
     expect(calls).toEqual(["moz-extension://test/popup.html"]);
   });
+});
+
+test("Rejected native popup opens a sized floating window instead of a tab", async () => {
+  let opened: unknown;
+  await openExtensionSaveSurface({
+    action: { openPopup: async () => { throw new Error("gesture expired"); } },
+    runtime: { getURL: (path) => `chrome-extension://test${path}` },
+    windows: { create: async (options) => { opened = options; } },
+  });
+  expect(opened).toEqual({ url: "chrome-extension://test/popup.html", type: "popup", width: 400, height: 560 });
 });

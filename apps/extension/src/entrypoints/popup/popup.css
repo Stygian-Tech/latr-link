@@ -1,234 +1,71 @@
-* {
-  box-sizing: border-box;
+/* Shared with the web app's globals.css: system fonts, blue accent, cool neutrals. */
+:root {
+  --background: oklch(0.995 0.002 247);
+  --foreground: oklch(0.18 0.027 255);
+  --card: #fff;
+  --primary: oklch(0.55 0.215 260);
+  --primary-foreground: oklch(0.99 0.006 260);
+  --muted: oklch(0.965 0.006 255);
+  --muted-foreground: oklch(0.48 0.035 255);
+  --border: oklch(0.9 0.011 255);
+  color-scheme: light;
 }
-
-body {
-  margin: 0;
-  width: 320px;
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-  color: #18181b;
-  background: #fafafa;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.13 0 0);
+    --foreground: oklch(0.96 0 0);
+    --card: oklch(0.18 0 0);
+    --primary: oklch(0.68 0.19 255);
+    --primary-foreground: oklch(0.12 0.03 255);
+    --muted: oklch(0.24 0 0);
+    --muted-foreground: oklch(0.72 0 0);
+    --border: oklch(0.31 0 0);
+    color-scheme: dark;
+  }
 }
-
-.header {
-  padding: 12px 14px 8px;
-  border-bottom: 1px solid #e4e4e7;
-  background: #fff;
-}
-
-.header h1 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.subtitle {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: #71717a;
-}
-
-.panel {
-  padding: 12px 14px 14px;
-}
-
-.panel + .panel {
-  border-top: 1px solid #e4e4e7;
-}
-
-.privacy-disclosure {
-  padding: 10px 14px;
-  border-top: 1px solid #e4e4e7;
-  border-bottom: 1px solid #e4e4e7;
-  background: #eff6ff;
-  color: #3f3f46;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.privacy-disclosure p {
-  margin: 0;
-}
-
-.privacy-disclosure p + p {
-  margin-top: 6px;
-}
-
-.privacy-disclosure a {
-  color: #1d4ed8;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.hidden {
-  display: none !important;
-}
-
-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: #52525b;
-  margin-bottom: 6px;
-}
-
-label span {
-  font-weight: 400;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-}
-
-input {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid #d4d4d8;
-  border-radius: 6px;
-  font-size: 13px;
-}
-
-#save-tags {
-  width: 100%;
-}
-
-input:focus-visible,
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-}
-
-button {
-  cursor: pointer;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-button.primary {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: none;
-  background: #2563eb;
-  color: #fff;
-}
-
-button.primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-button#sign-in {
-  padding: 8px 12px;
-  border: 1px solid #d4d4d8;
-  background: #fff;
-}
-
-button.link {
-  border: none;
-  background: none;
-  color: #2563eb;
-  padding: 0;
-  font-size: 12px;
-}
-
-.url-preview {
-  margin: 0;
-  font-size: 12px;
-  color: #3f3f46;
-  word-break: break-all;
-  line-height: 1.4;
-  max-height: 4.2em;
-  overflow: hidden;
-}
-
-.tag-field {
-  margin-top: 12px;
-}
-
-.tag-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #e4e4e7;
-  color: #27272a;
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.tag-chip span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tag-chip button {
-  flex: 0 0 auto;
-  border: 0;
-  padding: 0 2px;
-  background: transparent;
-  color: #52525b;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.field-hint {
-  margin: 6px 0 0;
-  color: #71717a;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.status {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #52525b;
-  min-height: 1.2em;
-}
-
-.error {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #b91c1c;
-}
-
-.footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #e4e4e7;
-}
-
-.footer a {
-  font-size: 12px;
-  color: #2563eb;
-  text-decoration: none;
-}
+* { box-sizing: border-box; }
+/* Chrome sizes action popups from their intrinsic content. A viewport-width
+   cap here feeds its initial narrow viewport back into that measurement. */
+.save-popup { min-width: 360px; }
+body { margin: 0; background: var(--background); color: var(--foreground); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.save-popup body { width: 360px; min-width: 360px; }
+.header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+a { color: var(--primary); text-decoration: none; }
+.brand { display: flex; align-items: center; gap: 9px; color: var(--foreground); font-size: 18px; font-weight: 700; letter-spacing: -.6px; }
+.icon-button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--muted-foreground); font-size: 20px; }
+.icon-button:hover { background: var(--muted); }
+.panel { padding: 24px 22px 20px; }
+h1 { margin: 0; font-size: 23px; line-height: 1.3; letter-spacing: -.7px; overflow-wrap: anywhere; }
+.subtitle { margin: 8px 0 24px; color: var(--muted-foreground); }
+.hidden { display: none !important; }
+.loading { padding: 24px 22px; color: var(--muted-foreground); }
+.login-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: var(--muted); color: var(--primary); font-size: 25px; margin-bottom: 20px; }
+label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+label span { margin-left: 4px; color: var(--muted-foreground); font-weight: 400; }
+input { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 9px; color: var(--foreground); background: var(--card); font: inherit; }
+input::placeholder { color: var(--muted-foreground); }
+input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+button { font: inherit; cursor: pointer; }
+.primary { display: block; width: 100%; margin-top: 16px; padding: 12px; border: 0; border-radius: 9px; background: var(--primary); color: var(--primary-foreground); font-weight: 600; }
+button:disabled { opacity: .6; cursor: default; }
+.eyebrow { margin: 0 0 14px; color: var(--muted-foreground); font-size: 10px; font-weight: 650; letter-spacing: 1.8px; }
+.preview { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.preview h1 { font-size: 19px; }
+.site-name { color: var(--primary); font-size: 11px; font-weight: 600; margin: 0 0 8px; overflow-wrap: anywhere; }
+.description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin: 8px 0; color: var(--muted-foreground); font-size: 12px; }
+.url-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 10px 0 0; color: var(--muted-foreground); font-size: 11px; }
+.tag-field { margin-top: 20px; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tag-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 8px; border-radius: 6px; background: var(--muted); font-size: 12px; }
+.tag-chip span { overflow: hidden; text-overflow: ellipsis; }
+.tag-chip button { border: 0; padding: 0 2px; background: transparent; color: var(--muted-foreground); }
+.status { color: var(--muted-foreground); font-size: 12px; margin: 10px 0 0; }
+.status:empty { display: none; }
+.error { color: #dc4545; font-size: 12px; margin: 10px 0 0; }
+.library-link { display: block; text-align: center; font-size: 12px; margin-top: 18px; }
+.settings-page { width: 440px; max-width: 100%; margin: 0 auto; }
+.settings-page h1 { font-size: 20px; margin-bottom: 16px; }
+.settings-page h2 { font-size: 14px; margin: 24px 0 8px; }
+.settings-page p { color: var(--muted-foreground); }
+.settings-links { display: flex; gap: 18px; margin-top: 20px; }
+.secondary { padding: 9px 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); }
