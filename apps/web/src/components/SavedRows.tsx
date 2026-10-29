@@ -88,7 +88,7 @@ function SavedLinkThumbnailPlaceholder({ kind }: { kind: ResolvedPreview["kind"]
     <div
       role="img"
       aria-label="No Preview Image"
-      className="flex aspect-[1.08] w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-dashed border-border bg-muted text-muted-foreground"
+      className="flex aspect-[1.08] w-24 max-w-full shrink-0 items-center justify-center overflow-hidden rounded-md border border-dashed border-border bg-muted text-muted-foreground"
     >
       <Icon className="size-6" aria-hidden strokeWidth={1.75} />
     </div>
@@ -281,7 +281,7 @@ export function SavedRows({
   } else {
     main = (
       <TooltipProvider>
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card shadow-sm">
+        <ul className="@container divide-y divide-border rounded-lg border border-border bg-card shadow-sm">
           {rows.map((row) => (
             <SavedRowItem
               key={row.rec.uri}
@@ -439,7 +439,7 @@ function SavedRowItem({
   }
 
   return (
-    <li className="group relative grid gap-3 p-2.5 transition-colors hover:bg-accent/25 sm:grid-cols-[6rem_minmax(0,1fr)]">
+    <li className="group relative grid gap-3 p-2.5 transition-colors hover:bg-accent/25 @min-[24rem]:grid-cols-[6rem_minmax(0,1fr)]">
       <button
         type="button"
         aria-label={openLabel}
@@ -456,7 +456,7 @@ function SavedRowItem({
       />
       <div className="relative z-10 pointer-events-none">
         {thumb ? (
-          <div className="flex aspect-[1.08] w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+          <div className="flex aspect-[1.08] w-24 max-w-full shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote OG image URLs */}
             <img
               src={thumb}
@@ -546,7 +546,7 @@ function SavedRowItem({
           </span>
         </div>
       ) : null}
-      <div className="relative z-10 flex min-w-0 flex-wrap items-center justify-end gap-1 pointer-events-auto sm:col-start-2 sm:gap-0.5">
+      <div className="relative z-10 flex min-w-0 flex-wrap items-center justify-end gap-1 pointer-events-auto @min-[24rem]:col-start-2 sm:gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
