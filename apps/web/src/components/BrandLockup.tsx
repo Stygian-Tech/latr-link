@@ -32,7 +32,7 @@ export function BrandLockup({
           the mono preference renders it ~25% wider than sans. */}
       <span
         className={cn(
-          "shrink-0 whitespace-nowrap text-xl font-semibold leading-none text-white",
+          "shrink-0 whitespace-nowrap text-xl font-semibold leading-none text-black dark:text-white",
           textClassName
         )}
       >
