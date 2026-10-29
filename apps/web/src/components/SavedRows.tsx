@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
   type ReactElement,
@@ -397,7 +396,6 @@ function SavedRowItem({
   const [editedTags, setEditedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [tagError, setTagError] = useState<string | null>(null);
-  const [removeDialogLeft, setRemoveDialogLeft] = useState<number | null>(null);
   const isArchived = row.rec.metadataRecord?.value.state === "archived";
   const readMinutes = readingMinutesForRow(row);
   const contentBucket = savedRowContentBucket(row);
@@ -409,20 +407,6 @@ function SavedRowItem({
   const openLabel = opensInNewTab
     ? `Open Saved Article in a New Tab: ${p.title}`
     : `Open Saved Link: ${p.title}`;
-  const removeDialogStyle: CSSProperties | undefined =
-    removeDialogLeft === null ? undefined : { left: removeDialogLeft };
-
-  function openRemoveDialog(trigger: HTMLElement) {
-    const contentColumn = trigger.closest("section");
-    const columnRect = contentColumn?.getBoundingClientRect();
-    setRemoveDialogLeft(columnRect ? columnRect.left + columnRect.width / 2 : null);
-    setRemoveDialogOpen(true);
-  }
-
-  function handleRemoveDialogOpenChange(open: boolean) {
-    setRemoveDialogOpen(open);
-    if (!open) setRemoveDialogLeft(null);
-  }
 
   function openTagDialog() {
     setEditedTags([...(row.rec.value.tags ?? [])]);
@@ -455,7 +439,7 @@ function SavedRowItem({
   }
 
   return (
-    <li className="group relative grid gap-3 p-2.5 pb-12 transition-colors hover:bg-accent/25 sm:grid-cols-[6rem_minmax(0,1fr)] sm:pb-2.5">
+    <li className="group relative grid gap-3 p-2.5 transition-colors hover:bg-accent/25 sm:grid-cols-[6rem_minmax(0,1fr)]">
       <button
         type="button"
         aria-label={openLabel}
@@ -486,7 +470,7 @@ function SavedRowItem({
           <SavedLinkThumbnailPlaceholder kind={p.kind} />
         )}
       </div>
-      <div className="relative z-10 flex min-w-0 flex-col gap-1.5 pointer-events-none sm:pr-26">
+      <div className="relative z-10 flex min-w-0 flex-col gap-1.5 pointer-events-none [overflow-wrap:anywhere]">
         <div className="flex min-w-0 items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
@@ -562,7 +546,7 @@ function SavedRowItem({
           </span>
         </div>
       ) : null}
-      <div className="absolute bottom-2 right-2 z-10 flex shrink-0 items-center gap-1 pointer-events-auto sm:bottom-2.5 sm:right-2.5 sm:gap-0.5">
+      <div className="relative z-10 flex min-w-0 flex-wrap items-center justify-end gap-1 pointer-events-auto sm:col-start-2 sm:gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -650,7 +634,7 @@ function SavedRowItem({
                   aria-label={`Remove ${p.title} From Library`}
                   title={`Remove ${p.title} From Library`}
                   className="size-9 text-destructive hover:bg-destructive/10 hover:text-destructive sm:size-8"
-                  onClick={(event) => openRemoveDialog(event.currentTarget)}
+                  onClick={() => setRemoveDialogOpen(true)}
                 >
                   <Trash2 className="size-4" aria-hidden strokeWidth={1.9} />
                 </Button>
@@ -659,9 +643,8 @@ function SavedRowItem({
             </Tooltip>
             <AlertDialog
               open={removeDialogOpen}
-              onOpenChange={handleRemoveDialogOpenChange}
+              onOpenChange={setRemoveDialogOpen}
               className="w-max max-w-[calc(100vw-1.5rem)]"
-              style={removeDialogStyle}
             >
               <AlertDialogContent>
                 <AlertDialogHeader className="items-center text-center">
