@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +34,18 @@ export type { SavedRow } from "@/lib/savedLibraryTypes";
 export const SAVED_LIBRARY_PAGE_SIZE = 50;
 export const BOOKMARK_PREVIEW_REPAIR_LIMIT = 4;
 
+export function libraryPreviewRepairRows(pages: SavedLibraryPage[]): SavedRow[] {
+  const seen = new Set<string>();
+  return pages.flatMap((page) => page.rows.filter(({ rec }, index) => {
+    // Match flattenSavedLibraryPages: the first version of an overlapping row
+    // wins, including its preview. Native AT subjects always need resolution.
+    if (seen.has(rec.uri)) return false;
+    seen.add(rec.uri);
+    return index < BOOKMARK_PREVIEW_REPAIR_LIMIT ||
+      (!rec.preview && rec.value.subject.startsWith("at://"));
+  }));
+}
+
 export function nextSavedLibraryPageParam(
   page: SavedLibraryPage
 ): string | undefined {
@@ -51,12 +63,12 @@ export async function buildLibraryPage(
     tag,
   });
   const rows: SavedRow[] = await Promise.all(
-    page.records.map(async (rec, index) => ({
+    page.records.map(async (rec) => ({
       rec,
       preview: await resolveBookmarkPreviewForRow(repo, rec, {
-        // Keep first render to one bounded enrichment batch. Gateway pages are
-        // newest-first, so a just-saved extension bookmark is repaired first.
-        repairWeakHttpPreview: index < BOOKMARK_PREVIEW_REPAIR_LIMIT,
+        // First render uses saved metadata and local cache only. Remote repairs
+        // run separately so one slow publisher cannot hold the whole page.
+        allowNetwork: false,
       }),
     }))
   );
@@ -87,10 +99,31 @@ export function useSavedLibrary(options: { ignoreTag?: boolean } = {}) {
     refetchOnWindowFocus: "always",
   });
 
-  const data = useMemo(
+  const storedRows = useMemo(
     () => flattenSavedLibraryPages(query.data),
     [query.data]
   );
+  const repairRows = useMemo(
+    () => libraryPreviewRepairRows(query.data?.pages ?? []),
+    [query.data]
+  );
+  const previews = useQueries({
+    queries: repairRows.map(({ rec }) => ({
+      queryKey: ["saved-library-preview", session?.did, rec.uri, rec.cid, rec.preview ?? null],
+      queryFn: () => resolveBookmarkPreviewForRow(repo!, rec),
+      enabled: !!repo && !demoMode,
+      staleTime: 5 * 60 * 1000,
+      retry: false,
+    })),
+    combine: (results) => results.map((result) => result.data),
+  });
+  const data = useMemo(() => {
+    const repaired = new Map(repairRows.map(({ rec }, index) => [rec.uri, previews[index]]));
+    return storedRows?.map((row) => {
+      const preview = repaired.get(row.rec.uri);
+      return preview ? { ...row, preview } : row;
+    });
+  }, [storedRows, repairRows, previews]);
 
   return {
     data,
