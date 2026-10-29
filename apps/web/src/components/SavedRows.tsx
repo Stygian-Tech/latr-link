@@ -660,6 +660,7 @@ function SavedRowItem({
             <AlertDialog
               open={removeDialogOpen}
               onOpenChange={handleRemoveDialogOpenChange}
+              className="w-max max-w-[calc(100vw-1.5rem)]"
               style={removeDialogStyle}
             >
               <AlertDialogContent>
@@ -676,7 +677,7 @@ function SavedRowItem({
                     </span>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
+                <AlertDialogFooter className="sm:flex-nowrap sm:justify-center sm:[&_[data-slot=button]]:shrink">
                   <Button
                     type="button"
                     variant="outline"
