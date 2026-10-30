@@ -148,12 +148,12 @@ export function previewKindForSubjectUri(
 export async function resolveBookmarkPreviewForRow(
   repo: LatrRepo,
   bookmark: LatrBookmarkView,
-  options: { repairWeakHttpPreview?: boolean } = {}
+  options: { repairWeakHttpPreview?: boolean; allowNetwork?: boolean } = {}
 ): Promise<ResolvedPreview> {
   const subject = bookmark.value.subject;
   const preview = bookmark.preview;
-  if (!preview && subject.startsWith("at://")) {
-    return resolveSubjectPreview(repo, subject);
+  if (!preview && subject.startsWith("at://") && options.allowNetwork !== false) {
+    return withBookmarkPreviewHydrationLimit(() => resolveSubjectPreview(repo, subject));
   }
   const hasCanonicalSiteLabel = Boolean(preview?.siteName?.trim());
   let siteLabel = preview?.siteName?.trim();
@@ -180,7 +180,7 @@ export async function resolveBookmarkPreviewForRow(
     const fingerprint = bookmarkPreviewCacheFingerprint(bookmark);
     const cached = readCachedSubjectPreview(subject, fingerprint);
     if (cached) return cached;
-    if (options.repairWeakHttpPreview === false) return resolved;
+    if (options.allowNetwork === false || options.repairWeakHttpPreview === false) return resolved;
 
     const openGraph = await fetchBookmarkOpenGraphPreview(repo, subject);
     if (openGraph && openGraphFieldsHavePreview(openGraph)) {

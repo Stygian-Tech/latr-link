@@ -91,7 +91,7 @@ function AlertDialogFooter({
   return (
     <div
       className={cn(
-        "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto",
+        "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end [&_[data-slot=button]]:h-auto [&_[data-slot=button]]:min-h-9 [&_[data-slot=button]]:min-w-0 [&_[data-slot=button]]:max-w-full [&_[data-slot=button]]:w-full [&_[data-slot=button]]:whitespace-normal [&_[data-slot=button]]:break-words [&_[data-slot=button]]:py-2 sm:[&_[data-slot=button]]:w-auto",
         className
       )}
       {...props}
